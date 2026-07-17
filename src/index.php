@@ -1497,8 +1497,11 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
 [data-theme="dark"] .spark-tip{background:var(--card2);color:var(--text);border:1px solid var(--border);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;}
-.footer-credit{flex:1;text-align:center;}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;position:relative;}
+/* Credit'i sol/sağ öğelerden bağımsız TAM ortala: akıştan çıkarıp footer'ın
+   yatay merkezine kilitle (flex:1 ortalaması sol/sağ eşit değilse kayıyordu). */
+.footer-credit{position:absolute;left:0;right:0;margin-inline:auto;width:max-content;max-width:46%;text-align:center;}
+@media(max-width:680px){.footer-credit{position:static;max-width:none;width:auto;}}
 .footer-credit a{color:var(--hint);text-decoration:none;opacity:.85;transition:opacity .2s;}
 .footer-credit a:hover{opacity:1;text-decoration:underline;}
 
