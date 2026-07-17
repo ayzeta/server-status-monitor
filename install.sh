@@ -89,6 +89,8 @@ fi
 
 echo
 echo "── Done ──"
-echo "Dashboard: https://<your-domain>/$WEB_SUBDIR/   (index.php at $WEB_DIR)"
+# Docroot (public_html) isn't part of the URL — strip it for display.
+URL_PATH="${WEB_SUBDIR#public_html}"; URL_PATH="${URL_PATH#/}"
+echo "Dashboard: https://<your-domain>/$URL_PATH   (files at $WEB_DIR)"
 echo "Collector: $DATA_DIR/collector.sh  (cron: every minute)"
 echo "Edit branding later in $WEB_DIR/config.php, or re-run this installer."
