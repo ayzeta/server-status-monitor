@@ -1,0 +1,18 @@
+# Local, server-specific config written by install.sh — never commit
+config.php
+config.env
+.install.conf
+
+# Runtime data feed (in case anyone runs the collector inside the repo)
+.proc_snapshot
+.metrics_history
+.disk_history
+.ver_cache
+.diskacct_cache
+.imunify_cache
+.smart_cache
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp

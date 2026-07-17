@@ -1,0 +1,33 @@
+<?php
+// ─────────────────────────────────────────────────────────────
+// Server Status Monitor — dashboard config.
+// Copy to  config.php  next to index.php. The dashboard runs with sane
+// defaults if this file is absent; every key below is optional.
+// ─────────────────────────────────────────────────────────────
+return [
+    // Web account PHP runs as (the CageFS user). Data files are read from its
+    // home: /home/<web_user>/.proc_snapshot etc. If omitted, it is auto-detected
+    // from the running PHP user (correct on cPanel/CageFS).
+    'web_user'      => 'myuser',
+
+    // Optional: override the home dir explicitly (default: /home/<web_user>).
+    // 'home_dir'   => '/home/myuser',
+
+    // ── Branding ──────────────────────────────────────────────
+    'site_title'    => 'Infrastructure Monitor',
+    'site_subtitle' => 'example.com — Real-time server health',
+
+    // Logo shown in the header (empty → two-letter initials from the title).
+    'logo_url'      => '', // e.g. 'https://example.com/img/logo.png'
+
+    // Favicon: healthy state uses this image; problem states draw it on an
+    // orange/red tile. Must be same-origin as the dashboard for the colored
+    // tile to render (cross-origin taints the canvas → falls back to initials).
+    // Empty → a generated colored tile with the title initial.
+    'favicon_url'   => '', // e.g. 'https://example.com/img/favicon-96.png'
+
+    // ── Footer credit (optional) ──────────────────────────────
+    // Small attribution link in the footer. Set to your own, or '' to hide.
+    'credit_text'   => 'Ayzeta',
+    'credit_url'    => 'https://ayzeta.net',
+];
