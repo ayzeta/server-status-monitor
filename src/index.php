@@ -1681,13 +1681,9 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
   .proc-row-sql th:nth-child(5),.proc-row-sql td:nth-child(5){display:none;}
   .proc-row-sql td.sql-empty{display:table-cell!important;}
-  /* SQL tablosu: 3 görünür kolon (Kullanıcı/Süre/Sorgu). Auto-layout kalan
-     genişliği kolonlar arasına dağıtıp Kullanıcı-Süre arasını açıyor, Sorgu'yu
-     eziyordu → sabit oranlı: Sorgu geniş, ellipsis'le kısalır. */
-  .proc-row-sql .proc-table{table-layout:fixed;}
-  .proc-row-sql th:nth-child(2),.proc-row-sql td:nth-child(2){width:26%;}
-  .proc-row-sql th:nth-child(4),.proc-row-sql td:nth-child(4){width:15%;}
-  .proc-row-sql th:nth-child(6),.proc-row-sql td.td-fill{width:59%;max-width:none;}
+  /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
+     SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
+     sabit oran / table-layout:fixed gerekmez (masaüstüyle aynı yaklaşım). */
 }
 @media(max-width:379px){
   /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
