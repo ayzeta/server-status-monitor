@@ -1356,14 +1356,14 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
          . '<span class="proc-age" id="sql-thr" title="' . htmlspecialchars(tf('Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)', (int)$sqlMinSec)) . '">'
          . ($mysqlThr !== null ? ' &middot; Threads_running: <span id="sql-thr-n" style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>' . t('DB') . '</th><th class="num">' . t('Time(s)') . '</th><th>' . t('State') . '</th><th>' . t('Query') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>' . t('DB') . '</th><th>' . t('Query') . '</th><th class="num">' . t('Time(s)') . '</th><th>' . t('State') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
         $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
     }
     foreach ($procSql as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
-              . '<td>' . $h($p[2]) . '</td><td class="num ' . sqlTimeClass($p[3]) . '">' . $h($p[3]) . '</td>'
-              . '<td>' . $h($p[4]) . '</td><td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td></tr>' . "\n";
+              . '<td>' . $h($p[2]) . '</td><td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td>'
+              . '<td class="num ' . sqlTimeClass($p[3]) . '">' . $h($p[3]) . '</td><td>' . $h($p[4]) . '</td></tr>' . "\n";
     }
     $out .= '</tbody></table></div>';
     return $out;
@@ -1561,11 +1561,16 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .proc-table .warm{color:var(--warn);font-weight:600;}
 .proc-cmd{font-family:'SFMono-Regular',Consolas,monospace;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;cursor:pointer;}
 .proc-table td.td-fill{width:100%;max-width:0;}
-/* MySQL sorgu tablosu: SORGU başlığı kalan tüm alanı alır (data cell'i td-fill
-   zaten alıyor; boş tabloda başlıklar eşit dağılmasın diye başlığa da gerek).
-   Diğer kolonlar içeriğine göre boyutlanır — VT dar db adına, uzun gelirse
-   genişler; SORGU her zaman en geniş ve kırpılır. */
-.proc-row-sql th:nth-child(6){width:100%;}
+/* MySQL sorgu tablosu düzeni: kimlik (ID/kullanıcı/VT) solda, SORGU ortada
+   kalan alanı alır, metrikler (SÜRE/DURUM) sağda. Diğer kolonlar içeriğine göre
+   boyutlanır AMA en az taban genişliğinde — boş tabloda dengeli durur, uzun
+   içerik gelince taban aşılıp büyür. SORGU (4. kolon) kalanı alıp kırpılır. */
+.proc-row-sql th:nth-child(4){width:100%;}
+.proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1){min-width:34px;}
+.proc-row-sql th:nth-child(2),.proc-row-sql td:nth-child(2){min-width:96px;}
+.proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3){min-width:96px;}
+.proc-row-sql th:nth-child(5),.proc-row-sql td:nth-child(5){min-width:64px;}
+.proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){min-width:104px;}
 .proc-cmd.expanded{white-space:normal;word-break:normal;overflow-wrap:anywhere;overflow:visible;max-width:none;}
 .proc-user{font-weight:600;color:var(--text);}
 .proc-table tbody tr:hover td{background:var(--card2);}
@@ -1679,7 +1684,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .proc-row .proc-card:nth-child(2) td:nth-child(1),
   .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1),
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
-  .proc-row-sql th:nth-child(5),.proc-row-sql td:nth-child(5){display:none;}
+  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
   .proc-row-sql td.sql-empty{display:table-cell!important;}
   /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
      SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
@@ -2435,8 +2440,8 @@ function renderProcs(data){
     sql.innerHTML=data.procSql.length?data.procSql.map(p=>{
       const c=parseInt(p[3])>=60?'hot':parseInt(p[3])>=10?'warm':'';
       return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td><td>${esc(p[2])}</td>`+
-        `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td>`+
-        `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('')
+        `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
+        `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td></tr>`;}).join('')
     :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">'+tf('No queries running longer than %ss at snapshot time',sqlMin)+'</td></tr>';
   }
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
