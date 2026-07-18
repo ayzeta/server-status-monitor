@@ -34,7 +34,7 @@ $TR = [
     // Kimlik/başlık şeridi
     'Hostname' => 'Sunucu adı', 'Threads' => 'Çekirdek', 'Uptime' => 'Çalışma süresi', 'Updated' => 'Güncellendi', 'Snapshot' => 'Anlık görüntü',
     // Load / kaynak kartları
-    'Load avg' => 'Yük ortalama', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
+    'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
     'CPU' => 'İşlemci', 'RAM' => 'Bellek', 'run' => 'çalışan', 'R' => 'O', 'W' => 'Y',
     'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
     // Info şeridi
@@ -45,12 +45,19 @@ $TR = [
     'days' => 'gün',
     // Servis kartları + durum
     'Web server' => 'Web sunucusu', 'Mail services' => 'Mail servisleri', 'Security' => 'Güvenlik', 'Database' => 'Veritabanı',
-    'Cache' => 'Önbellek', 'Operational' => 'Çalışıyor', 'Offline' => 'Kapalı',
+    'Cache' => 'Önbellek', 'Operational' => 'Çalışıyor', 'Offline' => 'Çevrimdışı',
     '%s/%s checks passed' => '%s/%s kontrol geçti', '%s verified active' => '%s aktif doğrulandı', '%s/%s active' => '%s/%s aktif',
     'checks passed' => 'kontrol geçti', 'verified active' => 'aktif doğrulandı', 'blocked' => 'bloklu', 'Disk I/O pressure' => 'Disk I/O baskısı', 'mismatch' => 'uyumsuz', 'FTP service' => 'FTP servisi', 'Kernel state' => 'Çekirdek durumu',
     // Birleşik sağlık modeli — tepe durum detay etiketleri (%s=değer, %%=literal %)
-    'Load %s' => 'Yük %s', 'CPU %s%%' => 'İşlemci %%%s', 'RAM %s%%' => 'Bellek %%%s', 'IO wait %s%%' => 'IO bekleme %%%s',
+    'Load %s' => 'Yük %s', 'CPU %s%%' => 'İşlemci %%%s', 'RAM %s%%' => 'Bellek %%%s', 'IO wait %s%%' => 'IO Bekleme %%%s',
     'Network %s%%' => 'Ağ %%%s', 'RAID issue' => 'RAID sorunu', '%s RAID mismatch' => '%s RAID uyumsuzluk', 'SMART fault' => 'SMART arıza',
+    // Tablo başlıkları + tooltipler (sadece sunucu render — title="...")
+    'DB' => 'VT', 'Time(s)' => 'Süre(sn)', 'Copy' => 'Kopyala',
+    'Percent of a single core — multi-threaded processes can exceed 100' => 'Tek çekirdeğin yüzdesi — çok iş parçacıklı süreçler 100\'ü aşabilir',
+    'All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones' => 'Hesabın tüm lsphp süreçleri, boştaki havuz dahil — PHP İşçileri kartı yalnız aktif (R/D) olanları sayar',
+    'cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk' => 'Kotadan cPanel hesap disk kullanımı (saatlik). Renk: kırmızı >%3, turuncu >%1.5 toplam disk',
+    'Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)' => 'Anlık görüntü anında sorgu çalıştıran iş parçacıkları; alttaki listenin göstermediği %s sn altı olanlar dahil (durum sorgusunun kendisi 1 sayılır)',
+    'Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool' => 'Değer = aktif işçiler (R/D durumu); lsphp/hesap tablosu boştaki havuz dahil tüm süreçleri listeler',
     'SSL %sd' => 'SSL %sg', 'MySQL %s running' => 'MySQL %s çalışan', 'Mail queue %s' => 'Mail kuyruğu %s', '%s PHP workers' => '%s PHP işçisi', 'Snapshot stale' => 'Anlık görüntü bayat',
     'running' => 'çalışıyor', 'listening' => 'dinliyor', 'responding' => 'yanıt veriyor', 'alive' => 'ayakta',
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
@@ -1185,7 +1192,7 @@ function renderChecks($checks) {
             $out .= '<div class="sub-check">'
                   . '<span class="sub-dot muted"></span>'
                   . '<span class="sub-lbl">' . htmlspecialchars($c['label']) . '</span>'
-                  . '<button class="copy-btn" data-cmd="' . $cmd . '" title="Copy">'
+                  . '<button class="copy-btn" data-cmd="' . $cmd . '" title="' . htmlspecialchars(t('Copy')) . '">'
                   . '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
                   . '</button>'
                   . '<code class="sub-cmd-inline">' . $cmd . '</code>'
@@ -1271,7 +1278,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
     $out = '<div class="proc-card"><div class="proc-title">' . t('Top processes · CPU') . '</div>'
-         . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num" title="Percent of a single core &mdash; multi-threaded processes can exceed 100">CPU%</th><th class="num">MEM%</th><th>' . t('Time') . '</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num" title="' . htmlspecialchars(t('Percent of a single core — multi-threaded processes can exceed 100')) . '">CPU%</th><th class="num">MEM%</th><th>' . t('Time') . '</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
     foreach ($procCpu as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
               . '<td class="num ' . pcpuClass($p[2]) . '">' . $h($p[2]) . '</td>'
@@ -1294,7 +1301,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $out .= renderDiskCard($diskAcct, $h);
 
     $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . ' <span class="proc-age">&middot; ' . t('active+idle') . '</span></div>'
-          . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num" title="All lsphp processes for the account, idle pool included &mdash; the PHP Workers card counts only active (R/D) ones">' . t('Procs') . '</th></tr></thead><tbody id="pt-php">' . "\n";
+          . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . t('Procs') . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
     foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
     foreach ($procPhp as $p) {
@@ -1322,7 +1329,7 @@ function diskAcctCls($gb, $totalGB) {
 function renderDiskCard($diskAcct, $h) {
     global $diskTotalGB;
     $out = '<div class="proc-card"><div class="proc-title">' . t('Top disk · account')
-         . '<span class="proc-age" title="cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk">&middot; ' . t('GB used') . '</span></div>'
+         . '<span class="proc-age" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">&middot; ' . t('GB used') . '</span></div>'
          . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
@@ -1346,9 +1353,9 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     // Threads_running: 5sn+ tablosunun görmediği "kısa ama çok sorgu" yükünün anlık
     // göstergesi. Çekirdeğe oranlı renk (warn ≥ çekirdek / err ≥ 2×) — DB'de sorgu birikmesi.
     $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
-         . '<span class="proc-age" id="sql-thr" title="Threads executing a query at snapshot time, incl. sub-' . (int)$sqlMinSec . 's ones the list below does not show (the snapshot&#39;s own status query counts as 1)">'
+         . '<span class="proc-age" id="sql-thr" title="' . htmlspecialchars(tf('Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)', (int)$sqlMinSec)) . '">'
          . ($mysqlThr !== null ? ' &middot; Threads_running: <span id="sql-thr-n" style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>DB</th><th class="num">Time(s)</th><th>' . t('State') . '</th><th>' . t('Query') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>' . t('DB') . '</th><th class="num">' . t('Time(s)') . '</th><th>' . t('State') . '</th><th>' . t('Query') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
         $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
     }
@@ -1822,7 +1829,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('PHP Workers')?></div>
       <div class="info-val" id="iv-lsphp" style="color:<?=lsphpCol($lsphpTotal, $coreCount)?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></div>
-      <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool"><?=$lsphpIdle !== null ? t('active') . ' &middot; ' . $lsphpIdle . ' ' . t('idle') : t('running lsphp')?></div>
+      <div class="info-sub" id="iv-lsphp-sub" title="<?=htmlspecialchars(t('Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool'))?>"><?=$lsphpIdle !== null ? t('active') . ' &middot; ' . $lsphpIdle . ' ' . t('idle') : t('running lsphp')?></div>
     </div>
     <span class="info-spark spark-wrap"><?=svgSpark($ssr['wrk'], 64, 30, 'var(--accent)', 'ssr-wrk')?><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
   </div>
@@ -2314,7 +2321,7 @@ function renderSvc(key,data){
   if(checks&&data.checks){
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
-        return `<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">${ch.label}</span><button class="copy-btn" data-cmd="${ch.cmd}" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">${ch.cmd}</code></div>`;
+        return `<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">${ch.label}</span><button class="copy-btn" data-cmd="${ch.cmd}" title="${t('Copy')}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">${ch.cmd}</code></div>`;
       }
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
