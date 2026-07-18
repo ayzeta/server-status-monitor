@@ -1369,7 +1369,9 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
 }
 ?>
 <!DOCTYPE html>
-<!-- lang="en": sayfa metni İngilizce; tr kalırsa text-transform:uppercase "İNFO/TİME" üretir --><html lang="en" data-theme="light">
+<!-- lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
+     "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
+     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="<?=$LANG_UI?>" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1869,7 +1871,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-lock"></i></div>
     <div class="info-body">
-      <div class="info-label">SSL &middot; <?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></div>
+      <div class="info-label">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></div>
       <div class="info-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' ' . t('days') : '—'?></div>
       <div class="info-sub" id="iv-ssl-sub"><?=$sslExpiry ?? t('unavailable')?></div>
     </div>
