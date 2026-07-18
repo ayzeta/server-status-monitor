@@ -35,4 +35,4 @@ git merge --ff-only "origin/$BRANCH"
 echo
 bash install.sh --yes
 echo
-echo "Updated to $(git rev-parse --short @)."
+echo "Updated to commit $(git rev-parse --short @) (git revision; the release version shows in the dashboard footer/subtitle)."
