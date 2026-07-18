@@ -1168,6 +1168,7 @@ if (isset($_GET['json'])) {
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => (($whmAcctCount && $whmAcctCount > 0) ? $whmAcctCount : 50),
+        'hist'              => $histSeed, // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
@@ -2546,8 +2547,19 @@ function applyMetrics(data){
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
   document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
-  pushT(data.time.split(' ')[1]);
-  trimHist(data.time.split(' ')[1]);
+  const nowT=data.time.split(' ')[1];
+  // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
+  // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
+  // yeniden seed'le. Böylece reload olmadan grafikler kaldığı yerden dolar.
+  if(histT.length && data.hist && data.hist.t && data.hist.t.length){
+    const g=((tSec(nowT)-tSec(histT[histT.length-1]))+86400)%86400;
+    if(g>300){
+      histT=data.hist.t.slice();
+      Object.keys(hist).forEach(k=>{hist[k]=(data.hist[k]||[]).slice();});
+    }
+  }
+  pushT(nowT);
+  trimHist(nowT);
   updRange();
   const cores=data.threads;
   setLoad('v-l1','lc-l1','sp-l1','l1',data.load1,cores);
@@ -2695,12 +2707,10 @@ if(location.protocol==='file:'){
   const onVisible=()=>{
     if(document.visibilityState!=='visible')return;
     const gap=Date.now()-lastFetch;
-    // Uzun ara (>5dk): canlı geçmiş 30dk penceresinden düşmüş/bayatlamış olur →
-    // trimHist boşaltır, grafikler "sıfırdan" çizer. 30dk'lık gerçek geçmiş sadece
-    // tam yüklemede (cron seed) gelir; o yüzden yeniden yükleyip hazır getiririz.
-    if(gap>300000){location.reload();return;}
-    redrawSparks();                 // kısa ara: hafızadan anında çiz (ağ beklemeden)
-    if(gap>15000)tick();            // bayatsa hemen tazele
+    // Uzun ara (uyku/askı): tick() taze veriyi çeker ve orada >5dk boşluk görülünce
+    // grafikleri sunucunun 30dk'sından (data.hist) yeniden seed'ler — reload YOK.
+    redrawSparks();                 // önce hafızadan çiz (ağ beklemeden, kısa ara için)
+    if(gap>15000)tick();            // bayatsa hemen tazele (uykuda gap zaten büyük → re-seed)
   };
   document.addEventListener('visibilitychange',onVisible);
   window.addEventListener('pageshow',e=>{if(e.persisted)onVisible();});
