@@ -13,6 +13,13 @@ SELF_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 : "${WEB_USER:?config.env must define WEB_USER (e.g. WEB_USER=myuser)}"
 DATA_DIR="${DATA_DIR:-$SELF_DIR}"
 HOME_DIR="/home/$WEB_USER"
+# Tek-örnek kilidi: priming (elle çalıştırma) cron ile aynı dakikaya denk gelince
+# ya da bir çalışma sonraki cron'a taşınca, iki instance aynı .tmp dosyalarına
+# yazıp "mv: cannot stat" üretmesin. Kilit alınamazsa (başka örnek çalışıyor)
+# sessizce çık; kilit dosyası açılamazsa kilitsiz devam; flock yoksa atla.
+if command -v flock >/dev/null 2>&1 && exec 9>"/var/run/ssm-collector-$WEB_USER.lock" 2>/dev/null; then
+  flock -n 9 || exit 0
+fi
 export PATH=/usr/local/cpanel/bin:/usr/local/cpanel/3rdparty/bin:/usr/sbin:/usr/bin:/sbin:/bin
 sleep 20   # dodge the top-of-minute cron storm
 
