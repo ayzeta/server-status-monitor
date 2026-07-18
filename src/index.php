@@ -2528,7 +2528,7 @@ function applyMetrics(data){
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
-  document.getElementById('footer-time').textContent=data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
   pushT(data.time.split(' ')[1]);
   trimHist(data.time.split(' ')[1]);
   updRange();
