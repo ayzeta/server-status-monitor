@@ -34,7 +34,7 @@ $TR = [
     // Kimlik/başlık şeridi
     'Hostname' => 'Sunucu adı', 'Threads' => 'Çekirdek', 'Uptime' => 'Çalışma süresi', 'Updated' => 'Güncellendi', 'Snapshot' => 'Anlık görüntü',
     // Load / kaynak kartları
-    'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', 'of %s cores' => '%s çekirdeğin',
+    'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
     'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
     // Info şeridi
     'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
@@ -56,10 +56,10 @@ $TR = [
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
     'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
-    'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük',
+    'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · active queries' => 'MySQL · aktif sorgular',
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
-    'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce',
+    'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
     'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.',
     // Footer
@@ -87,7 +87,7 @@ $TR = [
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama', 'files' => 'dosya',
 ];
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
@@ -405,7 +405,7 @@ $days        = floor($uptime / 86400);
 $hours       = str_pad(floor(($uptime % 86400) / 3600), 2, '0', STR_PAD_LEFT);
 $mins        = str_pad(floor(($uptime % 3600) / 60),    2, '0', STR_PAD_LEFT);
 $secs        = str_pad($uptime % 60,                     2, '0', STR_PAD_LEFT);
-$uptimeFormatted = "{$days} Days {$hours}:{$mins}:{$secs}";
+$uptimeFormatted = "{$days} " . t('Days') . " {$hours}:{$mins}:{$secs}";
 
 // ── Listening Ports ───────────────────────────────────────────
 function getListeningPorts() {
@@ -668,13 +668,13 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     $imIncr = ($aKey === 'act_imunify' && ($procSec['act_imunify_p'] ?? '') === 'incremental');
     $acts[] = $imIncr ? null : $mx;
     if ($mx !== null && !$imIncr) {
-        $chip = $aLbl . ' · ' . fmtAgeShort($mx);
+        $chip = t(str_replace(' running', '', $aLbl)) . ' · ' . fmtAgeShort($mx);
         if ($aKey === 'act_imunify') {
             if (($procSec['act_imunify_p'] ?? '') !== '' && $procSec['act_imunify_p'] !== '-')
                 $chip .= ' · ' . htmlspecialchars($procSec['act_imunify_p']); // hesap adı
             if (isset($procSec['act_imunify_n']) && is_numeric($procSec['act_imunify_n']) && (int)$procSec['act_imunify_n'] > 0) {
                 $actImunifyN = (int)$procSec['act_imunify_n'];
-                $chip .= ' · ' . fmtCount($actImunifyN) . ' files';
+                $chip .= ' · ' . fmtCount($actImunifyN) . ' ' . t('files');
             }
         }
         $actChips[] = $chip;
@@ -1184,7 +1184,7 @@ function renderChecks($checks) {
             $note = htmlspecialchars(isset($c['note']) ? tnote($c['note']) : ($c['ok'] ? t('ok') : t('fail')));
             // Yaş sütunu: HER satırda sabit genişlikte span (yaşı olmayanlarda boş) —
             // böylece notlar ortak hizada biter, yaşlar sağ kenarda dikey taranır.
-            $age = '<span class="sub-age"' . (isset($c['up']) ? ' title="up ' . htmlspecialchars($c['up']) . '"' : '') . '>'
+            $age = '<span class="sub-age"' . (isset($c['up']) ? ' title="' . htmlspecialchars(tf('up %s', $c['up'])) . '"' : '') . '>'
                  . (isset($c['upS']) ? htmlspecialchars($c['upS']) : '') . '</span>';
             // TEK SATIR: rozetler kalkıp yaş sağdaki dar sabit kolona geçince
             // sürüm etiketin yanına sığar oldu (9px, silik). Dar pencerede
@@ -1690,13 +1690,13 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
         <span class="hdr-status-detail" id="hdr-detail"<?=$overallDetail===''?' style="display:none"':''?>><?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?></span>
       </div>
     </div>
-    <div class="meta-item"><div class="meta-lbl">Hostname</div>
+    <div class="meta-item"><div class="meta-lbl"><?=t('Hostname')?></div>
       <div class="meta-val" id="hostname"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></div></div>
-    <div class="meta-item"><div class="meta-lbl">Threads</div>
+    <div class="meta-item"><div class="meta-lbl"><?=t('Threads')?></div>
       <div class="meta-val" id="threads"><?=$coreCount?></div></div>
-    <div class="meta-item"><div class="meta-lbl">Uptime</div>
+    <div class="meta-item"><div class="meta-lbl"><?=t('Uptime')?></div>
       <div class="meta-val" id="uptime"><?=$uptimeFormatted?></div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Updated</div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl"><?=t('Updated')?></div>
       <div class="meta-val"><span class="dot"></span><span id="time-val"><?=date('H:i:s')?></span></div></div>
   </div>
 </div>
@@ -1705,25 +1705,25 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:<?=$lc1=lcolCss($load1, $coreCount)?><?=cardBorderCss($lc1)?>">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">1 min</span></div>
+      <div class="load-lbl"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('1 min')?></span></div>
       <div class="load-val" id="v-l1"><?=number_format($load1,2)?></div>
-      <div class="load-pct" id="p-l1"><?=round($load1/$coreCount*100)?>% of <?=$coreCount?> cores</div>
+      <div class="load-pct" id="p-l1"><?=tf('%s%% of %s cores', round($load1/$coreCount*100), $coreCount)?></div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><?=svgSpark($ssr['l1'], 80, 32, lcolCss($load1, $coreCount), 'ssr-l1')?><canvas class="load-spark" id="sp-l1"></canvas></span>
   </div>
   <div class="load-card" id="lc-l5" style="--c:<?=$lc5=lcolCss($load5, $coreCount)?><?=cardBorderCss($lc5)?>">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">5 min</span></div>
+      <div class="load-lbl"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('5 min')?></span></div>
       <div class="load-val" id="v-l5"><?=number_format($load5,2)?></div>
-      <div class="load-pct" id="p-l5"><?=round($load5/$coreCount*100)?>% of <?=$coreCount?> cores</div>
+      <div class="load-pct" id="p-l5"><?=tf('%s%% of %s cores', round($load5/$coreCount*100), $coreCount)?></div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><?=svgSpark($ssr['l5'], 80, 32, lcolCss($load5, $coreCount), 'ssr-l5')?><canvas class="load-spark" id="sp-l5"></canvas></span>
   </div>
   <div class="load-card" id="lc-l15" style="--c:<?=$lc15=lcolCss($load15, $coreCount)?><?=cardBorderCss($lc15)?>">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">15 min</span></div>
+      <div class="load-lbl"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('15 min')?></span></div>
       <div class="load-val" id="v-l15"><?=number_format($load15,2)?></div>
-      <div class="load-pct" id="p-l15"><?=round($load15/$coreCount*100)?>% of <?=$coreCount?> cores</div>
+      <div class="load-pct" id="p-l15"><?=tf('%s%% of %s cores', round($load15/$coreCount*100), $coreCount)?></div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><?=svgSpark($ssr['l15'], 80, 32, lcolCss($load15, $coreCount), 'ssr-l15')?><canvas class="load-spark" id="sp-l15"></canvas></span>
   </div>
@@ -1807,7 +1807,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('PHP Workers')?></div>
       <div class="info-val" id="iv-lsphp" style="color:<?=lsphpCol($lsphpTotal, $coreCount)?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></div>
-      <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool"><?=$lsphpIdle !== null ? 'active &middot; ' . $lsphpIdle . ' idle' : 'running lsphp'?></div>
+      <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool"><?=$lsphpIdle !== null ? t('active') . ' &middot; ' . $lsphpIdle . ' ' . t('idle') : t('running lsphp')?></div>
     </div>
     <span class="info-spark spark-wrap"><?=svgSpark($ssr['wrk'], 64, 30, 'var(--accent)', 'ssr-wrk')?><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
   </div>
@@ -1816,7 +1816,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('Mail Queue')?></div>
       <div class="info-val" id="iv-mailq" style="color:<?=mqCol($mailQ, $whmAcctCount)?>"><?=$mailQ !== null ? $mailQ : '—'?></div>
-      <div class="info-sub">messages queued</div>
+      <div class="info-sub"><?=t('messages queued')?></div>
     </div>
     <span class="info-spark spark-wrap"><?=svgSpark($ssr['mq'], 64, 30, 'var(--accent)', 'ssr-mq')?><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
   </div>
@@ -1825,7 +1825,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('Web Response')?></div>
       <div class="info-val" id="iv-web" style="color:<?=rtCol($webResponseTime)?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></div>
-      <div class="info-sub">HTTP response time</div>
+      <div class="info-sub"><?=t('HTTP response time')?></div>
     </div>
   </div>
   <div class="info-card">
@@ -1833,7 +1833,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('MySQL Response')?></div>
       <div class="info-val" id="iv-mysql" style="color:<?=rtCol($mysqlResponseTime)?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></div>
-      <div class="info-sub">TCP response time</div>
+      <div class="info-sub"><?=t('TCP response time')?></div>
     </div>
   </div>
   <div class="info-card">
@@ -1841,15 +1841,15 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label"><?=t('Hosted Accounts')?></div>
       <div class="info-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></div>
-      <div class="info-sub">cPanel accounts</div>
+      <div class="info-sub"><?=t('cPanel accounts')?></div>
     </div>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-lock"></i></div>
     <div class="info-body">
       <div class="info-label">SSL &middot; <?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></div>
-      <div class="info-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' days' : '—'?></div>
-      <div class="info-sub" id="iv-ssl-sub"><?=$sslExpiry ?? 'unavailable'?></div>
+      <div class="info-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' ' . t('days') : '—'?></div>
+      <div class="info-sub" id="iv-ssl-sub"><?=$sslExpiry ?? t('unavailable')?></div>
     </div>
   </div>
 </div>
@@ -1918,7 +1918,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
 <div class="sec" style="margin-top:12px"><?=t('Processes')?>
-  <span class="proc-age<?=($procAge !== null && $procAge > 180) ? ' stale' : ''?>" id="proc-age">&middot; root snapshot, <?=$procAge?>s ago<?=($procAge !== null && $procAge > 180) ? ' — STALE (cron?)' : ''?></span>
+  <span class="proc-age<?=($procAge !== null && $procAge > 180) ? ' stale' : ''?>" id="proc-age">&middot; <?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > 180) ? ' — ' . t('STALE (cron?)') : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
 <div class="proc-row" id="proc-row"><?=renderProcTables($procCpu, $procRam, $procPhp, $diskAcct)?></div>
@@ -1930,7 +1930,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="log-hdr">
     <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
     <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
-    <button class="log-clear" id="log-clear-btn">Clear</button>
+    <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
@@ -2133,7 +2133,7 @@ function setLoad(vid,cardId,sparkId,histKey,val,t){
   const el=document.getElementById(vid);if(el){el.textContent=val.toFixed(2);el.style.color=color;}
   const card=document.getElementById(cardId);if(card){card.style.setProperty('--c',color);card.style.borderColor=isProblemCol(color)?color:'';}
   const pct=document.getElementById('p-'+histKey);
-  if(pct)pct.textContent=Math.round(val/t*100)+'% of '+t+' cores';
+  if(pct)pct.textContent=tf('%s%% of %s cores',Math.round(val/t*100),t);
   push(hist[histKey],val);spark(sparkId,hist[histKey],color,80,32);
 }
 
@@ -2301,7 +2301,7 @@ function renderSvc(key,data){
       if(ch.type==='cmd'){
         return `<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">${ch.label}</span><button class="copy-btn" data-cmd="${ch.cmd}" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">${ch.cmd}</code></div>`;
       }
-      const age='<span class="sub-age"'+(ch.up?' title="up '+esc(ch.up)+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
+      const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
       return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
@@ -2315,7 +2315,7 @@ function renderProcs(data){
   const age=document.getElementById('proc-age');
   if(age&&data.procAge!=null){
     const stale=data.procAge>180;
-    age.textContent=' · root snapshot, '+data.procAge+'s ago'+(stale?' — STALE (cron?)':'');
+    age.textContent=' · '+tf('root snapshot, %ss ago',data.procAge)+(stale?' — '+t('STALE (cron?)'):'');
     age.className='proc-age'+(stale?' stale':'');
   }
   const thr=document.getElementById('sql-thr');
@@ -2333,10 +2333,10 @@ function renderProcs(data){
       let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
       if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
       if(mx==null)return null;
-      let c=lbl+' · '+ageShort(mx);
+      let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
       if(i===3){ // imunify: hesap adı + varsa dosya sayısı
         if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
-        if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' files';
+        if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' '+t('files');
       }
       return c;});
     ac.innerHTML=chips.filter(Boolean).map(c=>'<span class="bk-chip">'+esc(c)+'</span>').join('');
@@ -2528,13 +2528,13 @@ function render(data){
   {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*3?'var(--danger)':q>=b*1?'var(--warn)':'var(--accent)';}}
   {const q=data.mqRaw;if(q!=null){push(hist.mq,q);spark('sp-mq',hist.mq,'var(--accent)',64,30);}}
   if(data.lsphpIdle!=null)lsphpIdle=data.lsphpIdle;
-  {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?'active &middot; '+data.lsphpIdle+' idle':'running lsphp';}
+  {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
   {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*2?'var(--danger)':n>=c?'var(--warn)':'var(--accent)';}}
   {const n=data.lsphpTotal;if(n!=null){push(hist.wrk,n);spark('sp-wrk',hist.wrk,'var(--accent)',64,30);}}
   if(data.sslDaysLeft!=null){
     const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
     const col=data.sslDaysLeft<=7?'var(--danger)':data.sslDaysLeft<=30?'var(--warn)':'var(--accent)';
-    if(e){e.textContent=data.sslDaysLeft+' days';e.style.color=col;}
+    if(e){e.textContent=data.sslDaysLeft+' '+t('days');e.style.color=col;}
     if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
   }
   ['web','mail','dns','sec','db','cache','ftp'].forEach(k=>{if(data[k])renderSvc(k,data[k]);});
