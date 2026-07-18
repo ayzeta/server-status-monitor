@@ -34,7 +34,8 @@ $TR = [
     // Kimlik/başlık şeridi
     'Hostname' => 'Sunucu adı', 'Threads' => 'Çekirdek', 'Uptime' => 'Çalışma süresi', 'Updated' => 'Güncellendi', 'Snapshot' => 'Anlık görüntü',
     // Load / kaynak kartları
-    'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
+    'Load avg' => 'Yük ortalama', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
+    'CPU' => 'İşlemci', 'RAM' => 'Bellek', 'run' => 'çalışan', 'R' => 'O', 'W' => 'Y',
     'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
     // Info şeridi
     'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
@@ -47,10 +48,14 @@ $TR = [
     'Cache' => 'Önbellek', 'Operational' => 'Çalışıyor', 'Offline' => 'Kapalı',
     '%s/%s checks passed' => '%s/%s kontrol geçti', '%s verified active' => '%s aktif doğrulandı', '%s/%s active' => '%s/%s aktif',
     'checks passed' => 'kontrol geçti', 'verified active' => 'aktif doğrulandı', 'blocked' => 'bloklu', 'Disk I/O pressure' => 'Disk I/O baskısı', 'mismatch' => 'uyumsuz', 'FTP service' => 'FTP servisi', 'Kernel state' => 'Çekirdek durumu',
+    // Birleşik sağlık modeli — tepe durum detay etiketleri (%s=değer, %%=literal %)
+    'Load %s' => 'Yük %s', 'CPU %s%%' => 'İşlemci %%%s', 'RAM %s%%' => 'Bellek %%%s', 'IO wait %s%%' => 'IO bekleme %%%s',
+    'Network %s%%' => 'Ağ %%%s', 'RAID issue' => 'RAID sorunu', '%s RAID mismatch' => '%s RAID uyumsuzluk', 'SMART fault' => 'SMART arıza',
+    'SSL %sd' => 'SSL %sg', 'MySQL %s running' => 'MySQL %s çalışan', 'Mail queue %s' => 'Mail kuyruğu %s', '%s PHP workers' => '%s PHP işçisi', 'Snapshot stale' => 'Anlık görüntü bayat',
     'running' => 'çalışıyor', 'listening' => 'dinliyor', 'responding' => 'yanıt veriyor', 'alive' => 'ayakta',
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları
-    'Top processes · CPU' => 'En yüklü süreçler · CPU', 'Top processes · RAM' => 'En yüklü süreçler · RAM',
+    'Top processes · CPU' => 'En yüklü süreçler · İşlemci', 'Top processes · RAM' => 'En yüklü süreçler · Bellek',
     'Top disk · account' => 'En dolu disk · hesap', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
     'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
@@ -801,16 +806,20 @@ $ftpStatus = $ftpOk === $ftpTotal ? 'operational' : ($ftpOk > 0 ? 'degraded' : '
 // değilse "· up 29d 4h". Sadece birincil satırlar etiketlenir (exim×3 gibi
 // aynı daemon'ın her port satırına yazmak gürültü olur).
 function fmtAge($s) {
-    if ($s >= 86400) return floor($s / 86400) . 'd ' . floor(($s % 86400) / 3600) . 'h';
-    if ($s >= 3600)  return floor($s / 3600) . 'h ' . floor(($s % 3600) / 60) . 'm';
-    return max(1, floor($s / 60)) . 'm';
+    global $LANG_UI;
+    [$D, $H, $M] = $LANG_UI === 'tr' ? ['g', 'sa', 'dk'] : ['d', 'h', 'm']; // saat=sa (saniyeyle karışmasın)
+    if ($s >= 86400) return floor($s / 86400) . $D . ' ' . floor(($s % 86400) / 3600) . $H;
+    if ($s >= 3600)  return floor($s / 3600) . $H . ' ' . floor(($s % 3600) / 60) . $M;
+    return max(1, floor($s / 60)) . $M;
 }
 // Sağ sütun için kompakt tek birim ("29d", "5h", "42m") — sabit dar sütuna
 // sığsın diye; tam hali (fmtAge) hover tooltip'inde.
 function fmtAgeShort($s) {
-    if ($s >= 86400) return floor($s / 86400) . 'd';
-    if ($s >= 3600)  return floor($s / 3600) . 'h';
-    return max(1, floor($s / 60)) . 'm';
+    global $LANG_UI;
+    $u = $LANG_UI === 'tr' ? ['g', 'sa', 'dk'] : ['d', 'h', 'm']; // gün/saat/dakika
+    if ($s >= 86400) return floor($s / 86400) . $u[0];
+    if ($s >= 3600)  return floor($s / 3600) . $u[1];
+    return max(1, floor($s / 60)) . $u[2];
 }
 function tagAge(&$chk, $aliases) {
     global $svcAge, $rootFresh;
@@ -874,29 +883,30 @@ function cardBorderCss($col)  { return ($col==='var(--danger)' || $col==='var(--
 
 $mqBase    = ($whmAcctCount && $whmAcctCount > 0) ? $whmAcctCount : 50;
 $loadRatio = $load1 / max($coreCount, 1);
-$health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket]
-    'load'     => [$loadRatio>=2.0?'err':($loadRatio>=1.0?'warn':'ok'),                          'Load '.number_format($load1,2)],
-    'cpu'      => [hLvlHi($cpuUsage,80,90),                                                       'CPU '.$cpuUsage.'%'],
-    'ram'      => [hLvlHi($memUsagePercent,70,85),                                                'RAM '.$memUsagePercent.'%'],
+$sslUnit = $LANG_UI === 'tr' ? 'g' : 'd';
+$health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] — etiketler diller arası t()/tf() ile
+    'load'     => [$loadRatio>=2.0?'err':($loadRatio>=1.0?'warn':'ok'),                          tf('Load %s', number_format($load1,2))],
+    'cpu'      => [hLvlHi($cpuUsage,80,90),                                                       tf('CPU %s%%', $cpuUsage)],
+    'ram'      => [hLvlHi($memUsagePercent,70,85),                                                tf('RAM %s%%', $memUsagePercent)],
     'disk'     => [hLvlHi($diskUsagePercent,75,90),                                               'Disk '.$diskUsagePercent.'%'],
-    'iow'      => [hLvlHi($ioWait,8,15),                                                          'IO wait '.$ioWait.'%'],
-    'net'      => [$netSat===null?'ok':hLvlHi($netSat,70,90),                                     'Network '.$netSat.'%'],
+    'iow'      => [hLvlHi($ioWait,8,15),                                                          tf('IO wait %s%%', $ioWait)],
+    'net'      => [$netSat===null?'ok':hLvlHi($netSat,70,90),                                     tf('Network %s%%', $netSat)],
     'inode'    => [$inodePct===null?'ok':hLvlHi($inodePct,80,90),                                 'inode '.$inodePct.'%'],
     'swap'     => [hLvlHi($swapPct,10,50),                                                        'swap '.$swapPct.'%'],
     'shmem'    => [hLvlHi($shmemPct,40,55),                                                       'shmem '.$shmemPct.'%'],
-    'raid'     => [$raidState==='degraded'?'err':($raidState==='resync'?'warn':'ok'),             $raidTxt!==''?$raidTxt:'RAID issue'],
-    'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   $raidMismatch.' RAID mismatch'],
-    'smart'    => [$smartMsg!==''?'err':'ok',                                                     'SMART fault'],
-    'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=7?'err':($sslDaysLeft<=30?'warn':'ok')), 'SSL '.$sslDaysLeft.'d'],
+    'raid'     => [$raidState==='degraded'?'err':($raidState==='resync'?'warn':'ok'),             $raidTxt!==''?$raidTxt:t('RAID issue')],
+    'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   tf('%s RAID mismatch', $raidMismatch)],
+    'smart'    => [$smartMsg!==''?'err':'ok',                                                     t('SMART fault')],
+    'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=7?'err':($sslDaysLeft<=30?'warn':'ok')), 'SSL '.$sslDaysLeft.$sslUnit],
     'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,30,100),                  'Web '.$webResponseTime.'ms'],
     'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,30,100),              'MySQL '.$mysqlResponseTime.'ms'],
-    'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount,$coreCount*2),               'MySQL '.$mysqlThr.' running'],
-    'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*3?'err':($mailQ>=$mqBase?'warn':'ok')),    'Mail queue '.$mailQ],
-    'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*2?'err':($lsphpTotal>=$coreCount?'warn':'ok')), $lsphpTotal.' PHP workers'],
-    'snap'     => [($procAge===null||$procAge>180)?'warn':'ok',                                   'Snapshot stale'],
+    'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount,$coreCount*2),               tf('MySQL %s running', $mysqlThr)],
+    'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*3?'err':($mailQ>=$mqBase?'warn':'ok')),    tf('Mail queue %s', $mailQ)],
+    'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*2?'err':($lsphpTotal>=$coreCount?'warn':'ok')), tf('%s PHP workers', $lsphpTotal)],
+    'snap'     => [($procAge===null||$procAge>180)?'warn':'ok',                                   t('Snapshot stale')],
 ];
 foreach (['Web'=>$webStatus,'Mail'=>$mailStatus,'DNS'=>$dnsStatus,'Security'=>$secStatus,'Database'=>$dbStatus,'Cache'=>$cacheStatus,'FTP'=>$ftpStatus] as $n=>$st) {
-    $health['svc_'.strtolower($n)] = [$st==='offline'?'err':($st==='degraded'?'warn':'ok'), $n.' '.$st];
+    $health['svc_'.strtolower($n)] = [$st==='offline'?'err':($st==='degraded'?'warn':'ok'), t($n).' '.t(ucfirst($st))];
 }
 $errItems = []; $warnItems = [];
 foreach ($health as $h) {
@@ -1611,16 +1621,21 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .hdr{padding:12px 14px;gap:8px;flex-wrap:nowrap;}
   .hdr-brand{flex:1 1 auto;min-width:0;}
   .hdr-brand>div{min-width:0;}
+  /* Başlık alanı (logo'dan sonraki 2. div) esner ve taşarsa "…" —
+     tema+dil düğmeleri başlıktan ayrılıp sağa toplanır, metnin üstüne binmez */
+  .hdr-brand>div:nth-of-type(2){flex:1 1 auto;min-width:0;overflow:hidden;}
+  .hdr-title{overflow:hidden;text-overflow:ellipsis;}
   .hdr-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .hdr-meta{display:flex;gap:0;flex:0 0 auto;align-items:center;}
   .hdr-meta .meta-item{display:none;}
-  .hdr-status{height:32px;padding:0 12px;position:relative;} /* tema düğmesiyle (32px) eşit yükseklik */
-  .hdr-status-short{display:inline;}
-  .hdr-status-full{display:none;} /* mobilde sade: sadece nokta + kelime; detay dokununca açılır */
-  /* Detay varsa dokunulabilir olduğunu belli eden küçük ok işareti */
+  .hdr-status{height:32px;padding:0 11px;position:relative;gap:6px;} /* tema düğmesiyle (32px) eşit yükseklik */
+  .hdr-status-dot{width:9px;height:9px;} /* metin yok — nokta biraz büyük, görünür */
+  .hdr-status-short{display:none;} /* mobilde metin yok: alan değerli, renkli nokta yeterli */
+  .hdr-status-full{display:none;} /* detay dokununca açılır */
+  /* Detay varsa dokunulabilir olduğunu belli eden küçük ok işareti (nokta yanında) */
   .hdr-status.has-detail{cursor:pointer;}
-  .hdr-status.has-detail .hdr-status-short::after{content:' \25BE';font-size:9px;opacity:.75;}
-  .hdr-status.has-detail.st-open .hdr-status-short::after{content:' \25B4';}
+  .hdr-status.has-detail::after{content:'\25BE';font-size:9px;opacity:.8;color:#fff;}
+  .hdr-status.has-detail.st-open::after{content:'\25B4';}
   /* Açık: sağ üstten aşağı açılan panel — tam durum + sorun listesi (sarılır) */
   .hdr-status.st-open .hdr-status-full{
     display:flex;flex-direction:column;gap:5px;align-items:flex-start;
@@ -1676,10 +1691,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       </div>
       <div class="hdr-sub"><?=htmlspecialchars($SITE_SUB, ENT_QUOTES, 'UTF-8')?></div>
     </div>
-    <button class="theme-btn" id="theme-btn" title="<?=htmlspecialchars(t('Toggle dark mode'), ENT_QUOTES, 'UTF-8')?>" style="margin-left:8px;">
+    <button class="theme-btn" id="theme-btn" title="<?=htmlspecialchars(t('Toggle dark mode'), ENT_QUOTES, 'UTF-8')?>">
       <i class="ti ti-moon" id="theme-icon"></i>
     </button>
-    <button class="theme-btn" id="lang-btn" title="<?=htmlspecialchars(t('Language'), ENT_QUOTES, 'UTF-8')?>" style="margin-left:8px;font-size:11px;font-weight:700;letter-spacing:.02em;"><?=$LANG_UI === 'tr' ? 'EN' : 'TR'?></button>
+    <button class="theme-btn" id="lang-btn" title="<?=htmlspecialchars(t('Language'), ENT_QUOTES, 'UTF-8')?>" style="font-size:11px;font-weight:700;letter-spacing:.02em;"><?=$LANG_UI === 'tr' ? 'EN' : 'TR'?></button>
   </div>
   <div class="hdr-meta">
     <div class="hdr-status<?=$overallDetail!==''?' has-detail':''?>" id="hdr-status">
@@ -1731,18 +1746,18 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:<?=$cpuCardCol?><?=cardBorderCss($cpuCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name">CPU</span></div>
+      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name"><?=t('CPU')?></span></div>
       <span class="res-val" id="rv-cpu"><?=$cpuUsage?>%</span>
     </div>
     <div class="res-middle">
       <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-cpu" style="width:<?=$cpuUsage?>%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><?=svgSpark($ssr['cpu'], 70, 24, $cpuCardCol, 'ssr-cpu')?><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; run ' . (int)$rState . ' / blk ' . (int)$dState : ''?></div>
+    <div class="res-meta" id="rm-cpu"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; ' . t('run') . ' ' . (int)$rState . ' / ' . t('blocked') . ' ' . (int)$dState : ''?></div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?><?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name">RAM</span></div>
+      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name"><?=t('RAM')?></span></div>
       <span class="res-val" id="rv-ram"><?=$memUsagePercent?>%</span>
     </div>
     <div class="res-middle">
@@ -1775,7 +1790,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   // IO Wait metası: disk R/W hızı + D-state (diskte bloklanan süreç). D-state,
   // "load yüksek ama CPU düşük" durumunun kanıtıdır — load'a girer, CPU'da görünmez.
   $iowParts = [];
-  if ($ioRead !== null) { $iowParts[] = 'R ' . fmtBytes($ioRead); $iowParts[] = 'W ' . fmtBytes($ioWrite); }
+  if ($ioRead !== null) { $iowParts[] = t('R') . ' ' . fmtBytes($ioRead); $iowParts[] = t('W') . ' ' . fmtBytes($ioWrite); }
   if ($dState !== null) $iowParts[] = $dState . ' ' . t('blocked');
 ?>
     <div class="res-meta" id="rm-iow"><?=$iowParts ? implode(' · ', $iowParts) : t('Disk I/O pressure')?></div>
@@ -2045,17 +2060,17 @@ function scol(v,hi,cr,ok){return v>=cr?'var(--danger)':v>=hi?'var(--warn)':(ok||
 function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=2.0?'var(--danger)':r>=1.0?'var(--warn)':(ok||'var(--accent)');}
 function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=100)return'var(--danger)';if(ms>=30)return'var(--warn)';return'var(--accent)';}
 // IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
-function iowMeta(d){const p=[];if(d.ioR!=null){p.push('R '+d.ioR,'W '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
+function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
 function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
-function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · run '+(d.rstate||0)+' / blk '+(d.dstate||0);return s;}
+function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · '+t('run')+' '+(d.rstate||0)+' / '+t('blocked')+' '+(d.dstate||0);return s;}
 function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' '+t('mismatch')+'</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
 function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
 function pmcls(v){v=parseFloat(v)||0;return v>=15?'hot':v>=5?'warm':'';}
 function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);return m?(+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]):null;}
-function ageShort(s){return s>=86400?Math.floor(s/86400)+'d':s>=3600?Math.floor(s/3600)+'h':Math.max(1,Math.floor(s/60))+'m';}
+function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 
 function spark(id,data,color,W,H){
