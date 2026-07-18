@@ -19,6 +19,81 @@ $CREDIT_URL  = $cfg['credit_url']    ?? 'https://ayzeta.net';
 $_tw = array_values(array_filter(preg_split('/\s+/', trim($SITE_TITLE)))); // logo yoksa baş harfler (substr: mbstring garanti değil)
 $INITIALS = strtoupper(count($_tw) >= 2 ? substr($_tw[0], 0, 1) . substr($_tw[1], 0, 1) : substr(($_tw[0] ?? 'SM'), 0, 2));
 
+// ── Dil (i18n) ────────────────────────────────────────────────
+// UI dili = cookie ?? config['lang'] ?? 'en'. Cookie, arayüzdeki dil düğmesiyle
+// set edilir → hem sunucu-render hem JS aynı dili kullanır. Mail eki (cookie yok)
+// config varsayılanını gösterir. İngilizce = kaynak (anahtar); $TR SADECE Türkçe
+// karşılıkları tutar, yoksa İngilizce'ye düşülür. sprintf'li anahtarlar %s taşır.
+$LANG_UI = $_COOKIE['lang'] ?? ($cfg['lang'] ?? 'en');
+$LANG_UI = ($LANG_UI === 'tr') ? 'tr' : 'en';
+$TR = [
+    // Genel durum + bölüm başlıkları
+    'All systems operational' => 'Tüm sistemler çalışıyor', 'Degraded' => 'Sorunlu', 'Issues detected' => 'Sorun tespit edildi', 'Issues' => 'Sorun',
+    'System metrics' => 'Sistem metrikleri', 'System info' => 'Sistem bilgisi', 'Services' => 'Servisler',
+    'Processes' => 'Süreçler', 'Event log' => 'Olay kaydı',
+    // Kimlik/başlık şeridi
+    'Hostname' => 'Sunucu adı', 'Threads' => 'Çekirdek', 'Uptime' => 'Çalışma süresi', 'Updated' => 'Güncellendi', 'Snapshot' => 'Anlık görüntü',
+    // Load / kaynak kartları
+    'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', 'of %s cores' => '%s çekirdeğin',
+    'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
+    // Info şeridi
+    'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
+    '%s%% of link' => 'hattın %%%s', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
+    'Mail Queue' => 'Mail Kuyruğu', 'messages queued' => 'kuyruktaki mesaj', 'Web Response' => 'Web Yanıtı', 'HTTP response time' => 'HTTP yanıt süresi',
+    'MySQL Response' => 'MySQL Yanıtı', 'TCP response time' => 'TCP yanıt süresi', 'Hosted Accounts' => 'Hesaplar', 'cPanel accounts' => 'cPanel hesabı',
+    'days' => 'gün',
+    // Servis kartları + durum
+    'Web server' => 'Web sunucusu', 'Mail services' => 'Mail servisleri', 'Security' => 'Güvenlik', 'Database' => 'Veritabanı',
+    'Cache' => 'Önbellek', 'Operational' => 'Çalışıyor', 'Offline' => 'Kapalı',
+    '%s/%s checks passed' => '%s/%s kontrol geçti', '%s verified active' => '%s aktif doğrulandı', '%s/%s active' => '%s/%s aktif',
+    'checks passed' => 'kontrol geçti', 'verified active' => 'aktif doğrulandı', 'blocked' => 'bloklu', 'Disk I/O pressure' => 'Disk I/O baskısı', 'mismatch' => 'uyumsuz', 'FTP service' => 'FTP servisi', 'Kernel state' => 'Çekirdek durumu',
+    'running' => 'çalışıyor', 'listening' => 'dinliyor', 'responding' => 'yanıt veriyor', 'alive' => 'ayakta',
+    'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
+    // Süreç tabloları
+    'Top processes · CPU' => 'En yüklü süreçler · CPU', 'Top processes · RAM' => 'En yüklü süreçler · RAM',
+    'Top disk · account' => 'En dolu disk · hesap', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
+    'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
+    'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
+    'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
+    'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
+    'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük',
+    'MySQL · active queries' => 'MySQL · aktif sorgular',
+    'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
+    'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce',
+    // Event log
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.',
+    // Footer
+    'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
+    'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
+    'Toggle dark mode' => 'Karanlık modu değiştir', 'Language' => 'Dil',
+    // ── Event-log mesaj şablonları (%s=değer, %%=literal %) — PHP+JS ortak ──
+    'High load: %s (1m)%s' => 'Yüksek yük: %s (1dk)%s', 'Load elevated: %s (1m)%s' => 'Yük yükseldi: %s (1dk)%s', 'Load back to normal: %s' => 'Yük normale döndü: %s',
+    'CPU critical: %s%%%s' => 'CPU kritik: %s%%%s', 'CPU high: %s%%%s' => 'CPU yüksek: %s%%%s', 'CPU back to normal: %s%%' => 'CPU normale döndü: %s%%',
+    'RAM critical: %s%%' => 'RAM kritik: %s%%', 'RAM high: %s%%' => 'RAM yüksek: %s%%', 'RAM back to normal: %s%%' => 'RAM normale döndü: %s%%',
+    'IO Wait critical: %s%%%s' => 'IO Bekleme kritik: %s%%%s', 'IO Wait high: %s%%%s' => 'IO Bekleme yüksek: %s%%%s', 'IO Wait back to normal: %s%%' => 'IO Bekleme normale döndü: %s%%',
+    'Swap heavily in use: %s GB (%s%%)' => 'Swap yoğun kullanımda: %s GB (%%%s)', 'Swap in use: %s GB (%s%%)' => 'Swap kullanımda: %s GB (%%%s)', 'Swap cleared' => 'Swap temizlendi',
+    'Shared memory very high: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek çok yüksek: %s GB (RAM %%%s)', 'Shared memory elevated: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek yükseldi: %s GB (RAM %%%s)', 'Shared memory back to normal' => 'Paylaşımlı bellek normale döndü',
+    'Inodes critically high: %s%% (disk may fail despite free space)' => 'Inode kritik seviyede: %%%s (boş alan olsa da disk çökebilir)', 'Inode usage high: %s%%' => 'Inode kullanımı yüksek: %%%s', 'Inode usage back to normal' => 'Inode kullanımı normale döndü',
+    '%s — a disk is down; replace before a second fails' => '%s — bir disk düştü; ikincisi ölmeden değiştir', '%s — array rebuilding' => '%s — dizi yeniden kuruluyor', 'RAID array healthy again' => 'RAID dizisi tekrar sağlıklı',
+    'RAID mismatch count: %s — data inconsistency found in last scrub' => 'RAID uyumsuzluk sayısı: %s — son taramada veri tutarsızlığı bulundu', 'RAID mismatch cleared' => 'RAID uyumsuzluğu temizlendi',
+    'Disk pre-failure — %s; plan replacement' => 'Disk ön-arıza — %s; değişim planla', 'SMART pre-failure cleared' => 'SMART ön-arıza temizlendi',
+    'Network link saturated: %s%% of line rate' => 'Ağ hattı doygun: hat oranı %%%s', 'Network link busy: %s%% of line rate' => 'Ağ hattı yoğun: hat oranı %%%s', 'Network load back to normal' => 'Ağ yükü normale döndü',
+    'MySQL threads_running very high: %s (query pileup)' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)', 'MySQL threads_running elevated: %s' => 'MySQL threads_running yükseldi: %s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
+    'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
+    'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
+    '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
+    'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
+    'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
+    'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
+    'Mail' => 'Mail',
+    'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama',
+];
+$T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
+function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
+function tf($s, ...$a) { global $T; return vsprintf($T[$s] ?? $s, $a); } // sprintf'li
+function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (string)$n))); } // ' · ' bileşik notlar
+
 // ── Process snapshot ──────────────────────────────────────────
 // PHP CageFS içinde diğer kullanıcıların süreçlerini göremez (sanal /proc);
 // tam liste root'un dakikalık cron'undan gelir ($HOME_DIR/.proc_snapshot,
@@ -543,7 +618,7 @@ if ($rootFresh && $smartBad) {
         $sp[] = 'SMART ' . htmlspecialchars($q[0]) . ': ' . htmlspecialchars($q[1] ?? '?');
     }
     $smartTxt = implode(' &middot; ', $sp);              // meta (HTML)
-    $smartMsg = 'Disk pre-failure — ' . implode(', ', $smartBad) . '; plan replacement'; // log (düz)
+    $smartMsg = tf('Disk pre-failure — %s; plan replacement', implode(', ', $smartBad)); // log (düz)
 }
 // O an sorgu işleyen MySQL thread'i (5sn+ sorgu tablosunun görmediği "kısa ama çok" senaryosu)
 $mysqlThr = ($rootFresh && isset($procSec['mysql_thr']) && is_numeric($procSec['mysql_thr']))
@@ -921,25 +996,25 @@ if (!empty($histSeed['t'])) {
         if (($histSeed['top'][$i] ?? '') !== '' && strpos($histSeed['top'][$i], ':') !== false) {
             [$tn, $tc] = explode(':', $histSeed['top'][$i], 2);
             $tn  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tn);
-            if ($tn !== '') $sfx = ' — top: ' . str_replace('_', ' ', $tn) . ' ' . (int)$tc . '%';
+            if ($tn !== '') $sfx = ' — ' . t('top:') . ' ' . str_replace('_', ' ', $tn) . ' ' . (int)$tc . '%';
         }
         $chk = [
             'load' => [$l1v / max($coreCount, 1), 2.0, 1.0,
-                       'High load: ' . number_format($l1v, 2) . ' (1m)' . $sfx,
-                       'Load elevated: ' . number_format($l1v, 2) . ' (1m)' . $sfx,
-                       'Load back to normal: ' . number_format($l1v, 2)],
+                       tf('High load: %s (1m)%s', number_format($l1v, 2), $sfx),
+                       tf('Load elevated: %s (1m)%s', number_format($l1v, 2), $sfx),
+                       tf('Load back to normal: %s', number_format($l1v, 2))],
             'cpu'  => [$histSeed['cpu'][$i], 90, 80,
-                       'CPU critical: ' . $histSeed['cpu'][$i] . '%' . $sfx,
-                       'CPU high: ' . $histSeed['cpu'][$i] . '%' . $sfx,
-                       'CPU back to normal: ' . $histSeed['cpu'][$i] . '%'],
+                       tf('CPU critical: %s%%%s', $histSeed['cpu'][$i], $sfx),
+                       tf('CPU high: %s%%%s', $histSeed['cpu'][$i], $sfx),
+                       tf('CPU back to normal: %s%%', $histSeed['cpu'][$i])],
             'ram'  => [$histSeed['ram'][$i], 85, 70,
-                       'RAM critical: ' . $histSeed['ram'][$i] . '%',
-                       'RAM high: ' . $histSeed['ram'][$i] . '%',
-                       'RAM back to normal: ' . $histSeed['ram'][$i] . '%'],
+                       tf('RAM critical: %s%%', $histSeed['ram'][$i]),
+                       tf('RAM high: %s%%', $histSeed['ram'][$i]),
+                       tf('RAM back to normal: %s%%', $histSeed['ram'][$i])],
             'iow'  => [$histSeed['iow'][$i], 15, 8,
-                       'IO Wait critical: ' . $histSeed['iow'][$i] . '%' . $sfx,
-                       'IO Wait high: ' . $histSeed['iow'][$i] . '%' . $sfx,
-                       'IO Wait back to normal: ' . $histSeed['iow'][$i] . '%'],
+                       tf('IO Wait critical: %s%%%s', $histSeed['iow'][$i], $sfx),
+                       tf('IO Wait high: %s%%%s', $histSeed['iow'][$i], $sfx),
+                       tf('IO Wait back to normal: %s%%', $histSeed['iow'][$i])],
         ];
         foreach ($chk as $k => [$v, $cr, $hi, $mErr, $mWarn, $mOk]) {
             $new = lvlHyst($v, $cr, $hi, $lvl[$k]);
@@ -962,8 +1037,8 @@ if ($procAge === null || $procAge > 180) {
     $seedLvl['snap'] = 'err';
     $seedLogs[] = ['type' => 'err',
         'msg'  => $procAge === null
-                ? 'Root snapshot missing — cron down?'
-                : 'Root snapshot stale (' . $procAge . 's) — cron down?',
+                ? t('Root snapshot missing — cron down?')
+                : tf('Root snapshot stale (%ss) — cron down?', $procAge),
         'ts'   => date('H:i')];
 }
 
@@ -972,43 +1047,43 @@ if ($procAge === null || $procAge > 180) {
 $seedLvl['swap'] = 'ok';
 if ($swapPct >= 50) {
     $seedLvl['swap'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => 'Swap heavily in use: ' . $swapUsedGB . ' GB (' . $swapPct . '%)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Swap heavily in use: %s GB (%s%%)', $swapUsedGB, $swapPct), 'ts' => date('H:i')];
 } elseif ($swapPct >= 10) {
     $seedLvl['swap'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'Swap in use: ' . $swapUsedGB . ' GB (' . $swapPct . '%)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Swap in use: %s GB (%s%%)', $swapUsedGB, $swapPct), 'ts' => date('H:i')];
 }
 // Shmem — opcache/tmpfs kaçağının erken sinyali. Eşik RAM'in %'si (taşınabilir).
 $seedLvl['shmem'] = 'ok';
 if ($shmemPct >= 55) {
     $seedLvl['shmem'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => 'Shared memory very high: ' . $shmemGB . ' GB (' . $shmemPct . '% of RAM)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Shared memory very high: %s GB (%s%% of RAM)', $shmemGB, $shmemPct), 'ts' => date('H:i')];
 } elseif ($shmemPct >= 40) {
     $seedLvl['shmem'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'Shared memory elevated: ' . $shmemGB . ' GB (' . $shmemPct . '% of RAM)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Shared memory elevated: %s GB (%s%% of RAM)', $shmemGB, $shmemPct), 'ts' => date('H:i')];
 }
 // Inode — disk alanı boşken bile tükenirse sunucu çöker. Eşik %90/%80.
 $seedLvl['inode'] = 'ok';
 if ($inodePct !== null && $inodePct >= 90) {
     $seedLvl['inode'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => 'Inodes critically high: ' . $inodePct . '% (disk may fail despite free space)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Inodes critically high: %s%% (disk may fail despite free space)', $inodePct), 'ts' => date('H:i')];
 } elseif ($inodePct !== null && $inodePct >= 80) {
     $seedLvl['inode'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'Inode usage high: ' . $inodePct . '%', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Inode usage high: %s%%', $inodePct), 'ts' => date('H:i')];
 }
 // RAID — degraded = disk sessizce düşmüş (acil, ikincisi ölmeden değiştir).
 $seedLvl['raid'] = 'ok';
 if ($raidState === 'degraded') {
     $seedLvl['raid'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => $raidTxt . ' — a disk is down; replace before a second fails', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('%s — a disk is down; replace before a second fails', $raidTxt), 'ts' => date('H:i')];
 } elseif ($raidState === 'resync') {
     $seedLvl['raid'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => $raidTxt . ' — array rebuilding', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('%s — array rebuilding', $raidTxt), 'ts' => date('H:i')];
 }
 // RAID mismatch — son scrub'da uyuşmayan blok (>0 = veri tutarsızlık uyarısı).
 $seedLvl['mismatch'] = 'ok';
 if ($raidMismatch > 0) {
     $seedLvl['mismatch'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'RAID mismatch count: ' . $raidMismatch . ' — data inconsistency found in last scrub', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('RAID mismatch count: %s — data inconsistency found in last scrub', $raidMismatch), 'ts' => date('H:i')];
 }
 // SMART — ön-arıza (alarm-only, sadece sorunlu diskte).
 $seedLvl['smart'] = 'ok';
@@ -1020,19 +1095,19 @@ if ($smartMsg !== '') {
 $seedLvl['net'] = 'ok';
 if ($netSat !== null && $netSat >= 90) {
     $seedLvl['net'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => 'Network link saturated: ' . $netSat . '% of line rate', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Network link saturated: %s%% of line rate', $netSat), 'ts' => date('H:i')];
 } elseif ($netSat !== null && $netSat >= 70) {
     $seedLvl['net'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'Network link busy: ' . $netSat . '% of line rate', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Network link busy: %s%% of line rate', $netSat), 'ts' => date('H:i')];
 }
 // Threads_running — DB'de aynı anda koşan sorgu (çekirdeğe oranlı: warn ≥ N / err ≥ 2N).
 $seedLvl['mysqlthr'] = 'ok';
 if ($mysqlThr !== null && $mysqlThr >= $coreCount * 2) {
     $seedLvl['mysqlthr'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => 'MySQL threads_running very high: ' . $mysqlThr . ' (query pileup)', 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL threads_running very high: %s (query pileup)', $mysqlThr), 'ts' => date('H:i')];
 } elseif ($mysqlThr !== null && $mysqlThr >= $coreCount) {
     $seedLvl['mysqlthr'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => 'MySQL threads_running elevated: ' . $mysqlThr, 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL threads_running elevated: %s', $mysqlThr), 'ts' => date('H:i')];
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1106,7 +1181,7 @@ function renderChecks($checks) {
                   . '<code class="sub-cmd-inline">' . $cmd . '</code>'
                   . '</div>' . "\n";
         } else {
-            $note = isset($c['note']) ? htmlspecialchars($c['note']) : ($c['ok'] ? 'ok' : 'fail');
+            $note = htmlspecialchars(isset($c['note']) ? tnote($c['note']) : ($c['ok'] ? t('ok') : t('fail')));
             // Yaş sütunu: HER satırda sabit genişlikte span (yaşı olmayanlarda boş) —
             // böylece notlar ortak hizada biter, yaşlar sağ kenarda dikey taranır.
             $age = '<span class="sub-age"' . (isset($c['up']) ? ' title="up ' . htmlspecialchars($c['up']) . '"' : '') . '>'
@@ -1129,7 +1204,7 @@ function renderChecks($checks) {
     return $out;
 }
 function bclass($s) { return $s === 'operational' ? 'badge-ok' : ($s === 'degraded' ? 'badge-warn' : 'badge-err'); }
-function blabel($s) { return $s === 'operational' ? 'Operational' : ($s === 'degraded' ? 'Degraded' : 'Offline'); }
+function blabel($s) { return t($s === 'operational' ? 'Operational' : ($s === 'degraded' ? 'Degraded' : 'Offline')); }
 
 // ── Sunucu tarafı sparkline (SVG) ─────────────────────────────
 // Mail eklerinde JS ölü olabilir (taşıma katmanı 998+ baytlık satırları
@@ -1185,8 +1260,8 @@ function pmemClass($v) { $v = (float)$v; return $v >= 15 ? 'hot' : ($v >= 5 ? 'w
 function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
-    $out = '<div class="proc-card"><div class="proc-title">Top processes · CPU</div>'
-         . '<table class="proc-table"><thead><tr><th>PID</th><th>User</th><th class="num" title="Percent of a single core &mdash; multi-threaded processes can exceed 100">CPU%</th><th class="num">MEM%</th><th>Time</th><th>Command</th></tr></thead><tbody id="pt-cpu">' . "\n";
+    $out = '<div class="proc-card"><div class="proc-title">' . t('Top processes · CPU') . '</div>'
+         . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num" title="Percent of a single core &mdash; multi-threaded processes can exceed 100">CPU%</th><th class="num">MEM%</th><th>' . t('Time') . '</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
     foreach ($procCpu as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
               . '<td class="num ' . pcpuClass($p[2]) . '">' . $h($p[2]) . '</td>'
@@ -1195,8 +1270,8 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     }
     $out .= '</tbody></table></div>';
 
-    $out .= '<div class="proc-card"><div class="proc-title">Top processes &middot; RAM</div>'
-          . '<table class="proc-table"><thead><tr><th>PID</th><th>User</th><th class="num">MEM%</th><th class="num">RSS</th><th>Command</th></tr></thead><tbody id="pt-ram">' . "\n";
+    $out .= '<div class="proc-card"><div class="proc-title">' . t('Top processes · RAM') . '</div>'
+          . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num">MEM%</th><th class="num">RSS</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-ram">' . "\n";
     foreach ($procRam as $p) {
         $mc = pmemClass($p[3]);
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
@@ -1208,8 +1283,8 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     // 3. sütun: en dolu hesaplar (disk) — dikey tablo, diğerleriyle aynı stil.
     $out .= renderDiskCard($diskAcct, $h);
 
-    $out .= '<div class="proc-card"><div class="proc-title">PHP &middot; account <span class="proc-age">&middot; active+idle</span></div>'
-          . '<table class="proc-table"><thead><tr><th>Account</th><th></th><th class="num" title="All lsphp processes for the account, idle pool included &mdash; the PHP Workers card counts only active (R/D) ones">Procs</th></tr></thead><tbody id="pt-php">' . "\n";
+    $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . ' <span class="proc-age">&middot; ' . t('active+idle') . '</span></div>'
+          . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num" title="All lsphp processes for the account, idle pool included &mdash; the PHP Workers card counts only active (R/D) ones">' . t('Procs') . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
     foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
     foreach ($procPhp as $p) {
@@ -1236,11 +1311,11 @@ function diskAcctCls($gb, $totalGB) {
 }
 function renderDiskCard($diskAcct, $h) {
     global $diskTotalGB;
-    $out = '<div class="proc-card"><div class="proc-title">Top disk &middot; account'
-         . '<span class="proc-age" title="cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk">&middot; GB used</span></div>'
-         . '<table class="proc-table"><thead><tr><th>Account</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
+    $out = '<div class="proc-card"><div class="proc-title">' . t('Top disk · account')
+         . '<span class="proc-age" title="cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk">&middot; ' . t('GB used') . '</span></div>'
+         . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
-        $out .= '<tr><td colspan="3" style="color:var(--hint)">quota data pending</td></tr>';
+        $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
     }
     $mx = 0.1;
     foreach ($diskAcct as $p) if ($p[1] > $mx) $mx = $p[1];
@@ -1260,12 +1335,12 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
     // Threads_running: 5sn+ tablosunun görmediği "kısa ama çok sorgu" yükünün anlık
     // göstergesi. Çekirdeğe oranlı renk (warn ≥ çekirdek / err ≥ 2×) — DB'de sorgu birikmesi.
-    $out = '<div class="proc-card"><div class="proc-title">MySQL &middot; active queries'
+    $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
          . '<span class="proc-age" id="sql-thr" title="Threads executing a query at snapshot time, incl. sub-' . (int)$sqlMinSec . 's ones the list below does not show (the snapshot&#39;s own status query counts as 1)">'
          . ($mysqlThr !== null ? ' &middot; Threads_running: <span id="sql-thr-n" style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>ID</th><th>User</th><th>DB</th><th class="num">Time(s)</th><th>State</th><th>Query</th></tr></thead><tbody id="pt-sql">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>DB</th><th class="num">Time(s)</th><th>' . t('State') . '</th><th>' . t('Query') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
-        $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">No queries running longer than ' . $sqlMinSec . 's at snapshot time</td></tr>';
+        $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
     }
     foreach ($procSql as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
@@ -1601,16 +1676,17 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       </div>
       <div class="hdr-sub"><?=htmlspecialchars($SITE_SUB, ENT_QUOTES, 'UTF-8')?></div>
     </div>
-    <button class="theme-btn" id="theme-btn" title="Toggle dark mode" style="margin-left:8px;">
+    <button class="theme-btn" id="theme-btn" title="<?=htmlspecialchars(t('Toggle dark mode'), ENT_QUOTES, 'UTF-8')?>" style="margin-left:8px;">
       <i class="ti ti-moon" id="theme-icon"></i>
     </button>
+    <button class="theme-btn" id="lang-btn" title="<?=htmlspecialchars(t('Language'), ENT_QUOTES, 'UTF-8')?>" style="margin-left:8px;font-size:11px;font-weight:700;letter-spacing:.02em;"><?=$LANG_UI === 'tr' ? 'EN' : 'TR'?></button>
   </div>
   <div class="hdr-meta">
     <div class="hdr-status<?=$overallDetail!==''?' has-detail':''?>" id="hdr-status">
       <div class="hdr-status-dot" id="hdr-dot" style="background:<?=$overallColorCss?>"></div>
-      <span class="hdr-status-short" id="hdr-short"><?=$overallShort?></span>
+      <span class="hdr-status-short" id="hdr-short"><?=t($overallShort)?></span>
       <div class="hdr-status-full">
-        <span class="hdr-status-txt" id="hdr-txt"><?=$overallStatus?></span>
+        <span class="hdr-status-txt" id="hdr-txt"><?=t($overallStatus)?></span>
         <span class="hdr-status-detail" id="hdr-detail"<?=$overallDetail===''?' style="display:none"':''?>><?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?></span>
       </div>
     </div>
@@ -1625,7 +1701,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
 </div>
 
-<div class="sec">System metrics <span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?>&middot; <?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
+<div class="sec"><?=t('System metrics')?> <span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?>&middot; <?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:<?=$lc1=lcolCss($load1, $coreCount)?><?=cardBorderCss($lc1)?>">
     <div class="load-left">
@@ -1662,7 +1738,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-cpu" style="width:<?=$cpuUsage?>%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><?=svgSpark($ssr['cpu'], 70, 24, $cpuCardCol, 'ssr-cpu')?><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu">Load: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; run ' . (int)$rState . ' / blk ' . (int)$dState : ''?></div>
+    <div class="res-meta" id="rm-cpu"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; run ' . (int)$rState . ' / blk ' . (int)$dState : ''?></div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?><?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
@@ -1684,11 +1760,11 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:<?=$diskUsagePercent?>%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><?=svgSpark($ssr['disk'], 70, 24, $diskCardCol, 'ssr-disk')?><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk"><?=$diskUsedGB?> / <?=$diskTotalGB?> GB<?=$inodePct !== null ? ' &middot; <span style="color:' . $inodeCol . '">inode ' . $inodePct . '%</span>' : ''?><?=($raidState !== null && $raidState !== 'ok') ? ' &middot; <span style="color:' . $raidCol . '">' . htmlspecialchars($raidTxt) . '</span>' : ''?><?=$raidMismatch > 0 ? ' &middot; <span style="color:var(--warn)">' . $raidMismatch . ' mismatch</span>' : ''?><?=$smartTxt !== '' ? ' &middot; <span style="color:var(--danger)">' . $smartTxt . '</span>' : ''?><?=$diskGrow !== '' ? ' &middot; ' . $diskGrow : ''?></div>
+    <div class="res-meta" id="rm-disk"><?=$diskUsedGB?> / <?=$diskTotalGB?> GB<?=$inodePct !== null ? ' &middot; <span style="color:' . $inodeCol . '">inode ' . $inodePct . '%</span>' : ''?><?=($raidState !== null && $raidState !== 'ok') ? ' &middot; <span style="color:' . $raidCol . '">' . htmlspecialchars($raidTxt) . '</span>' : ''?><?=$raidMismatch > 0 ? ' &middot; <span style="color:var(--warn)">' . $raidMismatch . ' ' . t('mismatch') . '</span>' : ''?><?=$smartTxt !== '' ? ' &middot; <span style="color:var(--danger)">' . $smartTxt . '</span>' : ''?><?=$diskGrow !== '' ? ' &middot; ' . $diskGrow : ''?></div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:<?=$iowCardCol?><?=cardBorderCss($iowCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name">IO Wait</span></div>
+      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name"><?=t('IO Wait')?></span></div>
       <span class="res-val" id="rv-iow"><?=$ioWait?>%</span>
     </div>
     <div class="res-middle">
@@ -1700,36 +1776,36 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   // "load yüksek ama CPU düşük" durumunun kanıtıdır — load'a girer, CPU'da görünmez.
   $iowParts = [];
   if ($ioRead !== null) { $iowParts[] = 'R ' . fmtBytes($ioRead); $iowParts[] = 'W ' . fmtBytes($ioWrite); }
-  if ($dState !== null) $iowParts[] = $dState . ' blocked';
+  if ($dState !== null) $iowParts[] = $dState . ' ' . t('blocked');
 ?>
-    <div class="res-meta" id="rm-iow"><?=$iowParts ? implode(' · ', $iowParts) : 'Disk I/O pressure'?></div>
+    <div class="res-meta" id="rm-iow"><?=$iowParts ? implode(' · ', $iowParts) : t('Disk I/O pressure')?></div>
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">System info</div>
+<div class="sec" style="margin-top:12px"><?=t('System info')?></div>
 <div class="info-row">
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-arrow-down"></i></div>
     <div class="info-body">
-      <div class="info-label">Network IN</div>
+      <div class="info-label"><?=t('Network IN')?></div>
       <div class="info-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=fmtBytes($rxRate)?></div>
-      <div class="info-sub" id="iv-rx-sub"><?=$netRxSat !== null ? $netRxSat . '% of link' : 'incoming traffic'?></div>
+      <div class="info-sub" id="iv-rx-sub"><?=$netRxSat !== null ? tf('%s%% of link', $netRxSat) : t('incoming traffic')?></div>
     </div>
     <span class="info-spark spark-wrap"><?=svgSpark($ssr['rx'], 64, 30, $netRxCol, 'ssr-rx')?><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-arrow-up"></i></div>
     <div class="info-body">
-      <div class="info-label">Network OUT</div>
+      <div class="info-label"><?=t('Network OUT')?></div>
       <div class="info-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=fmtBytes($txRate)?></div>
-      <div class="info-sub" id="iv-tx-sub"><?=$netTxSat !== null ? $netTxSat . '% of link' : 'outgoing traffic'?></div>
+      <div class="info-sub" id="iv-tx-sub"><?=$netTxSat !== null ? tf('%s%% of link', $netTxSat) : t('outgoing traffic')?></div>
     </div>
     <span class="info-spark spark-wrap"><?=svgSpark($ssr['tx'], 64, 30, $netTxCol, 'ssr-tx')?><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-cpu"></i></div>
     <div class="info-body">
-      <div class="info-label">PHP Workers</div>
+      <div class="info-label"><?=t('PHP Workers')?></div>
       <div class="info-val" id="iv-lsphp" style="color:<?=lsphpCol($lsphpTotal, $coreCount)?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></div>
       <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool"><?=$lsphpIdle !== null ? 'active &middot; ' . $lsphpIdle . ' idle' : 'running lsphp'?></div>
     </div>
@@ -1738,7 +1814,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-mail"></i></div>
     <div class="info-body">
-      <div class="info-label">Mail Queue</div>
+      <div class="info-label"><?=t('Mail Queue')?></div>
       <div class="info-val" id="iv-mailq" style="color:<?=mqCol($mailQ, $whmAcctCount)?>"><?=$mailQ !== null ? $mailQ : '—'?></div>
       <div class="info-sub">messages queued</div>
     </div>
@@ -1747,7 +1823,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-bolt"></i></div>
     <div class="info-body">
-      <div class="info-label">Web Response</div>
+      <div class="info-label"><?=t('Web Response')?></div>
       <div class="info-val" id="iv-web" style="color:<?=rtCol($webResponseTime)?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></div>
       <div class="info-sub">HTTP response time</div>
     </div>
@@ -1755,7 +1831,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-database"></i></div>
     <div class="info-body">
-      <div class="info-label">MySQL Response</div>
+      <div class="info-label"><?=t('MySQL Response')?></div>
       <div class="info-val" id="iv-mysql" style="color:<?=rtCol($mysqlResponseTime)?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></div>
       <div class="info-sub">TCP response time</div>
     </div>
@@ -1763,7 +1839,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-users"></i></div>
     <div class="info-body">
-      <div class="info-label">Hosted Accounts</div>
+      <div class="info-label"><?=t('Hosted Accounts')?></div>
       <div class="info-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></div>
       <div class="info-sub">cPanel accounts</div>
     </div>
@@ -1778,12 +1854,12 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">Services</div>
+<div class="sec" style="margin-top:12px"><?=t('Services')?></div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-bolt"></i></div>
-      <div class="svc-info"><div class="svc-name">Web server</div><div class="svc-count" id="sk-web"><?=$webOk?>/<?=$webTotal?> checks passed</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Web server')?></div><div class="svc-count" id="sk-web"><?=$webOk?>/<?=$webTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($webStatus)?>" id="bd-web"><?=blabel($webStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-web"><?=renderChecks($webChecks)?></div>
@@ -1791,7 +1867,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-mail"></i></div>
-      <div class="svc-info"><div class="svc-name">Mail services</div><div class="svc-count" id="sk-mail"><?=$mailOk?>/<?=$mailTotal?> checks passed</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Mail services')?></div><div class="svc-count" id="sk-mail"><?=$mailOk?>/<?=$mailTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($mailStatus)?>" id="bd-mail"><?=blabel($mailStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-mail"><?=renderChecks($mailChecks)?></div>
@@ -1799,7 +1875,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-world"></i></div>
-      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns"><?=$dnsOk?>/<?=$dnsTotal?> checks passed</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('DNS')?></div><div class="svc-count" id="sk-dns"><?=$dnsOk?>/<?=$dnsTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($dnsStatus)?>" id="bd-dns"><?=blabel($dnsStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-dns"><?=renderChecks($dnsChecks)?></div>
@@ -1809,7 +1885,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-shield-check"></i></div>
-      <div class="svc-info"><div class="svc-name">Security</div><div class="svc-count" id="sk-sec"><?=$secOk?>/<?=$secTotal?> verified active</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Security')?></div><div class="svc-count" id="sk-sec"><?=$secOk?>/<?=$secTotal?> <?=t('verified active')?></div></div>
       <div class="badge <?=bclass($secStatus)?>" id="bd-sec"><?=blabel($secStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-sec"><?=renderChecks($secChecks)?></div>
@@ -1817,7 +1893,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-database"></i></div>
-      <div class="svc-info"><div class="svc-name">Database</div><div class="svc-count" id="sk-db"><?=$dbOk?>/<?=$dbTotal?> checks passed</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Database')?></div><div class="svc-count" id="sk-db"><?=$dbOk?>/<?=$dbTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($dbStatus)?>" id="bd-db"><?=blabel($dbStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-db"><?=renderChecks($dbChecks)?></div>
@@ -1825,7 +1901,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-topology-star-ring"></i></div>
-      <div class="svc-info"><div class="svc-name">Cache</div><div class="svc-count" id="sk-cache"><?=$cacheOk?>/<?=$cacheTotal?> active</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Cache')?></div><div class="svc-count" id="sk-cache"><?=$cacheOk?>/<?=$cacheTotal?> <?=t('active')?></div></div>
       <div class="badge <?=bclass($cacheStatus)?>" id="bd-cache"><?=blabel($cacheStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-cache"><?=renderChecks($cacheChecks)?></div>
@@ -1833,7 +1909,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-file-arrow-right"></i></div>
-      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp"><?=$ftpOk?>/<?=$ftpTotal?> checks passed</div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('FTP')?></div><div class="svc-count" id="sk-ftp"><?=$ftpOk?>/<?=$ftpTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($ftpStatus)?>" id="bd-ftp"><?=blabel($ftpStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-ftp"><?=renderChecks($ftpChecks)?></div>
@@ -1841,7 +1917,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 </div>
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
-<div class="sec" style="margin-top:12px">Processes
+<div class="sec" style="margin-top:12px"><?=t('Processes')?>
   <span class="proc-age<?=($procAge !== null && $procAge > 180) ? ' stale' : ''?>" id="proc-age">&middot; root snapshot, <?=$procAge?>s ago<?=($procAge !== null && $procAge > 180) ? ' — STALE (cron?)' : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
@@ -1849,24 +1925,24 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="proc-row-sql"><?=renderSqlTable($procSql, $sqlMinSec, $mysqlThr, $mysqlThrCol)?></div>
 <?php endif; ?>
 
-<div class="sec" style="margin-top:12px">Event log</div>
+<div class="sec" style="margin-top:12px"><?=t('Event log')?></div>
 <div class="log-card">
   <div class="log-hdr">
     <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
-    <span class="log-hdr-title">Recent alerts &amp; status changes</span>
+    <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
     <div class="log-item"><div class="log-dot <?=htmlspecialchars($L['type'])?>"></div><span class="log-txt"><?=htmlspecialchars($L['msg'])?></span><span class="log-ts"><?=htmlspecialchars($L['ts'])?></span></div>
 <?php endforeach; else: ?>
-    <div style="font-size:11px;color:var(--hint);padding:6px 8px;">No events yet.</div>
+    <div style="font-size:11px;color:var(--hint);padding:6px 8px;"><?=t('No events yet.')?></div>
 <?php endif; ?>
   </div>
 </div>
 
 <div class="footer">
-  <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
+  <div id="footer-mode"><span class="dot"></span><?=t('Auto-refresh every 30 seconds')?></div>
 <?php if ($CREDIT_TEXT): ?>
   <div class="footer-credit"><?php if ($CREDIT_URL): ?><a href="<?=htmlspecialchars($CREDIT_URL, ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noopener"><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?></a><?php else: ?><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?><?php endif; ?></div>
 <?php endif; ?>
@@ -1908,7 +1984,20 @@ document.addEventListener('DOMContentLoaded', function() {
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
   });
+  // Dil düğmesi: cookie'yi diğer dile çevir + yeniden yükle (sunucu o dilde render eder)
+  var lb=document.getElementById('lang-btn');
+  if(lb)lb.addEventListener('click', function(){
+    document.cookie='lang='+<?=json_encode($LANG_UI === 'tr' ? 'en' : 'tr')?>+';path=/;max-age=31536000;samesite=lax';
+    location.reload();
+  });
 });
+
+// ── JS i18n — PHP ile aynı sözlük; İngilizce anahtar, TR karşılık ────────────
+const LANG_UI=<?=json_encode($LANG_UI)?>;
+const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
+function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
+function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
+function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
 const seed=<?=json_encode($histSeed, JSON_PRETTY_PRINT)?>;
@@ -1936,8 +2025,8 @@ function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
 function checkSnap(data,now){
   const sl=(data.procAge==null||data.procAge>180)?'err':'ok';
   if(sl!==mlvl.snap){
-    if(sl==='err')addLog('err',data.procAge==null?'Root snapshot missing — cron down?':'Root snapshot stale ('+data.procAge+'s) — cron down?',now);
-    else addLog('ok','Root snapshot fresh again ('+data.procAge+'s)',now);
+    if(sl==='err')addLog('err',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
+    else addLog('ok',tf('Root snapshot fresh again (%ss)',data.procAge),now);
     mlvl.snap=sl;
   }
 }
@@ -1956,11 +2045,11 @@ function scol(v,hi,cr,ok){return v>=cr?'var(--danger)':v>=hi?'var(--warn)':(ok||
 function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=2.0?'var(--danger)':r>=1.0?'var(--warn)':(ok||'var(--accent)');}
 function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=100)return'var(--danger)';if(ms>=30)return'var(--warn)';return'var(--accent)';}
 // IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
-function iowMeta(d){const p=[];if(d.ioR!=null){p.push('R '+d.ioR,'W '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' blocked');return p.length?p.join(' · '):'Disk I/O pressure';}
+function iowMeta(d){const p=[];if(d.ioR!=null){p.push('R '+d.ioR,'W '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
 function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
-function cpuMeta(d){let s='Load: '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · run '+(d.rstate||0)+' / blk '+(d.dstate||0);return s;}
-function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' mismatch</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
+function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · run '+(d.rstate||0)+' / blk '+(d.dstate||0);return s;}
+function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' '+t('mismatch')+'</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
 function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
@@ -2093,7 +2182,7 @@ function _paintProblemFav(colorVar){
   _favLink().href=href;
 }
 function setStatusIcon(colorVar, shortStatus){
-  document.title=(shortStatus&&shortStatus!=='OK')?shortStatus+' · '+SITE_TITLE:SITE_TITLE;
+  document.title=(shortStatus&&shortStatus!=='OK')?t(shortStatus)+' · '+SITE_TITLE:SITE_TITLE;
   if(colorVar===_favCol)return;
   _favCol=colorVar;
   if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'){if(FAV_OK)_favLink().href=FAV_OK;return;} // sağlıklı: gerçek favicon
@@ -2113,8 +2202,8 @@ function updateOverall(data){
   const dot=document.getElementById('hdr-dot'),txt=document.getElementById('hdr-txt'),det=document.getElementById('hdr-detail'),sh=document.getElementById('hdr-short'),st=document.getElementById('hdr-status');
   const shortLbl=o.color==='var(--danger)'?'Issues':o.color==='var(--warn)'?'Degraded':'OK';
   if(dot)dot.style.background=col;
-  if(txt)txt.textContent=o.status;
-  if(sh)sh.textContent=shortLbl;
+  if(txt)txt.textContent=t(o.status);
+  if(sh)sh.textContent=t(shortLbl);
   if(det){if(o.detail){det.textContent=o.detail;det.style.display='';}else{det.style.display='none';}}
   setStatusIcon(o.color,shortLbl); // sekme başlığı + favicon durumu yansıtsın
   // Mobil dokun-aç: detay varsa rozet tıklanabilir; detay kalmayınca paneli kapat
@@ -2205,8 +2294,8 @@ function renderSvc(key,data){
   const icon=document.getElementById('si-'+key),badge=document.getElementById('bd-'+key);
   const count=document.getElementById('sk-'+key),checks=document.getElementById('ch-'+key);
   if(icon){icon.style.background=s==='operational'?'var(--accent-bg)':s==='degraded'?'var(--warn-bg)':'var(--danger-bg)';icon.style.color=s==='operational'?'var(--accent)':s==='degraded'?'var(--warn)':'var(--danger)';}
-  if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?'Operational':s==='degraded'?'Degraded':'Offline';}
-  if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};count.textContent=data.ok+'/'+data.total+' '+(u[key]||'');}
+  if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):t('Offline');}
+  if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'');}
   if(checks&&data.checks){
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
@@ -2214,7 +2303,7 @@ function renderSvc(key,data){
       }
       const age='<span class="sub-age"'+(ch.up?' title="up '+esc(ch.up)+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${ch.note||''}</span>${age}</div>`;
+      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }
@@ -2257,7 +2346,7 @@ function renderProcs(data){
     if(actWas===null)actWas=st;
     else if(st!==actWas){
       defs.forEach(([lbl],i)=>{
-        if(st[i]!==actWas[i])addLog('ok',lbl.replace(' running','')+(st[i]==='1'?' started':' finished'),data.time.split(' ')[1]);});
+        if(st[i]!==actWas[i])addLog('ok',t(lbl.replace(' running',''))+' '+t(st[i]==='1'?'started':'finished'),data.time.split(' ')[1]);});
       actWas=st;
     }
   }
@@ -2301,7 +2390,7 @@ function renderProcs(data){
       return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td><td>${esc(p[2])}</td>`+
         `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td>`+
         `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('')
-    :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">No queries running longer than '+sqlMin+'s at snapshot time</td></tr>';
+    :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">'+tf('No queries running longer than %ss at snapshot time',sqlMin)+'</td></tr>';
   }
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
 }
@@ -2309,7 +2398,7 @@ function renderProcs(data){
 function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();}
 function renderLog(){
   const el=document.getElementById('log-list');if(!el)return;
-  if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">No events yet.</div>';return;}
+  if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
   // msg + ts tek yerde escape (üreticiler artık ham metin verir) — XSS savunması
   el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(l.ts)}</span></div>`).join('');
 }
@@ -2322,64 +2411,64 @@ function checkAlerts(data){
   let top='';
   if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=180){
     const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
-    if(n)top=' — top: '+n+' '+p[2]+'% (snap '+data.procAge+'s)';
+    if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
   }
   transLog('load',data.load1/t,2.0,1.0,
-    'High load: '+data.load1.toFixed(2)+' (1m)'+top,
-    'Load elevated: '+data.load1.toFixed(2)+' (1m)'+top,
-    'Load back to normal: '+data.load1.toFixed(2),now);
+    tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
+    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
+    tf('Load back to normal: %s',data.load1.toFixed(2)),now);
   transLog('cpu',data.cpu,90,80,
-    'CPU critical: '+data.cpu+'%'+top,'CPU high: '+data.cpu+'%'+top,'CPU back to normal: '+data.cpu+'%',now);
+    tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);
   transLog('ram',data.ram,85,70,
-    'RAM critical: '+data.ram+'%','RAM high: '+data.ram+'%','RAM back to normal: '+data.ram+'%',now);
+    tf('RAM critical: %s%%',data.ram),tf('RAM high: %s%%',data.ram),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,15,8,
-    'IO Wait critical: '+data.iowait+'%'+top,'IO Wait high: '+data.iowait+'%'+top,'IO Wait back to normal: '+data.iowait+'%',now);
+    tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
   if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,50,10,
-    'Swap heavily in use: '+data.swapUsedGB+' GB ('+data.swapPct+'%)','Swap in use: '+data.swapUsedGB+' GB ('+data.swapPct+'%)','Swap cleared',now);
+    tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
   if(data.shmemPct!=null)transLog('shmem',data.shmemPct,55,40,
-    'Shared memory very high: '+data.shmemGB+' GB ('+data.shmemPct+'% of RAM)','Shared memory elevated: '+data.shmemGB+' GB ('+data.shmemPct+'% of RAM)','Shared memory back to normal',now);
+    tf('Shared memory very high: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),tf('Shared memory elevated: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),t('Shared memory back to normal'),now);
   if(data.inodePct!=null)transLog('inode',data.inodePct,90,80,
-    'Inodes critically high: '+data.inodePct+'% (disk may fail despite free space)','Inode usage high: '+data.inodePct+'%','Inode usage back to normal',now);
+    tf('Inodes critically high: %s%% (disk may fail despite free space)',data.inodePct),tf('Inode usage high: %s%%',data.inodePct),t('Inode usage back to normal'),now);
   if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
-    transLog('net',ns,90,70,'Network link saturated: '+ns+'% of line rate','Network link busy: '+ns+'% of line rate','Network load back to normal',now);}
+    transLog('net',ns,90,70,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
   if(data.mysqlThr!=null){const cc=data.coreCount||1;
-    transLog('mysqlthr',data.mysqlThr,cc*2,cc,'MySQL threads_running very high: '+data.mysqlThr+' (query pileup)','MySQL threads_running elevated: '+data.mysqlThr,'MySQL threads_running back to normal',now);}
+    transLog('mysqlthr',data.mysqlThr,cc*2,cc,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
   if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
     if(rl!==mlvl.raid){
-      if(rl==='err')addLog('err',data.raidTxt+' — a disk is down; replace before a second fails',now);
-      else if(rl==='warn')addLog('warn',data.raidTxt+' — array rebuilding',now);
-      else if(mlvl.raid!=='ok')addLog('ok','RAID array healthy again',now);
+      if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);
+      else if(rl==='warn')addLog('warn',tf('%s — array rebuilding',data.raidTxt),now);
+      else if(mlvl.raid!=='ok')addLog('ok',t('RAID array healthy again'),now);
       mlvl.raid=rl;}}
   {const sl=data.smartMsg?'err':'ok';
    if(sl!==mlvl.smart){
      if(sl==='err')addLog('err',data.smartMsg,now);
-     else if(mlvl.smart!=='ok')addLog('ok','SMART pre-failure cleared',now);
+     else if(mlvl.smart!=='ok')addLog('ok',t('SMART pre-failure cleared'),now);
      mlvl.smart=sl;}}
   {const ml=data.raidMismatch>0?'warn':'ok';
    if(ml!==mlvl.mismatch){
-     if(ml==='warn')addLog('warn','RAID mismatch count: '+data.raidMismatch+' — data inconsistency found in last scrub',now);
-     else if(mlvl.mismatch!=='ok')addLog('ok','RAID mismatch cleared',now);
+     if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
+     else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
   if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,100,100,
-    'Web response time high: '+data.webResponseTime+'ms','',
-    'Web response time normal: '+data.webResponseTime+'ms',now);
+    tf('Web response time high: %sms',data.webResponseTime),'',
+    tf('Web response time normal: %sms',data.webResponseTime),now);
   if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,100,100,
-    'MySQL response time high: '+data.mysqlResponseTime+'ms','',
-    'MySQL response time normal: '+data.mysqlResponseTime+'ms',now);
+    tf('MySQL response time high: %sms',data.mysqlResponseTime),'',
+    tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
   if(data.sslDaysLeft!=null){
     const sl=data.sslDaysLeft<=7?'err':(data.sslDaysLeft<=30?'warn':'ok');
     if(sl!==mlvl.ssl){
-      if(sl==='err')addLog('err','SSL expires in '+data.sslDaysLeft+' days!',now);
-      else if(sl==='warn')addLog('warn','SSL expires in '+data.sslDaysLeft+' days',now);
+      if(sl==='err')addLog('err',tf('SSL expires in %s days!',data.sslDaysLeft),now);
+      else if(sl==='warn')addLog('warn',tf('SSL expires in %s days',data.sslDaysLeft),now);
       mlvl.ssl=sl;
     }
   }
   const names={web:'Web server',mail:'Mail',dns:'DNS',sec:'Security',db:'Database',cache:'Cache',ftp:'FTP'};
   ['web','mail','dns','sec','db','cache','ftp'].forEach(k=>{
     const cs=data[k]?data[k].status:null;if(!cs)return;
-    if(prev[k]&&prev[k]!=='offline'&&cs==='offline')   addLog('err',names[k]+' went offline',now);
-    if(prev[k]==='offline'&&cs!=='offline')             addLog('ok', names[k]+' restored',now);
-    if(prev[k]==='operational'&&cs==='degraded')        addLog('warn',names[k]+' degraded',now);
+    if(prev[k]&&prev[k]!=='offline'&&cs==='offline')   addLog('err',tf('%s went offline',t(names[k])),now);
+    if(prev[k]==='offline'&&cs!=='offline')             addLog('ok', tf('%s restored',t(names[k])),now);
+    if(prev[k]==='operational'&&cs==='degraded')        addLog('warn',tf('%s degraded',t(names[k])),now);
     prev[k]=cs;
   });
 }
@@ -2413,11 +2502,11 @@ function applyMetrics(data){
   // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
   {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
    if(e&&data.rxRate){e.textContent=data.rxRate;e.style.color=c;}
-   if(s)s.textContent=data.netRxSat!=null?data.netRxSat+'% of link':'incoming traffic';
+   if(s)s.textContent=data.netRxSat!=null?tf('%s%% of link',data.netRxSat):t('incoming traffic');
    if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c,64,30);}}
   {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
    if(e&&data.txRate){e.textContent=data.txRate;e.style.color=c;}
-   if(s)s.textContent=data.netTxSat!=null?data.netTxSat+'% of link':'outgoing traffic';
+   if(s)s.textContent=data.netTxSat!=null?tf('%s%% of link',data.netTxSat):t('outgoing traffic');
    if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c,64,30);}}
 }
 // Servis beslemesi yok (snapshot bayat) — metrik + süreç + TEPE DURUMU güncel kalsın
@@ -2476,7 +2565,7 @@ async function tick(){
     // Fetch tamamen başarısız — ağ sorunu
     if(!whmWasDown){
       whmWasDown=true;
-      addLog('err','Server unreachable',new Date().toTimeString().slice(0,8));
+      addLog('err',t('Server unreachable'),new Date().toTimeString().slice(0,8));
     }
     return;
   }
@@ -2489,14 +2578,14 @@ async function tick(){
     renderMetrics(data);
     if(!whmWasDown){
       whmWasDown=true;
-      addLog('warn','Service feed unavailable (root snapshot stale?)',now);
+      addLog('warn',t('Service feed unavailable (root snapshot stale?)'),now);
     }
     return;
   }
 
   // Her şey normal
   if(whmWasDown){
-    addLog('ok','Service feed restored',now);
+    addLog('ok',t('Service feed restored'),now);
     whmWasDown=false;
   }
   render(data);
@@ -2529,8 +2618,8 @@ if(location.protocol==='file:'){
   // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
   document.body.classList.add('static-mode');
   const ul=document.getElementById('updated-lbl');if(ul)ul.textContent='Snapshot';
-  const fm=document.getElementById('footer-mode');if(fm)fm.textContent='Static snapshot (mail attachment)';
-  addLog('warn','Static snapshot (mail attachment) — live refresh disabled',
+  const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
+  addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
          new Date().toTimeString().slice(0,8));
 }else{
   tick();
