@@ -1,5 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
+const APP_VERSION = '1.0.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1595,7 +1596,13 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 /* Credit'i sol/sağ öğelerden bağımsız TAM ortala: akıştan çıkarıp footer'ın
    yatay merkezine kilitle (flex:1 ortalaması sol/sağ eşit değilse kayıyordu). */
 .footer-credit{position:absolute;left:0;right:0;margin-inline:auto;width:max-content;max-width:46%;text-align:center;}
-@media(max-width:680px){.footer-credit{position:static;max-width:none;width:auto;}}
+/* Mobil: mutlak-ortalı credit sığmıyor → footer dikey yığın, hepsi ortalı;
+   credit en alta (order) — durum / zaman / imza sırası. */
+@media(max-width:680px){
+  .footer{flex-direction:column;align-items:center;gap:4px;text-align:center;}
+  .footer-credit{position:static;max-width:none;width:auto;order:3;}
+  #footer-mode{order:1;} #footer-time{order:2;}
+}
 .footer-credit a{color:var(--hint);text-decoration:none;opacity:.85;transition:opacity .2s;}
 .footer-credit a:hover{opacity:1;text-decoration:underline;}
 
@@ -1669,6 +1676,13 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
   .proc-row-sql th:nth-child(5),.proc-row-sql td:nth-child(5){display:none;}
   .proc-row-sql td.sql-empty{display:table-cell!important;}
+  /* SQL tablosu: 3 görünür kolon (Kullanıcı/Süre/Sorgu). Auto-layout kalan
+     genişliği kolonlar arasına dağıtıp Kullanıcı-Süre arasını açıyor, Sorgu'yu
+     eziyordu → sabit oranlı: Sorgu geniş, ellipsis'le kısalır. */
+  .proc-row-sql .proc-table{table-layout:fixed;}
+  .proc-row-sql th:nth-child(2),.proc-row-sql td:nth-child(2){width:26%;}
+  .proc-row-sql th:nth-child(4),.proc-row-sql td:nth-child(4){width:15%;}
+  .proc-row-sql th:nth-child(6),.proc-row-sql td.td-fill{width:59%;max-width:none;}
 }
 @media(max-width:379px){
   /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
@@ -1970,7 +1984,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <?php if ($CREDIT_TEXT): ?>
   <div class="footer-credit"><?php if ($CREDIT_URL): ?><a href="<?=htmlspecialchars($CREDIT_URL, ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noopener"><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?></a><?php else: ?><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?><?php endif; ?></div>
 <?php endif; ?>
-  <div id="footer-time"><?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?></div>
+  <div id="footer-time"><span title="Server Status Monitor <?=APP_VERSION?>">v<?=APP_VERSION?></span> &middot; <?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?></div>
 </div>
 </div>
 <div class="toast" id="toast"></div>

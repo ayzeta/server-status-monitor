@@ -14,6 +14,9 @@ it to the dashboard. Everything else is computed by the page itself.
 > attachment): every alarm is server-rendered, and no output line exceeds the
 > SMTP 900-byte limit.
 
+**Version 1.0.0** · bilingual UI — English (default) / Türkçe, switched from the
+header button (per-browser, cookie-based). The version shows in the footer.
+
 ---
 
 ## Features
@@ -68,6 +71,18 @@ The installer asks for the web account, paths, and branding, then:
 4. primes the collector and prints the dashboard URL.
 
 Re-run it any time to change settings (answers are remembered).
+
+## Updating
+
+```bash
+cd server-status-monitor
+sudo bash update.sh
+```
+
+`update.sh` pulls **only if the GitHub remote is ahead**, then redeploys
+non-interactively with your saved settings — no prompts, and your `config.php`
+(branding, `lang`) is left untouched. If there's nothing new it just prints
+"Already up to date". (Equivalent to `git pull` + `sudo bash install.sh --yes`.)
 
 ## Manual install
 
