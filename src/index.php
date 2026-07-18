@@ -2056,7 +2056,15 @@ function trimHist(nowStr){
 function updRange(){const mr=document.getElementById('metrics-range');if(mr&&histT.length)mr.textContent='\u00b7 '+histT[0].slice(0,5)+' \u2013 '+histT[histT.length-1].slice(0,5);}
 let prev={},logs=[];
 const seedLogs=<?=json_encode($seedLogs, JSON_PRETTY_PRINT)?>;
-if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();
+// Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
+// birikmiş canlı alarmlar kaybolmasın (reload sunucudan yalnız anlık durumu
+// seed'ler). Kayıt varsa onu kullan; yoksa sunucu seed'iyle başla. Yeni sekme
+// = temiz başlangıç (sessionStorage sekmeye özel).
+const LOG_KEY='az-logs';
+function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}catch(e){}}
+(function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
+  if(r&&r.length){logs=r;renderLog();} // saklı kayıt sunucu seed'inden zengin → yeniden çiz
+  else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
 const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok'},<?=json_encode($seedLvl)?>);
 const mpend={};
 function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
@@ -2433,7 +2441,7 @@ function renderProcs(data){
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
 }
 
-function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();}
+function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();saveLogs();}
 function renderLog(){
   const el=document.getElementById('log-list');if(!el)return;
   if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
@@ -2629,7 +2637,7 @@ async function tick(){
   render(data);
 }
 
-document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();});
+document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz
