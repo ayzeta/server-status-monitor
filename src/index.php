@@ -2069,8 +2069,19 @@ const seedLogs=<?=json_encode($seedLogs, JSON_PRETTY_PRINT)?>;
 const LOG_KEY='az-logs';
 function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}catch(e){}}
 (function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
-  if(r&&r.length){logs=r;renderLog();} // saklı kayıt sunucu seed'inden zengin → yeniden çiz
-  else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
+  if(r&&r.length){
+    logs=r;
+    // Sayfa zaten sorun aktifken açıldıysa: sunucunun seed'lediği güncel alarmlardan
+    // saklı log'da OLMAYANLARI da ekle (yoksa o an aktif sorun hiç görünmez), sonra
+    // yeni→eski sırala ve 30'la sınırla.
+    if(seedLogs&&seedLogs.length){
+      var have={};logs.forEach(function(l){have[l.msg]=1;});
+      seedLogs.forEach(function(s){if(!have[s.msg])logs.push(s);});
+      logs.sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
+      if(logs.length>30)logs.length=30;
+    }
+    renderLog();saveLogs();
+  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
 const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok'},<?=json_encode($seedLvl)?>);
 const mpend={};
 function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
@@ -2456,7 +2467,7 @@ function renderLog(){
 }
 
 function checkAlerts(data){
-  const t=data.threads,now=data.time.split(' ')[1];
+  const cores=data.threads,now=data.time.split(' ')[1];
   // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
@@ -2465,7 +2476,7 @@ function checkAlerts(data){
     const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
     if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
   }
-  transLog('load',data.load1/t,2.0,1.0,
+  transLog('load',data.load1/cores,2.0,1.0,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load back to normal: %s',data.load1.toFixed(2)),now);
@@ -2538,10 +2549,10 @@ function applyMetrics(data){
   pushT(data.time.split(' ')[1]);
   trimHist(data.time.split(' ')[1]);
   updRange();
-  const t=data.threads;
-  setLoad('v-l1','lc-l1','sp-l1','l1',data.load1,t);
-  setLoad('v-l5','lc-l5','sp-l5','l5',data.load5,t);
-  setLoad('v-l15','lc-l15','sp-l15','l15',data.load15,t);
+  const cores=data.threads;
+  setLoad('v-l1','lc-l1','sp-l1','l1',data.load1,cores);
+  setLoad('v-l5','lc-l5','sp-l5','l5',data.load5,cores);
+  setLoad('v-l15','lc-l15','sp-l15','l15',data.load15,cores);
   // Kart renkleri sunucudaki birleşik sağlık modelinden (data.cardCol): disk
   // kartı RAID/SMART/inode sorununda da kızarır, %'si düşük olsa bile. Snapshot
   // eksikse metriğin kendi eşik rengine düşülür; redrawSparks (tema) için stash.
