@@ -1561,6 +1561,11 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .proc-table .warm{color:var(--warn);font-weight:600;}
 .proc-cmd{font-family:'SFMono-Regular',Consolas,monospace;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;cursor:pointer;}
 .proc-table td.td-fill{width:100%;max-width:0;}
+/* MySQL sorgu tablosu: SORGU başlığı kalan tüm alanı alır (data cell'i td-fill
+   zaten alıyor; boş tabloda başlıklar eşit dağılmasın diye başlığa da gerek).
+   Diğer kolonlar içeriğine göre boyutlanır — VT dar db adına, uzun gelirse
+   genişler; SORGU her zaman en geniş ve kırpılır. */
+.proc-row-sql th:nth-child(6){width:100%;}
 .proc-cmd.expanded{white-space:normal;word-break:normal;overflow-wrap:anywhere;overflow:visible;max-width:none;}
 .proc-user{font-weight:600;color:var(--text);}
 .proc-table tbody tr:hover td{background:var(--card2);}
