@@ -6,6 +6,13 @@ services, top processes, per-account disk & PHP workers, and a live event log �
 all on one auto-refreshing page, with **zero dependencies** (no database, no npm,
 no external services).
 
+![Server Status Monitor — live dashboard with dark/light themes, English/Türkçe, and built-in alerting](docs/demo.gif)
+
+**▶ [Live demo](https://ayzeta.github.io/server-status-monitor/)** — a self-contained
+simulation (no backend): watch traffic climb, PHP workers and load rise, cards go
+red, backup / ImunifyAV / WP-Toolkit jobs run, a MySQL query pileup hit, RAID/SMART/
+inode/mail-queue warnings fire into the event log, then the server recover — on a loop.
+
 Because PHP runs jailed under CageFS and can't see the full process list or
 `/sys`, a tiny **root cron collector** gathers that data once a minute and hands
 it to the dashboard. Everything else is computed by the page itself.
@@ -16,6 +23,13 @@ it to the dashboard. Everything else is computed by the page itself.
 
 **Version 1.0.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
+
+## Screenshots
+
+| | |
+|:---:|:---:|
+| ![Issues detected — MySQL query pileup](docs/screenshots/dark-issues.jpg)<br>**Issues detected** — MySQL `threads_running` spike, red cards, offenders listed in the header | ![Recovered — back to normal](docs/screenshots/dark-recovery.jpg)<br>**Recovery** — the same server back to green, with the event log tracing what happened |
+| ![Light theme, English](docs/screenshots/light-en.jpg)<br>**Light · English** (default) | ![Light theme, Türkçe](docs/screenshots/light-tr.jpg)<br>**Light · Türkçe** |
 
 ---
 
@@ -177,6 +191,22 @@ rm -rf /root/server-status-monitor
 rm -f ~USER/public_html/status/index.php ~USER/public_html/status/config.php
 rm -f ~USER/.proc_snapshot ~USER/.metrics_history ~USER/.disk_history
 ```
+
+## Demo
+
+The [live demo](https://ayzeta.github.io/server-status-monitor/) is the real
+dashboard driven by a scripted, client-side simulation — **fully decoupled from the
+product**: `src/index.php` ships with *zero* demo code, and the demo lives only in
+[`demo/`](demo/) (never deployed to a server by the installer). The build renders
+`index.php` as-is, then injects the simulation engine ([`demo/demo.js`](demo/demo.js))
+into the static copy:
+
+```bash
+bash demo/build.sh   # → docs/index.html + docs/demo.js
+```
+
+Then enable **Settings → Pages → Deploy from branch → `main` → `/docs`**. Data is
+fully synthetic and account names are anonymized.
 
 ## License
 

@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<!-- lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
+     "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
+     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server Status Monitor</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root,[data-theme="light"]{
+  --brand:       #1b3f8b;
+  --accent:      #2563eb;
+  --accent-bg:   #e8f0fb;
+  --warn:        #f59e0b;
+  --warn-bg:     #fef3cd;
+  --warn-txt:    #7c5000;
+  --danger:      #ef4444;
+  --danger-bg:   #fde8e8;
+  --danger-txt:  #9b1c1c;
+  --ok:          #22c55e;
+  --ok-bg:       #dcfce7;
+  --ok-txt:      #15632a;
+  --bg:          #eef2f8;
+  --card:        #ffffff;
+  --card2:       #f8fafc;
+  --border:      rgba(0,0,0,.07);
+  --text:        #0d1520;
+  --muted:       #64748b;
+  --hint:        #94a3b8;
+  --bar-track:   #edf2f9;
+  --log-item-bg: #f8fafc;
+  --cmd-bg:      #f1f5f9;
+  --logo-filter: none;
+  --hdr-sub:     rgba(255,255,255,.5);
+  --hdr-meta-lbl:rgba(255,255,255,.45);
+  --c-cpu:  #0891b2;
+  --c-ram:  #7c3aed;
+  --c-disk: #0d9488;
+  --c-iow:  #0284c7;
+}
+[data-theme="dark"]{
+  --brand:       #1e1b4b;
+  --accent:      #818cf8;
+  --accent-bg:   rgba(129,140,248,.18);
+  --warn:        #fbbf24;
+  --warn-bg:     rgba(251,191,36,.12);
+  --warn-txt:    #fbbf24;
+  --danger:      #f87171;
+  --danger-bg:   rgba(248,113,113,.12);
+  --danger-txt:  #f87171;
+  --ok:          #34d399;
+  --ok-bg:       rgba(52,211,153,.12);
+  --ok-txt:      #34d399;
+  --bg:          #0f0e1a;
+  --card:        #1a1830;
+  --card2:       #211f38;
+  --border:      rgba(255,255,255,.07);
+  --text:        #e2e8f0;
+  --muted:       #94a3b8;
+  --hint:        #64748b;
+  --bar-track:   rgba(255,255,255,.08);
+  --log-item-bg: rgba(255,255,255,.04);
+  --cmd-bg:      rgba(255,255,255,.06);
+  --logo-filter: brightness(0) invert(1);
+  --hdr-sub:     rgba(255,255,255,.4);
+  --hdr-meta-lbl:rgba(255,255,255,.4);
+  --c-cpu:  #22d3ee;
+  --c-ram:  #a78bfa;
+  --c-disk: #2dd4bf;
+  --c-iow:  #38bdf8;
+}
+body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
+.wrap{max-width:1280px;margin:auto;}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
+.hdr-brand{display:flex;align-items:center;gap:12px;}
+.hdr-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.hdr-logo img{width:28px;filter:var(--logo-filter);}
+.hdr-title{color:#fff;font-size:16px;font-weight:700;letter-spacing:-.03em;line-height:1.1;}
+.hdr-sub{color:var(--hdr-sub);font-size:11px;margin-top:2px;}
+.hdr-meta{display:flex;gap:20px;flex-wrap:wrap;align-items:center;}
+.meta-item{text-align:right;}
+.meta-lbl{font-size:10px;color:var(--hdr-meta-lbl);text-transform:uppercase;letter-spacing:.05em;}
+.meta-val{font-size:13px;font-weight:600;color:#fff;margin-top:2px;}
+.hdr-status{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
+.hdr-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite;}
+.hdr-status-txt{font-size:11px;font-weight:600;color:#fff;}
+.hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
+.hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hdr-status-full{display:contents;} /* masaüstü: sarmalayıcı görünmez, txt+detay eskisi gibi satır içi. Mobilde dokun-aç panel olur. */
+/* Aktivite çipleri (backup/wp-toolkit/imunify + süre) — silik gri yazıyla gözden kaçıyordu.
+   Konteyner sarmalı flex: çipler arasında boşluk karakteri yok (join''), flex-wrap
+   olmadan mobilde satır kırılamayıp ekran dışına taşıyordu. */
+#act-chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle;max-width:100%;margin-left:6px;}
+.bk-chip{font-size:9px;font-weight:700;background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;}
+.theme-btn{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;transition:background .2s;}
+.theme-btn:hover{background:rgba(255,255,255,.2);}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);}}
+.sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hint);margin:12px 0 7px 2px;}
+.sec-range{font-weight:400;text-transform:none;letter-spacing:0;color:var(--hint);}
+
+.loads-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
+.load-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 14px;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;transition:background .3s,border-color .3s;}
+.load-card::after{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--c,var(--accent));}
+.load-left{flex:1;min-width:0;}
+.load-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--hint);margin-bottom:4px;white-space:nowrap;}
+.load-sub-inline{font-weight:400;text-transform:none;letter-spacing:0;opacity:.7;}
+.load-val{font-size:22px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--c,var(--accent));transition:color .3s;}
+.load-pct{font-size:10px;color:var(--hint);margin-top:3px;}
+.load-spark{width:80px;height:32px;flex-shrink:0;}
+
+.resources-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.res-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.res-card::after{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--c,var(--accent));}
+.res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.res-left{display:flex;align-items:center;gap:7px;}
+.res-icon{font-size:15px;color:var(--hint);}
+.res-name{font-size:11px;font-weight:600;color:var(--muted);}
+.res-val{font-size:22px;font-weight:700;letter-spacing:-.04em;color:var(--c,var(--accent));transition:color .3s;}
+.res-middle{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.res-bar-wrap{flex:1;}
+.res-bar-track{height:5px;background:var(--bar-track);border-radius:999px;overflow:hidden;}
+.res-bar-fill{height:100%;border-radius:999px;background:var(--c,var(--accent));width:0%;transition:width .6s ease,background .3s;}
+.res-spark{width:70px;height:24px;flex-shrink:0;}
+.res-meta{font-size:10px;color:var(--hint);}
+
+.info-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;transition:background .3s,border-color .3s;}
+.info-icon{width:32px;height:32px;border-radius:9px;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.info-spark{width:64px;height:30px;margin-left:auto;align-self:center;flex-shrink:0;position:relative;}
+.info-spark-canvas{position:absolute;inset:0;width:100%;height:100%;}
+.info-body{flex:1;min-width:0;}
+.info-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hint);}
+.info-val{font-size:15px;font-weight:700;letter-spacing:-.03em;color:var(--accent);margin-top:2px;transition:color .3s;}
+.info-sub{font-size:10px;color:var(--hint);margin-top:1px;}
+
+.svcs-row1{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
+.svcs-row2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.svc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:background .3s,border-color .3s;}
+.svc-top{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;}
+.svc-icon{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .3s,color .3s;}
+.svc-info{flex:1;min-width:0;}
+.svc-name{font-size:12px;font-weight:600;}
+.svc-count{font-size:10px;color:var(--muted);margin-top:1px;}
+.badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.badge-ok  {background:var(--ok-bg);    color:var(--ok-txt);}
+.badge-warn{background:var(--warn-bg);  color:var(--warn-txt);}
+.badge-err {background:var(--danger-bg);color:var(--danger-txt);}
+.svc-checks{border-top:1px solid var(--border);padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px;flex:1;}
+.sub-check{display:flex;align-items:center;gap:7px;min-height:20px;}
+.sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sub-dot.ok   {background:var(--ok);}
+.sub-dot.err  {background:var(--danger);}
+.sub-dot.muted{background:var(--hint);}
+.sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmasın; sıkışınca önce sürüm kırpılır */
+.sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
+.sub-note.note-warn{color:var(--warn);font-weight:600;} /* yakın zamanda restart olmuş servis */
+/* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
+.sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
+/* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
+.sub-ver{font-size:9px;font-weight:400;color:var(--hint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;}
+.copy-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--hint);flex-shrink:0;transition:background .15s,color .15s,border-color .15s;}
+.copy-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
+.copy-btn.copied{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
+.sub-cmd-inline{font-size:10px;color:var(--muted);background:var(--cmd-bg);padding:2px 6px;border-radius:5px;font-family:'SFMono-Regular',Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
+
+.proc-row{display:grid;grid-template-columns:2.2fr 1.5fr 1fr 1fr;gap:8px;}
+.proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
+.proc-title{font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.proc-age{font-size:10px;color:var(--hint);font-weight:400;text-transform:none;letter-spacing:0;}
+.proc-age.stale{color:var(--warn);font-weight:600;}
+.proc-table{width:100%;border-collapse:collapse;font-size:11px;}
+.proc-table th{text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--hint);padding:2px 6px 5px 0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+/* Tıklanır sıralama göstergesi (canlı sayfa; mail ekinde JS ölü, cron sıralaması kalır) */
+.proc-table th.sorted-desc:after{content:" \2193";color:var(--accent);}
+.proc-table th.sorted-asc:after{content:" \2191";color:var(--accent);}
+.proc-table th[title]{cursor:help;text-decoration:underline dotted;text-underline-offset:2px;}
+.proc-table td{padding:3.5px 6px 3.5px 0;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+.proc-table tr:last-child td{border-bottom:none;}
+.proc-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+.proc-table .hot{color:var(--danger);font-weight:600;}
+.proc-table .warm{color:var(--warn);font-weight:600;}
+.proc-cmd{font-family:'SFMono-Regular',Consolas,monospace;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;cursor:pointer;}
+.proc-table td.td-fill{width:100%;max-width:0;}
+/* MySQL sorgu tablosu düzeni: kimlik (ID/kullanıcı/VT) solda, SORGU ortada
+   kalan alanı alır, metrikler (SÜRE/DURUM) sağda. Diğer kolonlar içeriğine göre
+   boyutlanır AMA en az taban genişliğinde — boş tabloda dengeli durur, uzun
+   içerik gelince taban aşılıp büyür. SORGU (4. kolon) kalanı alıp kırpılır. */
+.proc-row-sql th:nth-child(4){width:100%;}
+.proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1){min-width:34px;}
+.proc-row-sql th:nth-child(2),.proc-row-sql td:nth-child(2){min-width:96px;}
+.proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3){min-width:96px;}
+.proc-row-sql th:nth-child(5),.proc-row-sql td:nth-child(5){min-width:64px;}
+.proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){min-width:104px;}
+.proc-cmd.expanded{white-space:normal;word-break:normal;overflow-wrap:anywhere;overflow:visible;max-width:none;}
+.proc-user{font-weight:600;color:var(--text);}
+.proc-table tbody tr:hover td{background:var(--card2);}
+.php-bar-cell{width:56px;}
+.php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
+.proc-row-sql{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px;}
+
+.log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:background .3s,border-color .3s;}
+.log-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.log-hdr-title{font-size:12px;font-weight:600;flex:1;}
+.log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
+.log-clear:hover{background:var(--card2);}
+.log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;}
+.log-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;background:var(--log-item-bg);}
+.log-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.log-dot.ok  {background:var(--ok);}
+.log-dot.warn{background:var(--warn);}
+.log-dot.err {background:var(--danger);}
+.log-txt{font-size:11px;color:var(--muted);flex:1;}
+.log-ts{font-size:10px;color:var(--hint);white-space:nowrap;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:#0d1520;color:#fff;font-size:11px;font-weight:500;padding:8px 14px;border-radius:8px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;}
+[data-theme="dark"] .toast{background:var(--card2);color:var(--text);}
+.spark-wrap{position:relative;flex-shrink:0;display:block;}
+.spark-wrap .load-spark,.spark-wrap .res-spark{position:absolute;inset:0;width:100%;height:100%;}
+.spark-ssr{position:absolute;inset:0;width:100%;height:100%;}
+.spark-tip{position:fixed;z-index:998;background:#0d1520;color:#fff;font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap;text-align:center;}
+.spark-tip .tip-v{display:block;font-size:11px;font-weight:700;}
+.spark-tip .tip-t{display:block;font-size:9px;font-weight:500;opacity:.65;margin-top:1px;}
+.static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
+[data-theme="dark"] .spark-tip{background:var(--card2);color:var(--text);border:1px solid var(--border);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;position:relative;}
+/* Credit'i sol/sağ öğelerden bağımsız TAM ortala: akıştan çıkarıp footer'ın
+   yatay merkezine kilitle (flex:1 ortalaması sol/sağ eşit değilse kayıyordu). */
+.footer-credit{position:absolute;left:0;right:0;margin-inline:auto;width:max-content;max-width:46%;text-align:center;}
+/* Mobil: mutlak-ortalı credit sığmıyor → footer dikey yığın, hepsi ortalı;
+   credit en alta (order) — durum / zaman / imza sırası. */
+@media(max-width:680px){
+  .footer{flex-direction:column;align-items:center;gap:4px;text-align:center;}
+  .footer-credit{position:static;max-width:none;width:auto;order:3;}
+  #footer-mode{order:1;} #footer-time{order:2;}
+}
+.footer-credit a{color:var(--hint);text-decoration:none;opacity:.85;transition:opacity .2s;}
+.footer-credit a:hover{opacity:1;text-decoration:underline;}
+
+@media(max-width:1100px){
+  .loads-row{grid-template-columns:repeat(3,1fr);}
+  .resources-row{grid-template-columns:repeat(2,1fr);}
+  .info-row{grid-template-columns:repeat(3,1fr);}
+  .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
+  .proc-row{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:680px){
+  .loads-row{grid-template-columns:repeat(3,1fr);}
+  /* Load kartı dikey dizilir: etiket/değer/%, grafik kartın 3. satırında tam genişlik */
+  .load-card{flex-direction:column;align-items:stretch;gap:6px;padding:10px 10px 8px;}
+  .load-left{width:100%;}
+  .load-lbl{white-space:normal;}
+  .load-val{font-size:19px;}
+  .load-card .spark-wrap{width:100%!important;height:26px!important;}
+  /* minmax(0,1fr): kart min-content'i (64px sparkline + en uzun kelime)
+     kolonu genişletip yatay taşma yaratmasın, kart daralabilsin */
+  .resources-row,.info-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+  /* İkon dekoratif, mobilde gizlenir; sparkline veri taşıdığı için kalır */
+  .info-icon{display:none;}
+  /* Sürüm masaüstü/mail teşhis detayı — dar ekranda kırpık sürüm gürültü olur */
+  .sub-ver{display:none;}
+  .svcs-row1,.svcs-row2{grid-template-columns:1fr;}
+  .proc-row{grid-template-columns:1fr;}
+  /* Mobilde meta satırı sığmıyor: hostname/threads/uptime/updated gizlenir AMA
+     en kritik bilgi — genel durum — kalır. Alt satıra taşmasın diye başlık tek
+     satıra kilitlenir (uzunsa "…"), brand daralır, kompakt durum rozeti (renkli
+     nokta + OK/Degraded/Issues) tema düğmesinin yanında SAĞ ÜST köşede sabit. */
+  .hdr{padding:12px 14px;gap:8px;flex-wrap:nowrap;}
+  .hdr-brand{flex:1 1 auto;min-width:0;}
+  .hdr-brand>div{min-width:0;}
+  /* Başlık alanı (logo'dan sonraki 2. div) esner ve taşarsa "…" —
+     tema+dil düğmeleri başlıktan ayrılıp sağa toplanır, metnin üstüne binmez */
+  .hdr-brand>div:nth-of-type(2){flex:1 1 auto;min-width:0;overflow:hidden;}
+  .hdr-title{overflow:hidden;text-overflow:ellipsis;}
+  .hdr-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hdr-meta{display:flex;gap:0;flex:0 0 auto;align-items:center;}
+  .hdr-meta .meta-item{display:none;}
+  .hdr-status{height:32px;padding:0 11px;position:relative;gap:6px;} /* tema düğmesiyle (32px) eşit yükseklik */
+  .hdr-status-dot{width:9px;height:9px;} /* metin yok — nokta biraz büyük, görünür */
+  .hdr-status-short{display:none;} /* mobilde metin yok: alan değerli, renkli nokta yeterli */
+  .hdr-status-full{display:none;} /* detay dokununca açılır */
+  /* Detay varsa dokunulabilir olduğunu belli eden küçük ok işareti (nokta yanında) */
+  .hdr-status.has-detail{cursor:pointer;}
+  .hdr-status.has-detail::after{content:'\25BE';font-size:9px;opacity:.8;color:#fff;}
+  .hdr-status.has-detail.st-open::after{content:'\25B4';}
+  /* Açık: sağ üstten aşağı açılan panel — tam durum + sorun listesi (sarılır) */
+  .hdr-status.st-open .hdr-status-full{
+    display:flex;flex-direction:column;gap:5px;align-items:flex-start;
+    position:absolute;top:calc(100% + 7px);right:0;z-index:60;
+    background:var(--brand);border:1px solid rgba(255,255,255,.16);border-radius:9px;
+    padding:10px 12px;min-width:180px;max-width:82vw;box-shadow:0 10px 28px rgba(0,0,0,.4);
+  }
+  .hdr-status.st-open .hdr-status-txt{display:block;font-size:12px;font-weight:700;color:#fff;}
+  .hdr-status.st-open .hdr-status-detail{display:block!important;border-left:none;padding-left:0;margin-left:0;max-width:none;white-space:normal;overflow:visible;line-height:1.5;color:rgba(255,255,255,.82);}
+  .hdr-title{font-size:14px;white-space:nowrap;}
+  .load-pct{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* Mobilde tablo EKRANA SIĞAR (kaydırma yok): düşük değerli kolonlar
+     gizlenir, komut sütunu daralır; dokununca satır dikey açılır. */
+  .proc-table{font-size:10px;}
+  .proc-table td,.proc-table th{padding-right:4px;}
+  /* Mobilde PID/ID gizlenir (telefonda işlevsiz); yüzdeler ve renk sinyalleri görünür kalır */
+  .proc-row .proc-card:nth-child(1) th:nth-child(1),
+  .proc-row .proc-card:nth-child(1) td:nth-child(1),
+  .proc-row .proc-card:nth-child(2) th:nth-child(1),
+  .proc-row .proc-card:nth-child(2) td:nth-child(1),
+  .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1),
+  .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
+  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
+  .proc-row-sql td.sql-empty{display:table-cell!important;}
+  /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
+     SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
+     sabit oran / table-layout:fixed gerekmez (masaüstüyle aynı yaklaşım). */
+}
+@media(max-width:379px){
+  /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
+     (320px'te başlık+rozet hâlâ tek satır); daha da darsa nowrap kalkar,
+     rozet alt satıra sarar — sayfa kaydırmaz. */
+  .hdr-brand{gap:8px;}
+  .hdr-title{font-size:12.5px;white-space:normal;}
+  .hdr-sub{font-size:10px;}
+  .info-spark{width:52px;}
+}
+</style>
+<script>(function(){var f=window.fetch;window.fetch=function(u){try{if(typeof u==="string"&&(""+u).indexOf("json=1")>-1)return new Promise(function(){});}catch(e){}return f.apply(this,arguments);};})();</script>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">
+      <span style="color:#fff;font-size:13px;font-weight:700">SS</span>
+    </div>
+    <div>
+      <div class="hdr-title">Server Status Monitor      </div>
+      <div class="hdr-sub">Real-time server health</div>
+    </div>
+    <button class="theme-btn" id="theme-btn" title="Toggle dark mode">
+      <i class="ti ti-moon" id="theme-icon"></i>
+    </button>
+    <button class="theme-btn" id="lang-btn" title="Language" style="font-size:11px;font-weight:700;letter-spacing:.02em;">TR</button>
+  </div>
+  <div class="hdr-meta">
+    <div class="hdr-status has-detail" id="hdr-status">
+      <div class="hdr-status-dot" id="hdr-dot" style="background:var(--danger)"></div>
+      <span class="hdr-status-short" id="hdr-short">Issues</span>
+      <div class="hdr-status-full">
+        <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
+        <span class="hdr-status-detail" id="hdr-detail">Web 2048ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4</span>
+      </div>
+    </div>
+    <div class="meta-item"><div class="meta-lbl">Hostname</div>
+      <div class="meta-val" id="hostname">demo.ayzeta.net</div></div>
+    <div class="meta-item"><div class="meta-lbl">Threads</div>
+      <div class="meta-val" id="threads">1</div></div>
+    <div class="meta-item"><div class="meta-lbl">Uptime</div>
+      <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Updated</div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">11:21:35</span></div></div>
+  </div>
+</div>
+
+<div class="sec">System metrics <span class="sec-range" id="metrics-range"></span></div>
+<div class="loads-row">
+  <div class="load-card" id="lc-l1" style="--c:var(--accent)">
+    <div class="load-left">
+      <div class="load-lbl">Load avg <span class="load-sub-inline">1 min</span></div>
+      <div class="load-val" id="v-l1">0.00</div>
+      <div class="load-pct" id="p-l1">0% of 1 cores</div>
+    </div>
+    <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l1"></span><canvas class="load-spark" id="sp-l1"></canvas></span>
+  </div>
+  <div class="load-card" id="lc-l5" style="--c:var(--accent)">
+    <div class="load-left">
+      <div class="load-lbl">Load avg <span class="load-sub-inline">5 min</span></div>
+      <div class="load-val" id="v-l5">0.00</div>
+      <div class="load-pct" id="p-l5">0% of 1 cores</div>
+    </div>
+    <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l5"></span><canvas class="load-spark" id="sp-l5"></canvas></span>
+  </div>
+  <div class="load-card" id="lc-l15" style="--c:var(--accent)">
+    <div class="load-left">
+      <div class="load-lbl">Load avg <span class="load-sub-inline">15 min</span></div>
+      <div class="load-val" id="v-l15">0.00</div>
+      <div class="load-pct" id="p-l15">0% of 1 cores</div>
+    </div>
+    <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l15"></span><canvas class="load-spark" id="sp-l15"></canvas></span>
+  </div>
+</div>
+<div class="resources-row">
+  <div class="res-card" id="rc-cpu" style="--c:var(--c-cpu)">
+    <div class="res-top">
+      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name">CPU</span></div>
+      <span class="res-val" id="rv-cpu">0%</span>
+    </div>
+    <div class="res-middle">
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-cpu" style="width:0%"></div></div></div>
+      <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-cpu"></span><canvas class="res-spark" id="sp-cpu"></canvas></span>
+    </div>
+    <div class="res-meta" id="rm-cpu">Load: 0.00 / 0.00 / 0.00</div>
+  </div>
+  <div class="res-card" id="rc-ram" style="--c:var(--c-ram)">
+    <div class="res-top">
+      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name">RAM</span></div>
+      <span class="res-val" id="rv-ram">0%</span>
+    </div>
+    <div class="res-middle">
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-ram" style="width:0%"></div></div></div>
+      <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-ram"></span><canvas class="res-spark" id="sp-ram"></canvas></span>
+    </div>
+    <div class="res-meta" id="rm-ram">0 / 0 GB</div>
+  </div>
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk)">
+    <div class="res-top">
+      <div class="res-left"><i class="ti ti-database res-icon"></i><span class="res-name">Disk</span></div>
+      <span class="res-val" id="rv-disk">67%</span>
+    </div>
+    <div class="res-middle">
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:67%"></div></div></div>
+      <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
+    </div>
+    <div class="res-meta" id="rm-disk">159 / 236 GB</div>
+  </div>
+  <div class="res-card" id="rc-iow" style="--c:var(--c-iow)">
+    <div class="res-top">
+      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name">IO Wait</span></div>
+      <span class="res-val" id="rv-iow">0%</span>
+    </div>
+    <div class="res-middle">
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-iow" style="width:0%"></div></div></div>
+      <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-iow"></span><canvas class="res-spark" id="sp-iow"></canvas></span>
+    </div>
+    <div class="res-meta" id="rm-iow">Disk I/O pressure</div>
+  </div>
+</div>
+
+<div class="sec" style="margin-top:12px">System info</div>
+<div class="info-row">
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-arrow-down"></i></div>
+    <div class="info-body">
+      <div class="info-label">Network IN</div>
+      <div class="info-val" id="iv-rx" style="color:var(--accent)">0 B/s</div>
+      <div class="info-sub" id="iv-rx-sub">incoming traffic</div>
+    </div>
+    <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-rx"></span><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-arrow-up"></i></div>
+    <div class="info-body">
+      <div class="info-label">Network OUT</div>
+      <div class="info-val" id="iv-tx" style="color:var(--accent)">0 B/s</div>
+      <div class="info-sub" id="iv-tx-sub">outgoing traffic</div>
+    </div>
+    <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-tx"></span><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-cpu"></i></div>
+    <div class="info-body">
+      <div class="info-label">PHP Workers</div>
+      <div class="info-val" id="iv-lsphp" style="color:var(--muted)">—</div>
+      <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool">running lsphp</div>
+    </div>
+    <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-wrk"></span><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-mail"></i></div>
+    <div class="info-body">
+      <div class="info-label">Mail Queue</div>
+      <div class="info-val" id="iv-mailq" style="color:var(--muted)">—</div>
+      <div class="info-sub">messages queued</div>
+    </div>
+    <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-bolt"></i></div>
+    <div class="info-body">
+      <div class="info-label">Web Response</div>
+      <div class="info-val" id="iv-web" style="color:var(--danger)">2048 ms</div>
+      <div class="info-sub">HTTP response time</div>
+    </div>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-database"></i></div>
+    <div class="info-body">
+      <div class="info-label">MySQL Response</div>
+      <div class="info-val" id="iv-mysql" style="color:var(--accent)">—</div>
+      <div class="info-sub">TCP response time</div>
+    </div>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-users"></i></div>
+    <div class="info-body">
+      <div class="info-label">Hosted Accounts</div>
+      <div class="info-val" id="iv-acct">—</div>
+      <div class="info-sub">cPanel accounts</div>
+    </div>
+  </div>
+  <div class="info-card">
+    <div class="info-icon"><i class="ti ti-lock"></i></div>
+    <div class="info-body">
+      <div class="info-label">SSL &middot; <span lang="en">demo.ayzeta.net</span></div>
+      <div class="info-val" id="iv-ssl" style="color:var(--accent)">—</div>
+      <div class="info-sub" id="iv-ssl-sub">unavailable</div>
+    </div>
+  </div>
+</div>
+
+<div class="sec" style="margin-top:12px">Services</div>
+<div class="svcs-row1">
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-bolt"></i></div>
+      <div class="svc-info"><div class="svc-name">Web server</div><div class="svc-count" id="sk-web">0/5 checks passed</div></div>
+      <div class="badge badge-err" id="bd-web">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">stopped</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+</div>
+  </div>
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-mail"></i></div>
+      <div class="svc-info"><div class="svc-name">Mail services</div><div class="svc-count" id="sk-mail">0/9 checks passed</div></div>
+      <div class="badge badge-err" id="bd-mail">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-mail"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP (25)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP Submit. (587)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTPS (465)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3 (110)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3S (995)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAP (143)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAPS (993)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail (2095)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail SSL (2096)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+</div>
+  </div>
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-world"></i></div>
+      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns">0/2 checks passed</div></div>
+      <div class="badge badge-err" id="bd-dns">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-dns"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS TCP (53)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS UDP (53)</span><span class="sub-note">not detected</span><span class="sub-age"></span></div>
+</div>
+  </div>
+</div>
+<div class="svcs-row2">
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-shield-check"></i></div>
+      <div class="svc-info"><div class="svc-name">Security</div><div class="svc-count" id="sk-sec">0/2 verified active</div></div>
+      <div class="badge badge-err" id="bd-sec">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-sec"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Imunify360</span><span class="sub-note">unknown</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">LFD</span><span class="sub-note">unknown</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CSF firewall</span><button class="copy-btn" data-cmd="systemctl status csf" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status csf</code></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">ModSecurity</span><button class="copy-btn" data-cmd="systemctl status httpd" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status httpd</code></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CageFS</span><button class="copy-btn" data-cmd="cagefsctl --cagefs-status" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">cagefsctl --cagefs-status</code></div>
+</div>
+  </div>
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-database"></i></div>
+      <div class="svc-info"><div class="svc-name">Database</div><div class="svc-count" id="sk-db">0/2 checks passed</div></div>
+      <div class="badge badge-err" id="bd-db">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">not found</span><span class="sub-age"></span></div>
+</div>
+  </div>
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-topology-star-ring"></i></div>
+      <div class="svc-info"><div class="svc-name">Cache</div><div class="svc-count" id="sk-cache">0/2 active</div></div>
+      <div class="badge badge-err" id="bd-cache">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+</div>
+  </div>
+  <div class="svc-card">
+    <div class="svc-top">
+      <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-file-arrow-right"></i></div>
+      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp">0/2 checks passed</div></div>
+      <div class="badge badge-err" id="bd-ftp">Offline</div>
+    </div>
+    <div class="svc-checks" id="ch-ftp"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">FTP service</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Kernel state</span><span class="sub-note">not bound</span><span class="sub-age"></span></div>
+</div>
+  </div>
+</div>
+
+
+<div class="sec" style="margin-top:12px">Event log</div>
+<div class="log-card">
+  <div class="log-hdr">
+    <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
+    <span class="log-hdr-title">Recent alerts & status changes</span>
+    <button class="log-clear" id="log-clear-btn">Clear</button>
+  </div>
+  <div class="log-list" id="log-list">
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">11:21</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
+  <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
+  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-22 11:21:35</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const saved  = localStorage.getItem('az-theme');
+  const system = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  const theme  = saved || system;
+  document.documentElement.setAttribute('data-theme', theme);
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(function(e) {
+      if (!localStorage.getItem('az-theme')) {
+        const t = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+        const icon = document.getElementById('theme-icon');
+        if (icon) icon.className = t === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+      }
+    });
+  }
+})();
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('az-theme', theme);
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.className = theme === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.className = cur === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+  document.getElementById('theme-btn').addEventListener('click', function() {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
+  });
+  // Dil düğmesi: cookie'yi diğer dile çevir + yeniden yükle (sunucu o dilde render eder)
+  var lb=document.getElementById('lang-btn');
+  if(lb)lb.addEventListener('click', function(){
+    document.cookie='lang='+"tr"+';path=/;max-age=31536000;samesite=lax';
+    location.reload();
+  });
+});
+
+// ── JS i18n — PHP ile aynı sözlük; İngilizce anahtar, TR karşılık ────────────
+const LANG_UI="en";
+const TR={};
+function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
+function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
+function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
+
+const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
+const seed={
+    "t": [],
+    "l1": [],
+    "l5": [],
+    "l15": [],
+    "cpu": [],
+    "ram": [],
+    "disk": [],
+    "iow": [],
+    "wrk": [],
+    "rx": [],
+    "tx": [],
+    "mq": [],
+    "top": []
+};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:67,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:21:35'};
+Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
+let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
+let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
+let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
+function pushT(v){histT.push(v);if(histT.length>MAX)histT.shift();}
+const HIST_WIN=1830; // sn — pencere: son 30 dk (+30 sn tolerans)
+function tSec(s){const p=s.split(':');return (+p[0])*3600+(+p[1])*60+(p[2]?+p[2]:0);}
+function trimHist(nowStr){
+  const n=tSec(nowStr);
+  while(histT.length&&(((n-tSec(histT[0]))+86400)%86400)>HIST_WIN){
+    histT.shift();Object.keys(hist).forEach(k=>hist[k].shift());
+  }
+}
+function updRange(){const mr=document.getElementById('metrics-range');if(mr&&histT.length)mr.textContent='\u00b7 '+histT[0].slice(0,5)+' \u2013 '+histT[histT.length-1].slice(0,5);}
+let prev={},logs=[];
+const seedLogs=[
+    {
+        "type": "err",
+        "msg": "Root snapshot missing \u2014 cron down?",
+        "ts": "11:21"
+    }
+];
+// Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
+// birikmiş canlı alarmlar kaybolmasın (reload sunucudan yalnız anlık durumu
+// seed'ler). Kayıt varsa onu kullan; yoksa sunucu seed'iyle başla. Yeni sekme
+// = temiz başlangıç (sessionStorage sekmeye özel).
+const LOG_KEY='az-logs';
+function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}catch(e){}}
+(function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
+  if(r&&r.length){
+    logs=r;
+    // Sayfa zaten sorun aktifken açıldıysa: sunucunun seed'lediği güncel alarmlardan
+    // saklı log'da OLMAYANLARI da ekle (yoksa o an aktif sorun hiç görünmez), sonra
+    // yeni→eski sırala ve 30'la sınırla.
+    if(seedLogs&&seedLogs.length){
+      var have={};logs.forEach(function(l){have[l.msg]=1;});
+      seedLogs.forEach(function(s){if(!have[s.msg])logs.push(s);});
+      logs.sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
+      if(logs.length>30)logs.length=30;
+    }
+    renderLog();saveLogs();
+  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
+const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"err","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok"});
+const mpend={};
+function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
+function checkSnap(data,now){
+  const sl=(data.procAge==null||data.procAge>180)?'err':'ok';
+  if(sl!==mlvl.snap){
+    if(sl==='err')addLog('err',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
+    else addLog('ok',tf('Root snapshot fresh again (%ss)',data.procAge),now);
+    mlvl.snap=sl;
+  }
+}
+function transLog(key,v,cr,hi,mErr,mWarn,mOk,now){
+  const nl=lvlOf(v,cr,hi);
+  if(nl===mlvl[key]){mpend[key]=null;return;}          // mevcut seviyede — beklemede bir şey varsa iptal
+  if(!mpend[key]||mpend[key].lvl!==nl){mpend[key]={lvl:nl,n:1};return;} // yeni aday seviye — 1. gözlem
+  if(++mpend[key].n<2)return;                          // henüz doğrulanmadı
+  if(nl==='err')addLog('err',mErr,now);                // 2 ardışık tick (~60sn) — doğrulandı
+  else if(nl==='warn')addLog('warn',mWarn,now);
+  else if(mlvl[key]!=='ok')addLog('ok',mOk,now);
+  mlvl[key]=nl;mpend[key]=null;
+}
+
+function scol(v,hi,cr,ok){return v>=cr?'var(--danger)':v>=hi?'var(--warn)':(ok||'var(--accent)');}
+function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=2.0?'var(--danger)':r>=1.0?'var(--warn)':(ok||'var(--accent)');}
+function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=100)return'var(--danger)';if(ms>=30)return'var(--warn)';return'var(--accent)';}
+// IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
+function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
+// RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
+function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
+function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · '+t('run')+' '+(d.rstate||0)+' / '+t('blocked')+' '+(d.dstate||0);return s;}
+function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' '+t('mismatch')+'</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
+function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
+function pmcls(v){v=parseFloat(v)||0;return v>=15?'hot':v>=5?'warm':'';}
+function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);return m?(+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]):null;}
+function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
+function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
+
+function spark(id,data,color,W,H){
+  const c=document.getElementById(id);if(!c)return;
+  c._d=data.slice();
+  const cW=W||c.offsetWidth||100,cH=H||c.offsetHeight||28;
+  c.width=cW;c.height=cH;
+  const ctx=c.getContext('2d');ctx.clearRect(0,0,cW,cH);
+  if(data.length<2)return;
+  const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
+  const pts=data.map((v,i)=>({x:i*(cW/(data.length-1)),y:cH-2-((v-mn)/rng)*(cH-4)}));
+  const col=color.startsWith('var(') ? getComputedStyle(document.documentElement).getPropertyValue(color.slice(4,-1).trim()).trim() : color;
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){const m=(pts[i-1].x+pts[i].x)/2;ctx.bezierCurveTo(m,pts[i-1].y,m,pts[i].y,pts[i].x,pts[i].y);}
+  ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+  const ss=document.getElementById('ssr-'+id.slice(3));if(ss)ss.remove();
+  const l=pts[pts.length-1];ctx.beginPath();ctx.arc(l.x,l.y,2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+  if(mx>mn){
+    let mi=0;for(let i=1;i<data.length;i++)if(data[i]>data[mi])mi=i;
+    if(mi!==pts.length-1){
+      // Tepe: içi ÇİZGİ renginde dolu (her temada görünür), halkası kart
+      // renginde — çizgiden ayrılsın. Eski "içi kart renginde" tasarım zemine
+      // karışıp hiçbir temada seçilmiyordu.
+      const mp=pts[mi],bg=(getComputedStyle(document.documentElement).getPropertyValue('--card')||'').trim()||'#fff';
+      ctx.beginPath();ctx.arc(mp.x,mp.y,3,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.strokeStyle=bg;ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+}
+
+// Tema değişince tüm sparkline'ları güncel değerlerin renkleriyle yeniden çiz.
+// Canvas tema geçişini kendiliğinden izlemez: tepe noktasının içi çizim
+// anındaki --card ile doldurulur; yeniden çizilmezse eski temanın rengi kalır
+// (koyu moda geçince "beyaz nokta" görünmesinin sebebi buydu).
+function redrawSparks(){
+  const t=init.t||1,L=k=>hist[k].length?hist[k][hist[k].length-1]:0;
+  spark('sp-l1',hist.l1,lcol(L('l1'),t),80,32);
+  spark('sp-l5',hist.l5,lcol(L('l5'),t),80,32);
+  spark('sp-l15',hist.l15,lcol(L('l15'),t),80,32);
+  spark('sp-cpu',hist.cpu,lastCardCol.cpu||scol(L('cpu'),80,90,'var(--c-cpu)'),70,24);
+  spark('sp-ram',hist.ram,lastCardCol.ram||scol(L('ram'),70,85,'var(--c-ram)'),70,24);
+  spark('sp-disk',hist.disk,lastCardCol.disk||scol(L('disk'),75,90,'var(--c-disk)'),70,24);
+  spark('sp-iow',hist.iow,lastCardCol.iow||scol(L('iow'),8,15,'var(--c-iow)'),70,24);
+  spark('sp-wrk',hist.wrk,'var(--accent)',64,30);
+  spark('sp-rx',hist.rx,lastCardCol.rx||'var(--accent)',64,30);
+  spark('sp-tx',hist.tx,lastCardCol.tx||'var(--accent)',64,30);
+  spark('sp-mq',hist.mq,'var(--accent)',64,30);
+}
+
+// Sparkline hover tooltip — imlecin geldiği noktanın değerini gösterir
+const tipEl=document.createElement('div');
+tipEl.className='spark-tip';
+document.body.appendChild(tipEl);
+const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.toFixed(2),
+  'sp-cpu':v=>Math.round(v)+'%','sp-ram':v=>Math.round(v)+'%','sp-disk':v=>Math.round(v)+'%','sp-iow':v=>Math.round(v)+'%',
+  'sp-rx':v=>Math.round(v)+' KB/s','sp-tx':v=>Math.round(v)+' KB/s','sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
+document.addEventListener('mousemove',e=>{
+  const c=e.target.closest?e.target.closest('canvas.load-spark,canvas.res-spark,canvas.info-spark-canvas'):null;
+  if(!c||!c._d||c._d.length<2){tipEl.style.opacity=0;return;}
+  const r=c.getBoundingClientRect();
+  const i=Math.max(0,Math.min(c._d.length-1,Math.round((e.clientX-r.left)/(r.width/(c._d.length-1)))));
+  const f=sparkFmt[c.id]||(v=>v);
+  const tm=histT[i];
+  tipEl.innerHTML='<span class="tip-v">'+f(c._d[i])+'</span>'+(tm?'<span class="tip-t">'+esc(tm)+'</span>':'');
+  tipEl.style.left=(e.clientX+10)+'px';
+  tipEl.style.top=(e.clientY-40)+'px';
+  tipEl.style.opacity=1;
+});
+document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;});
+
+// Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla
+// (cardBorderCss) aynı davranış; sağlıklıyken kenarlık nötr kalır.
+function isProblemCol(c){return c==='var(--danger)'||c==='var(--warn)';}
+function setLoad(vid,cardId,sparkId,histKey,val,t){
+  const color=lcol(val,t);
+  const el=document.getElementById(vid);if(el){el.textContent=val.toFixed(2);el.style.color=color;}
+  const card=document.getElementById(cardId);if(card){card.style.setProperty('--c',color);card.style.borderColor=isProblemCol(color)?color:'';}
+  const pct=document.getElementById('p-'+histKey);
+  if(pct)pct.textContent=tf('%s%% of %s cores',Math.round(val/t*100),t);
+  push(hist[histKey],val);spark(sparkId,hist[histKey],color,80,32);
+}
+
+function setRes(valId,cardId,barId,sparkId,metaId,histKey,val,color,meta){
+  const ve=document.getElementById(valId);if(ve){ve.textContent=Math.round(val)+'%';ve.style.color=color;}
+  const card=document.getElementById(cardId);if(card){card.style.setProperty('--c',color);card.style.borderColor=isProblemCol(color)?color:'';}
+  const bf=document.getElementById(barId);if(bf){bf.style.width=Math.min(val,100)+'%';bf.style.background=color;}
+  // innerHTML: meta içeriği bizim ürettiğimiz sayısal metin (RAM metasındaki
+  // shmem renk span'i için). Değerler sayı, kullanıcı girdisi yok — güvenli.
+  if(metaId&&meta!=null){const m=document.getElementById(metaId);if(m)m.innerHTML=meta;}
+  push(hist[histKey],val);spark(sparkId,hist[histKey],color,70,24);
+}
+
+// Tepe durumu artık sunucuda birleşik sağlık modelinden gelir (data.overall):
+// TÜM metrik/servis kontrollerinin en kötü seviyesi + sorun detayları. Eşik
+// Sekme başlığı + favicon durumu yansıtır — arka plandaki sekmeden bakışta belli
+// olsun. Favicon: durum renginde yuvarlak-kare + beyaz "A" (marka kimliği korunur);
+// başlık: sorun varsa öne "Issues/Degraded" eklenir. Favicon yalnız renk DEĞİŞİNCE
+// yeniden çizilir (canvas+toDataURL bedava ama gereksiz yere her tick yapılmaz).
+const FAV_OK="";            // config: favicon_url (boş olabilir)
+const SITE_TITLE="Server Status Monitor";         // config: site_title
+const FAV_INITIAL="S"; // sorunlu favicon harf fallback'i
+let _favCol=null, _favImg=null, _favImgOk=false;
+// Tek favicon link'i: yeni eklemek yerine sayfadaki mevcut <link rel="icon"> güncellenir.
+function _favLink(){let l=document.querySelector('link[rel~="icon"]');if(!l){l=document.createElement('link');l.rel='icon';document.head.appendChild(l);}return l;}
+// Sorunlu favicon: GERÇEK Ayzeta ikonu (rengi KORUNUR) + durum renginde çerçeve
+// (turuncu/kırmızı) — ikonu beyazlatmaz, sadece etrafını boyar. Panel + ikon aynı
+// origin (ayzeta.net) → canvas taint olmaz. İkon yüklenemezse (yerel test/taint)
+// renkli kare + beyaz "A" güvenlik ağı.
+(function(){if(!FAV_OK)return;_favImg=new Image();_favImg.onload=()=>{_favImgOk=true;if(_favCol==='var(--danger)'||_favCol==='var(--warn)')_paintProblemFav(_favCol);};_favImg.src=FAV_OK;})();
+function _paintProblemFav(colorVar){
+  const r=getComputedStyle(document.documentElement);
+  const col=(colorVar==='var(--danger)'?r.getPropertyValue('--danger'):r.getPropertyValue('--warn')).trim()||'#f59e0b';
+  // Favicon saydam olduğundan SADECE kenar boyamak ortayı beyaz bırakır. Bu yüzden
+  // TÜM yuvarlak-kare zemini durum rengiyle doldurup gerçek "A"yı (rengi korunur)
+  // üstüne basarız → "A" komple renkli zeminde durur. withImg=false: taint (yerel
+  // test) durumunda ikon yerine beyaz "A" harfi — en azından durum belli olur.
+  const draw=(withImg)=>{
+    const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+    x.fillStyle=col; if(x.roundRect){x.beginPath();x.roundRect(2,2,60,60,14);x.fill();}else x.fillRect(2,2,60,60);
+    if(withImg&&_favImgOk){x.drawImage(_favImg,9,9,46,46);}
+    else{x.fillStyle='#fff';x.font='bold 42px Arial,system-ui';x.textAlign='center';x.textBaseline='middle';x.fillText(FAV_INITIAL||'!',32,36);}
+    return c.toDataURL('image/png'); // taint ise throw eder
+  };
+  let href; try{href=draw(true);}catch(e){try{href=draw(false);}catch(_){href=FAV_OK;}}
+  _favLink().href=href;
+}
+function setStatusIcon(colorVar, shortStatus){
+  document.title=(shortStatus&&shortStatus!=='OK')?t(shortStatus)+' · '+SITE_TITLE:SITE_TITLE;
+  if(colorVar===_favCol)return;
+  _favCol=colorVar;
+  if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'){if(FAV_OK)_favLink().href=FAV_OK;return;} // sağlıklı: gerçek favicon
+  _paintProblemFav(colorVar);
+}
+// İlk yükte sunucu render'ındaki durumdan (ilk fetch'i beklemeden)
+{const d=document.getElementById('hdr-dot'),s=document.getElementById('hdr-short');
+ if(d&&s)setStatusIcon(d.style.background||'var(--ok)',s.textContent.trim());}
+
+// mantığı tek yerde (PHP) yaşasın diye JS burada yeniden hesaplamaz, uygular.
+function updateOverall(data){
+  const o=data.overall; if(!o)return;
+  const res=getComputedStyle(document.documentElement);
+  const col=o.color==='var(--danger)'?res.getPropertyValue('--danger').trim()
+           :o.color==='var(--warn)'  ?res.getPropertyValue('--warn').trim()
+           :res.getPropertyValue('--ok').trim();
+  const dot=document.getElementById('hdr-dot'),txt=document.getElementById('hdr-txt'),det=document.getElementById('hdr-detail'),sh=document.getElementById('hdr-short'),st=document.getElementById('hdr-status');
+  const shortLbl=o.color==='var(--danger)'?'Issues':o.color==='var(--warn)'?'Degraded':'OK';
+  if(dot)dot.style.background=col;
+  if(txt)txt.textContent=t(o.status);
+  if(sh)sh.textContent=t(shortLbl);
+  if(det){if(o.detail){det.textContent=o.detail;det.style.display='';}else{det.style.display='none';}}
+  setStatusIcon(o.color,shortLbl); // sekme başlığı + favicon durumu yansıtsın
+  // Mobil dokun-aç: detay varsa rozet tıklanabilir; detay kalmayınca paneli kapat
+  if(st){if(o.detail){st.classList.add('has-detail');}else{st.classList.remove('has-detail');st.classList.remove('st-open');}}
+}
+
+// Mobil: durum rozetine dokununca sorun detayları açılır panelde görünür
+// (masaüstünde detay zaten satır içi; st-open kuralları yalnız mobil query'de).
+(function(){
+  const st=document.getElementById('hdr-status');
+  if(!st)return;
+  st.addEventListener('click',e=>{
+    if(!st.classList.contains('has-detail'))return; // sorun yoksa açılmaz
+    e.stopPropagation();
+    st.classList.toggle('st-open');
+  });
+  document.addEventListener('click',()=>st.classList.remove('st-open')); // dışarı dokun → kapat
+})();
+
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('.copy-btn');if(!btn)return;
+  const cmd=btn.dataset.cmd;
+  navigator.clipboard.writeText(cmd).then(()=>{
+    btn.classList.add('copied');setTimeout(()=>btn.classList.remove('copied'),1500);
+    showToast('Copied: '+cmd);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=cmd;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    showToast('Copied: '+cmd);
+  });
+});
+
+// Kesik komut/sorgu metnine dokun -> tam metin açılır (mobil için; hover yok)
+document.addEventListener('click',function(e){
+  const c=e.target.closest('.proc-cmd');
+  if(c)c.classList.toggle('expanded');
+});
+
+// ── Tablo sıralama ────────────────────────────────────────────
+// Başlığa tıkla: büyükten küçüğe, ikinci tıklama ters çevirir. 30sn
+// yenilemede korunur (renderProcs sonunda reapplySort). Mail ekinde JS
+// ölü olduğundan cron'un CPU/RAM sıralaması geçerli kalır.
+const sortState={};
+function sortVal(td){
+  if(!td)return null;
+  const t=td.textContent.trim();
+  if(t===''||t==='—')return -Infinity;
+  let m=t.match(/^([\d.]+)\s*(GB|MB|KB)$/i);          // RSS: "5.1 GB" / "386 MB"
+  if(m)return parseFloat(m[1])*({KB:1,MB:1024,GB:1048576}[m[2].toUpperCase()]);
+  m=t.match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);   // ps etime: [gün-][saat:]dk:sn
+  if(m)return (+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]);
+  const n=parseFloat(t);
+  return isNaN(n)?null:n;
+}
+function sortTable(tb,ci,dir){
+  const rows=[...tb.querySelectorAll('tr')].filter(r=>!r.querySelector('.sql-empty'));
+  rows.sort((a,b)=>{
+    const va=sortVal(a.cells[ci]),vb=sortVal(b.cells[ci]);
+    const c=(va!=null&&vb!=null)?va-vb
+      :(a.cells[ci]?a.cells[ci].textContent.trim():'').localeCompare(b.cells[ci]?b.cells[ci].textContent.trim():'');
+    return dir==='asc'?c:-c;
+  });
+  rows.forEach(r=>tb.appendChild(r));
+}
+function reapplySort(){
+  for(const k in sortState){const tb=document.getElementById(k);if(tb)sortTable(tb,sortState[k].ci,sortState[k].dir);}
+}
+document.addEventListener('click',e=>{
+  const th=e.target.closest('.proc-table th');if(!th)return;
+  const tb=th.closest('table').querySelector('tbody');if(!tb||!tb.id)return;
+  const ci=[...th.parentNode.children].indexOf(th);
+  const cur=sortState[tb.id];
+  const dir=(cur&&cur.ci===ci&&cur.dir==='desc')?'asc':'desc';
+  sortState[tb.id]={ci,dir};
+  th.parentNode.querySelectorAll('th').forEach(h=>h.classList.remove('sorted-asc','sorted-desc'));
+  th.classList.add('sorted-'+dir);
+  sortTable(tb,ci,dir);
+});
+
+function renderSvc(key,data){
+  const s=data.status;
+  const icon=document.getElementById('si-'+key),badge=document.getElementById('bd-'+key);
+  const count=document.getElementById('sk-'+key),checks=document.getElementById('ch-'+key);
+  if(icon){icon.style.background=s==='operational'?'var(--accent-bg)':s==='degraded'?'var(--warn-bg)':'var(--danger-bg)';icon.style.color=s==='operational'?'var(--accent)':s==='degraded'?'var(--warn)':'var(--danger)';}
+  if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):t('Offline');}
+  if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'');}
+  if(checks&&data.checks){
+    checks.innerHTML=data.checks.map(ch=>{
+      if(ch.type==='cmd'){
+        return `<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">${ch.label}</span><button class="copy-btn" data-cmd="${ch.cmd}" title="${t('Copy')}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">${ch.cmd}</code></div>`;
+      }
+      const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
+      const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
+      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${tnote(ch.note||'')}</span>${age}</div>`;
+    }).join('');
+  }
+}
+
+let lastSnapMtime=null; // PHP render'ın damgası — ilk tick boşa kurmasın
+let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
+function renderProcs(data){
+  if(!document.getElementById('proc-row'))return;
+  const age=document.getElementById('proc-age');
+  if(age&&data.procAge!=null){
+    const stale=data.procAge>180;
+    age.textContent=' · '+tf('root snapshot, %ss ago',data.procAge)+(stale?' — '+t('STALE (cron?)'):'');
+    age.className='proc-age'+(stale?' stale':'');
+  }
+  const thr=document.getElementById('sql-thr');
+  // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
+  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span id="sql-thr-n" style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
+  const ac=document.getElementById('act-chips');
+  if(ac&&data.procCpu){
+    // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
+    // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
+    // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
+    const defs=[['backup running',/pkgacct|cpbackup/i,0],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15],['imunify scan',/im360\.run|aibolit|rustbolit/i,15]];
+    const chips=defs.map(([lbl,re,minCpu],i)=>{
+      // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
+      if(i===3&&data.actImunifyP==='incremental')return null;
+      let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
+      if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
+      if(mx==null)return null;
+      let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
+      if(i===3){ // imunify: hesap adı + varsa dosya sayısı
+        if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
+        if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' '+t('files');
+      }
+      return c;});
+    ac.innerHTML=chips.filter(Boolean).map(c=>'<span class="bk-chip">'+esc(c)+'</span>').join('');
+    // Başlangıç/bitiş Event log'a düşsün — pill gözden kaçsa da iz kalır.
+    // İlk gözlemde sadece durum kaydedilir (sayfa açılışında sahte "started" olmasın).
+    const st=chips.map(c=>c!=null?'1':'0').join('');
+    if(actWas===null)actWas=st;
+    else if(st!==actWas){
+      defs.forEach(([lbl],i)=>{
+        if(st[i]!==actWas[i])addLog('ok',t(lbl.replace(' running',''))+' '+t(st[i]==='1'?'started':'finished'),data.time.split(' ')[1]);});
+      actWas=st;
+    }
+  }
+  // Snapshot değişmediyse tabloları yeniden kurma (genişletilmiş satırlar da korunur)
+  if(data.snapMtime!=null&&data.snapMtime===lastSnapMtime)return;
+  lastSnapMtime=data.snapMtime;
+  const cpu=document.getElementById('pt-cpu');
+  if(cpu&&data.procCpu)cpu.innerHTML=data.procCpu.map(p=>
+    `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
+    `<td class="num ${pcls(p[2])}">${esc(p[2])}</td><td class="num ${pmcls(p[3])}">${esc(p[3])}</td>`+
+    `<td>${esc(p[4])}</td><td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`).join('');
+  const ram=document.getElementById('pt-ram');
+  if(ram&&data.procRam)ram.innerHTML=data.procRam.map(p=>{
+    const mc=pmcls(p[3]);
+    return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
+    `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
+    `<td class="td-fill"><span class="proc-cmd proc-cmd-sm" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+  const php=document.getElementById('pt-php');
+  if(php&&data.procPhp){
+    const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
+    php.innerHTML=data.procPhp.map(p=>{
+      const c=p[1]>=10?'hot':p[1]>=5?'warm':'';
+      const w=Math.round(p[1]/mx*100);
+      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${c}">${p[1]}</td></tr>`;}).join('');
+  }
+  const dsk=document.getElementById('pt-disk'); // en dolu hesaplar (3. sütun, dikey tablo)
+  if(dsk&&data.diskAcct&&data.diskAcct.length){
+    const mx=Math.max(0.1,...data.diskAcct.map(p=>p[1]));
+    const tot=data.diskTotalGB||0;
+    dsk.innerHTML=data.diskAcct.map(p=>{
+      const w=Math.round(p[1]/mx*100);
+      const gb=(''+(Math.round(p[1]*10)/10)).replace(/\.0$/,'');
+      const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
+      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
+  }
+  const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')
+  const sql=document.getElementById('pt-sql');
+  if(sql&&data.procSql){
+    sql.innerHTML=data.procSql.length?data.procSql.map(p=>{
+      const c=parseInt(p[3])>=60?'hot':parseInt(p[3])>=10?'warm':'';
+      return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td><td>${esc(p[2])}</td>`+
+        `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
+        `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td></tr>`;}).join('')
+    :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">'+tf('No queries running longer than %ss at snapshot time',sqlMin)+'</td></tr>';
+  }
+  reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
+}
+
+function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();saveLogs();}
+function renderLog(){
+  const el=document.getElementById('log-list');if(!el)return;
+  if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
+  // msg + ts tek yerde escape (üreticiler artık ham metin verir) — XSS savunması
+  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(l.ts)}</span></div>`).join('');
+}
+
+function checkAlerts(data){
+  const cores=data.threads,now=data.time.split(' ')[1];
+  // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
+  // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
+  // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
+  let top='';
+  if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=180){
+    const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
+    if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
+  }
+  transLog('load',data.load1/cores,2.0,1.0,
+    tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
+    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
+    tf('Load back to normal: %s',data.load1.toFixed(2)),now);
+  transLog('cpu',data.cpu,90,80,
+    tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);
+  transLog('ram',data.ram,85,70,
+    tf('RAM critical: %s%%',data.ram),tf('RAM high: %s%%',data.ram),tf('RAM back to normal: %s%%',data.ram),now);
+  transLog('iow',data.iowait,15,8,
+    tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
+  if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,50,10,
+    tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
+  if(data.shmemPct!=null)transLog('shmem',data.shmemPct,55,40,
+    tf('Shared memory very high: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),tf('Shared memory elevated: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),t('Shared memory back to normal'),now);
+  if(data.inodePct!=null)transLog('inode',data.inodePct,90,80,
+    tf('Inodes critically high: %s%% (disk may fail despite free space)',data.inodePct),tf('Inode usage high: %s%%',data.inodePct),t('Inode usage back to normal'),now);
+  if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
+    transLog('net',ns,90,70,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
+  if(data.mysqlThr!=null){const cc=data.coreCount||1;
+    transLog('mysqlthr',data.mysqlThr,cc*2,cc,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
+  if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
+    if(rl!==mlvl.raid){
+      if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);
+      else if(rl==='warn')addLog('warn',tf('%s — array rebuilding',data.raidTxt),now);
+      else if(mlvl.raid!=='ok')addLog('ok',t('RAID array healthy again'),now);
+      mlvl.raid=rl;}}
+  {const sl=data.smartMsg?'err':'ok';
+   if(sl!==mlvl.smart){
+     if(sl==='err')addLog('err',data.smartMsg,now);
+     else if(mlvl.smart!=='ok')addLog('ok',t('SMART pre-failure cleared'),now);
+     mlvl.smart=sl;}}
+  {const ml=data.raidMismatch>0?'warn':'ok';
+   if(ml!==mlvl.mismatch){
+     if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
+     else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
+     mlvl.mismatch=ml;}}
+  if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,100,100,
+    tf('Web response time high: %sms',data.webResponseTime),'',
+    tf('Web response time normal: %sms',data.webResponseTime),now);
+  if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,100,100,
+    tf('MySQL response time high: %sms',data.mysqlResponseTime),'',
+    tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
+  if(data.sslDaysLeft!=null){
+    const sl=data.sslDaysLeft<=7?'err':(data.sslDaysLeft<=30?'warn':'ok');
+    if(sl!==mlvl.ssl){
+      if(sl==='err')addLog('err',tf('SSL expires in %s days!',data.sslDaysLeft),now);
+      else if(sl==='warn')addLog('warn',tf('SSL expires in %s days',data.sslDaysLeft),now);
+      mlvl.ssl=sl;
+    }
+  }
+  const names={web:'Web server',mail:'Mail',dns:'DNS',sec:'Security',db:'Database',cache:'Cache',ftp:'FTP'};
+  ['web','mail','dns','sec','db','cache','ftp'].forEach(k=>{
+    const cs=data[k]?data[k].status:null;if(!cs)return;
+    if(prev[k]&&prev[k]!=='offline'&&cs==='offline')   addLog('err',tf('%s went offline',t(names[k])),now);
+    if(prev[k]==='offline'&&cs!=='offline')             addLog('ok', tf('%s restored',t(names[k])),now);
+    if(prev[k]==='operational'&&cs==='degraded')        addLog('warn',tf('%s degraded',t(names[k])),now);
+    prev[k]=cs;
+  });
+}
+
+// Ortak metrik render'ı — render + renderMetrics'in TEK kaynağı (eskiden ikisinde
+// birebir kopyaydı, biri değişince diğeri unutulur riskiydi). Başlık meta + load +
+// kaynak kartları (birleşik sağlık renkleriyle) + Network IN/OUT. render bunun üstüne
+// info-şerit + servis kartları + updateOverall + checkAlerts ekler.
+function applyMetrics(data){
+  document.getElementById('hostname').textContent=data.hostname;
+  document.getElementById('threads').textContent=data.threads;
+  document.getElementById('uptime').textContent=data.uptime||'—';
+  document.getElementById('time-val').textContent=data.time.split(' ')[1];
+  document.getElementById('footer-time').textContent='v1.0.0 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  const nowT=data.time.split(' ')[1];
+  // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
+  // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
+  // yeniden seed'le. Böylece reload olmadan grafikler kaldığı yerden dolar.
+  if(histT.length && data.hist && data.hist.t && data.hist.t.length){
+    const g=((tSec(nowT)-tSec(histT[histT.length-1]))+86400)%86400;
+    if(g>300){
+      histT=data.hist.t.slice();
+      Object.keys(hist).forEach(k=>{hist[k]=(data.hist[k]||[]).slice();});
+    }
+  }
+  pushT(nowT);
+  trimHist(nowT);
+  updRange();
+  const cores=data.threads;
+  setLoad('v-l1','lc-l1','sp-l1','l1',data.load1,cores);
+  setLoad('v-l5','lc-l5','sp-l5','l5',data.load5,cores);
+  setLoad('v-l15','lc-l15','sp-l15','l15',data.load15,cores);
+  // Kart renkleri sunucudaki birleşik sağlık modelinden (data.cardCol): disk
+  // kartı RAID/SMART/inode sorununda da kızarır, %'si düşük olsa bile. Snapshot
+  // eksikse metriğin kendi eşik rengine düşülür; redrawSparks (tema) için stash.
+  const cc=data.cardCol||{};
+  lastCardCol={cpu:cc.cpu||scol(data.cpu,80,90,'var(--c-cpu)'),ram:cc.ram||scol(data.ram,70,85,'var(--c-ram)'),disk:cc.disk||scol(data.disk,75,90,'var(--c-disk)'),iow:cc.iow||scol(data.iowait,8,15,'var(--c-iow)'),rx:data.netRxCol||'var(--accent)',tx:data.netTxCol||'var(--accent)'};
+  setRes('rv-cpu','rc-cpu','rb-cpu','sp-cpu','rm-cpu','cpu',data.cpu,lastCardCol.cpu,cpuMeta(data));
+  setRes('rv-ram','rc-ram','rb-ram','sp-ram','rm-ram','ram',data.ram,lastCardCol.ram,ramMeta(data));
+  setRes('rv-disk','rc-disk','rb-disk','sp-disk','rm-disk','disk',data.disk,lastCardCol.disk,diskMeta(data));
+  setRes('rv-iow','rc-iow','rb-iow','sp-iow','rm-iow','iow',data.iowait,lastCardCol.iow,iowMeta(data));
+  // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
+  {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
+   if(e&&data.rxRate){e.textContent=data.rxRate;e.style.color=c;}
+   if(s)s.textContent=data.netRxSat!=null?tf('%s%% of link',data.netRxSat):t('incoming traffic');
+   if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c,64,30);}}
+  {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
+   if(e&&data.txRate){e.textContent=data.txRate;e.style.color=c;}
+   if(s)s.textContent=data.netTxSat!=null?tf('%s%% of link',data.netTxSat):t('outgoing traffic');
+   if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c,64,30);}}
+}
+// Servis beslemesi yok (snapshot bayat) — metrik + süreç + TEPE DURUMU güncel kalsın
+// (favicon/başlık dahil); servis kartları + canlı alertler atlanır (yanlış servis
+// alarmı üretmemek için).
+function renderMetrics(data){
+  applyMetrics(data);
+  renderProcs(data);
+  updateOverall(data);
+}
+
+function render(data){
+  applyMetrics(data); // başlık meta + load + kaynak kartları + Network IN/OUT (ortak)
+  const ew=document.getElementById('iv-web');
+  if(ew){ew.textContent=data.webResponseTime!=null?data.webResponseTime+' ms':'—';ew.style.color=rtcol(data.webResponseTime);}
+  const em=document.getElementById('iv-mysql');
+  if(em){em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=rtcol(data.mysqlResponseTime);}
+  if(data.acctCount!=null){const e=document.getElementById('iv-acct');if(e)e.textContent=data.acctCount;}
+  {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*3?'var(--danger)':q>=b*1?'var(--warn)':'var(--accent)';}}
+  {const q=data.mqRaw;if(q!=null){push(hist.mq,q);spark('sp-mq',hist.mq,'var(--accent)',64,30);}}
+  if(data.lsphpIdle!=null)lsphpIdle=data.lsphpIdle;
+  {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
+  {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*2?'var(--danger)':n>=c?'var(--warn)':'var(--accent)';}}
+  {const n=data.lsphpTotal;if(n!=null){push(hist.wrk,n);spark('sp-wrk',hist.wrk,'var(--accent)',64,30);}}
+  if(data.sslDaysLeft!=null){
+    const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
+    const col=data.sslDaysLeft<=7?'var(--danger)':data.sslDaysLeft<=30?'var(--warn)':'var(--accent)';
+    if(e){e.textContent=data.sslDaysLeft+' '+t('days');e.style.color=col;}
+    if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
+  }
+  ['web','mail','dns','sec','db','cache','ftp'].forEach(k=>{if(data[k])renderSvc(k,data[k]);});
+  renderProcs(data);
+  updateOverall(data);
+  checkAlerts(data);
+}
+
+let whmWasDown=false;
+
+async function fetchWithRetry(url, retries=2, delay=2000){
+  for(let i=0; i<=retries; i++){
+    try{
+      const r=await fetch(url);
+      if(r.ok) return await r.json();
+    }catch(e){}
+    if(i<retries) await new Promise(res=>setTimeout(res,delay));
+  }
+  return null;
+}
+
+let lastFetch=0;
+async function tick(){
+  lastFetch=Date.now();
+  const data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now());
+
+  if(!data){
+    // Fetch tamamen başarısız — ağ sorunu
+    if(!whmWasDown){
+      whmWasDown=true;
+      addLog('err',t('Server unreachable'),new Date().toTimeString().slice(0,8));
+    }
+    return;
+  }
+
+  const now=data.time.split(' ')[1];
+  checkSnap(data,now);
+
+  if(!data.whmApiOk){
+    // Sayfa geldi ama servis beslemesi yok (taze snapshot da API de yok)
+    renderMetrics(data);
+    if(!whmWasDown){
+      whmWasDown=true;
+      addLog('warn',t('Service feed unavailable (root snapshot stale?)'),now);
+    }
+    return;
+  }
+
+  // Her şey normal
+  if(whmWasDown){
+    addLog('ok',t('Service feed restored'),now);
+    whmWasDown=false;
+  }
+  render(data);
+}
+
+document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+renderLog();
+
+// İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz
+(function(){
+  pushT(init.time);
+  trimHist(init.time);
+  updRange();
+  push(hist.l1,init.l1);push(hist.l5,init.l5);push(hist.l15,init.l15);
+  push(hist.cpu,init.cpu);push(hist.ram,init.ram);push(hist.disk,init.disk);push(hist.iow,init.iow);push(hist.wrk,init.wrk);push(hist.rx,init.rx);push(hist.tx,init.tx);push(hist.mq,init.mq);
+  spark('sp-l1',hist.l1,lcol(init.l1,init.t),80,32);
+  spark('sp-l5',hist.l5,lcol(init.l5,init.t),80,32);
+  spark('sp-l15',hist.l15,lcol(init.l15,init.t),80,32);
+  spark('sp-cpu',hist.cpu,scol(init.cpu,80,90,'var(--c-cpu)'),70,24);
+  spark('sp-ram',hist.ram,scol(init.ram,70,85,'var(--c-ram)'),70,24);
+  spark('sp-disk',hist.disk,scol(init.disk,75,90,'var(--c-disk)'),70,24);
+  spark('sp-iow',hist.iow,scol(init.iow,8,15,'var(--c-iow)'),70,24);
+  spark('sp-wrk',hist.wrk,'var(--accent)',64,30);
+  spark('sp-rx',hist.rx,lastCardCol.rx||'var(--accent)',64,30);
+  spark('sp-tx',hist.tx,lastCardCol.tx||'var(--accent)',64,30);
+  spark('sp-mq',hist.mq,'var(--accent)',64,30);
+})();
+
+if(location.protocol==='file:'){
+  // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
+  document.body.classList.add('static-mode');
+  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent='Snapshot';
+  const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
+  addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
+         new Date().toTimeString().slice(0,8));
+}else{
+  tick();
+  setInterval(tick,30000);
+  // Mobil/arka plan dayanıklılığı: tarayıcı arka plandaki sekmenin canvas'ını
+  // bellekten atabilir (geri dönünce grafikler BOŞ görünür) ve 30sn timer'ı
+  // dondurur (ilk hareket bir sonraki tick'e kadar gelmez). Sekme tekrar
+  // görünür olunca: (1) hafızadaki hist'ten ANINDA yeniden çiz (ağ beklemeden),
+  // (2) veri bayatsa (>15sn) hemen tazele. redrawSparks bedava (yalnız canvas).
+  const onVisible=()=>{
+    if(document.visibilityState!=='visible')return;
+    const gap=Date.now()-lastFetch;
+    // Uzun ara (uyku/askı): tick() taze veriyi çeker ve orada >5dk boşluk görülünce
+    // grafikleri sunucunun 30dk'sından (data.hist) yeniden seed'ler — reload YOK.
+    redrawSparks();                 // önce hafızadan çiz (ağ beklemeden, kısa ara için)
+    if(gap>15000)tick();            // bayatsa hemen tazele (uykuda gap zaten büyük → re-seed)
+  };
+  document.addEventListener('visibilitychange',onVisible);
+  window.addEventListener('pageshow',e=>{if(e.persisted)onVisible();});
+}
+</script>
+<script src="demo.js"></script>
+</body>
+</html>
