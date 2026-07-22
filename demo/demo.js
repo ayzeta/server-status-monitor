@@ -265,6 +265,7 @@
     var b=document.createElement('span'); b.id='demo-badge'; b.textContent='DEMO';
     b.style.cssText='margin-left:8px;font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 6px;border-radius:5px;vertical-align:middle;background:var(--warn-bg,rgba(245,158,11,.18));color:var(--warn,#f59e0b);border:1px solid var(--warn,#f59e0b);';
     title.appendChild(b);
+    title.style.whiteSpace='nowrap';   // başlık+DEMO rozeti tek satırda kalsın (header dolunca 2. satıra kaymasın)
     var sub=document.querySelector('.hdr-sub'); if(sub)sub.textContent=(LANG_UI==='tr'?'canlı demo · simüle veri':'live demo · simulated data');
   }
 
