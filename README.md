@@ -179,9 +179,18 @@ web account ── index.php ◀──────────────┘  r
 | IO Wait| 8%  | 15% |
 | Network| 70% of link | 90% of link |
 | Inode  | 80% | 90% |
+| Swap   | 10% used | 50% used |
+| Shared memory | 40% of RAM † | 55% of RAM † |
 
 Load is orange at capacity (a fully-used server isn't "broken") and red only
 when genuinely overloaded, so red stays meaningful.
+
+† **Shared memory is pressure-gated.** `tmpfs` / `/dev/shm` / opcache routinely sit
+at ~40% of RAM on a healthy cPanel box and that is *not* a problem, so the 40% / 55%
+levels only escalate when memory is actually tight — **available < 12% of RAM, or
+swap ≥ 10% used**. A genuine runaway still trips regardless of pressure: **≥ 65%
+warns, ≥ 75% is critical** (the "76 GB shmem" lesson). This keeps the header from
+flapping to *Degraded* over normal shared-memory usage.
 
 ## Uninstall
 

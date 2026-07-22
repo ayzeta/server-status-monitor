@@ -367,7 +367,18 @@ $shmemGB         = round($memShmem / 1024 / 1024, 1);
 // toplam swap'ın %'si. Düz GB/MB değeri farklı boyutlu sunucularda anlamsızdı.
 $shmemPct        = $memTotal  > 0 ? round($memShmem / $memTotal * 100)          : 0;
 $swapPct         = $swapTotal > 0 ? round(($swapTotal - $swapFree) / $swapTotal * 100) : 0;
-$shmemCol        = $shmemPct >= 55 ? 'var(--danger)' : ($shmemPct >= 40 ? 'var(--warn)' : 'var(--hint)');
+$memAvailPct     = $memTotal  > 0 ? round($memAvailable / $memTotal * 100)       : 100;
+// shmem AKILLI değerlendirme: tmpfs/opcache/dev-shm normalde geri kazanılamaz ama
+// bol available + swap sükûnetindeyken sorun DEĞİL (sağlıklı taban çoğu cPanel'de
+// ~%40). Yalnız gerçek bellek baskısı (available düşük VEYA swap kullanımda) varken
+// alarm ver; %75+ ise (kaçak — "76 GB krizi") baskıdan bağımsız kritik, %65+ ise
+// baskı olmasa da erken uyarı. Böylece sağlıklı taban seviyesi boşuna ötmez.
+$memTight        = ($memAvailPct < 12) || ($swapPct >= 10);
+$shmemLevel      = ($shmemPct >= 75)               ? 'err'
+                 : (($memTight && $shmemPct >= 55) ? 'err'
+                 : (($shmemPct >= 65)              ? 'warn'
+                 : (($memTight && $shmemPct >= 40) ? 'warn' : 'ok')));
+$shmemCol        = $shmemLevel === 'err' ? 'var(--danger)' : ($shmemLevel === 'warn' ? 'var(--warn)' : 'var(--hint)');
 
 // ── Disk ──────────────────────────────────────────────────────
 $diskTotal        = @disk_total_space('/');
@@ -901,7 +912,7 @@ $health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] �
     'net'      => [$netSat===null?'ok':hLvlHi($netSat,70,90),                                     tf('Network %s%%', $netSat)],
     'inode'    => [$inodePct===null?'ok':hLvlHi($inodePct,80,90),                                 'inode '.$inodePct.'%'],
     'swap'     => [hLvlHi($swapPct,10,50),                                                        'swap '.$swapPct.'%'],
-    'shmem'    => [hLvlHi($shmemPct,40,55),                                                       'shmem '.$shmemPct.'%'],
+    'shmem'    => [$shmemLevel,                                                                  'shmem '.$shmemPct.'%'],
     'raid'     => [$raidState==='degraded'?'err':($raidState==='resync'?'warn':'ok'),             $raidTxt!==''?$raidTxt:t('RAID issue')],
     'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   tf('%s RAID mismatch', $raidMismatch)],
     'smart'    => [$smartMsg!==''?'err':'ok',                                                     t('SMART fault')],
@@ -1070,13 +1081,11 @@ if ($swapPct >= 50) {
     $seedLvl['swap'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Swap in use: %s GB (%s%%)', $swapUsedGB, $swapPct), 'ts' => date('H:i')];
 }
-// Shmem — opcache/tmpfs kaçağının erken sinyali. Eşik RAM'in %'si (taşınabilir).
-$seedLvl['shmem'] = 'ok';
-if ($shmemPct >= 55) {
-    $seedLvl['shmem'] = 'err';
+// Shmem — akıllı: yalnız bellek baskısı varken (veya %75+ kaçak) alarm. $shmemLevel yukarıda hesaplandı.
+$seedLvl['shmem'] = $shmemLevel;
+if ($shmemLevel === 'err') {
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Shared memory very high: %s GB (%s%% of RAM)', $shmemGB, $shmemPct), 'ts' => date('H:i')];
-} elseif ($shmemPct >= 40) {
-    $seedLvl['shmem'] = 'warn';
+} elseif ($shmemLevel === 'warn') {
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Shared memory elevated: %s GB (%s%% of RAM)', $shmemGB, $shmemPct), 'ts' => date('H:i')];
 }
 // Inode — disk alanı boşken bile tükenirse sunucu çöker. Eşik %90/%80.
@@ -1154,7 +1163,7 @@ if (isset($_GET['json'])) {
         'uptime'            => $uptimeFormatted,
         'memUsedGB'         => $memUsedGB,  'memTotalGB'  => $memTotalGB,
         'swapUsedGB'        => $swapUsedGB, 'swapTotalGB' => $swapTotalGB, 'swapPct' => $swapPct,
-        'shmemGB'           => $shmemGB, 'shmemPct' => $shmemPct, 'shmemCol' => $shmemCol,
+        'shmemGB'           => $shmemGB, 'shmemPct' => $shmemPct, 'shmemCol' => $shmemCol, 'memAvailPct' => $memAvailPct,
         'diskUsedGB'        => $diskUsedGB, 'diskTotalGB' => $diskTotalGB, 'diskGrow' => $diskGrow,
         'inodePct'          => $inodePct, 'inodeCol' => $inodeCol,
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
@@ -2493,8 +2502,15 @@ function checkAlerts(data){
     tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
   if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,50,10,
     tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
-  if(data.shmemPct!=null)transLog('shmem',data.shmemPct,55,40,
-    tf('Shared memory very high: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),tf('Shared memory elevated: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),t('Shared memory back to normal'),now);
+  // shmem AKILLI (PHP $shmemLevel ile birebir): yalnız bellek baskısı (available<%12
+  // veya swap≥%10) varken alarm; %75+ kaçak her durumda kritik, %65+ erken uyarı.
+  // Seviye sentetik değere çevrilip transLog'un 2-tick doğrulaması korunur.
+  if(data.shmemPct!=null){
+    const tight=(data.memAvailPct!=null&&data.memAvailPct<12)||(data.swapPct>=10);
+    const sh=(data.shmemPct>=75)?'err':(tight&&data.shmemPct>=55)?'err':(data.shmemPct>=65)?'warn':(tight&&data.shmemPct>=40)?'warn':'ok';
+    transLog('shmem', sh==='err'?100:sh==='warn'?45:0, 55,40,
+      tf('Shared memory very high: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),tf('Shared memory elevated: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),t('Shared memory back to normal'),now);
+  }
   if(data.inodePct!=null)transLog('inode',data.inodePct,90,80,
     tf('Inodes critically high: %s%% (disk may fail despite free space)',data.inodePct),tf('Inode usage high: %s%%',data.inodePct),t('Inode usage back to normal'),now);
   if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
