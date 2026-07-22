@@ -172,10 +172,10 @@
     add(lv(v.ram,70,85),'RAM '+Math.round(v.ram)+'%');
     add(lv(v.iowait,8,15),'IO '+Math.round(v.iowait)+'%');
     add(lv(Math.max(v.netRxSat,v.netTxSat),70,90),'net '+Math.round(Math.max(v.netRxSat,v.netTxSat))+'%');
-    add(lv(v.lsphpTotal,CORES,CORES*2),v.lsphpTotal+' PHP workers');
-    add(lv(v.mysqlThr,CORES,CORES*2),'MySQL '+v.mysqlThr+' running');
+    add(lv(v.lsphpTotal,CORES,CORES*2),v.lsphpTotal+' workers');
+    add(lv(v.mysqlThr,CORES,CORES*2),'MySQL '+v.mysqlThr);
     add(lv(v.inodePct,80,90),'inode '+v.inodePct+'%');
-    add(lv(v.mailQ,374,374*3),'mail queue '+v.mailQ);
+    add(lv(v.mailQ,374,374*3),'mailq '+v.mailQ);
     if(S.raid==='degraded')add(2,v.raidTxt); else if(S.raid==='resync')add(1,v.raidTxt);
     if(S.smart)add(2,'SMART pre-fail');
     off.sort(function(a,b){return b[0]-a[0];});

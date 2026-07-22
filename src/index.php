@@ -1451,21 +1451,21 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
 body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
 .wrap{max-width:1280px;margin:auto;}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
 .hdr-brand{display:flex;align-items:center;gap:12px;}
 .hdr-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;}
 .hdr-logo img{width:28px;filter:var(--logo-filter);}
 .hdr-title{color:#fff;font-size:16px;font-weight:700;letter-spacing:-.03em;line-height:1.1;}
 .hdr-sub{color:var(--hdr-sub);font-size:11px;margin-top:2px;}
-.hdr-meta{display:flex;gap:20px;flex-wrap:wrap;align-items:center;}
+.hdr-meta{display:flex;gap:20px;flex-wrap:nowrap;min-width:0;align-items:center;}
 .meta-item{text-align:right;}
 .meta-lbl{font-size:10px;color:var(--hdr-meta-lbl);text-transform:uppercase;letter-spacing:.05em;}
 .meta-val{font-size:13px;font-weight:600;color:#fff;margin-top:2px;}
-.hdr-status{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
+.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
 .hdr-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite;}
-.hdr-status-txt{font-size:11px;font-weight:600;color:#fff;}
+.hdr-status-txt{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;flex-shrink:0;}
 .hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
-.hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hdr-status-full{display:contents;} /* masaüstü: sarmalayıcı görünmez, txt+detay eskisi gibi satır içi. Mobilde dokun-aç panel olur. */
 /* Aktivite çipleri (backup/wp-toolkit/imunify + süre) — silik gri yazıyla gözden kaçıyordu.
    Konteyner sarmalı flex: çipler arasında boşluk karakteri yok (join''), flex-wrap
@@ -1624,6 +1624,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
   .proc-row{grid-template-columns:1fr 1fr;}
 }
+/* Header tek satırda kalsın (.hdr nowrap): geniş ekranda durum detayı sığmazsa
+   "…"+tooltip ile kısalır. Dar ekranda (≤900) meta bilgileri gizlenir ki marka +
+   durum rozeti yatay taşmadan yan yana kalsın — meta asla 2. satıra düşmez. */
+@media(max-width:900px){ .hdr-meta .meta-item{display:none;} }
 @media(max-width:680px){
   .loads-row{grid-template-columns:repeat(3,1fr);}
   /* Load kartı dikey dizilir: etiket/değer/%, grafik kartın 3. satırında tam genişlik */
@@ -1732,7 +1736,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <span class="hdr-status-short" id="hdr-short"><?=t($overallShort)?></span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt"><?=t($overallStatus)?></span>
-        <span class="hdr-status-detail" id="hdr-detail"<?=$overallDetail===''?' style="display:none"':''?>><?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?></span>
+        <span class="hdr-status-detail" id="hdr-detail" title="<?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?>"<?=$overallDetail===''?' style="display:none"':''?>><?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?></span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl"><?=t('Hostname')?></div>
@@ -2268,7 +2272,7 @@ function updateOverall(data){
   if(dot)dot.style.background=col;
   if(txt)txt.textContent=t(o.status);
   if(sh)sh.textContent=t(shortLbl);
-  if(det){if(o.detail){det.textContent=o.detail;det.style.display='';}else{det.style.display='none';}}
+  if(det){if(o.detail){det.textContent=o.detail;det.title=o.detail;det.style.display='';}else{det.style.display='none';}}
   setStatusIcon(o.color,shortLbl); // sekme başlığı + favicon durumu yansıtsın
   // Mobil dokun-aç: detay varsa rozet tıklanabilir; detay kalmayınca paneli kapat
   if(st){if(o.detail){st.classList.add('has-detail');}else{st.classList.remove('has-detail');st.classList.remove('st-open');}}

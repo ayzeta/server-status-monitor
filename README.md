@@ -194,19 +194,10 @@ rm -f ~USER/.proc_snapshot ~USER/.metrics_history ~USER/.disk_history
 
 ## Demo
 
-The [live demo](https://ayzeta.github.io/server-status-monitor/) is the real
-dashboard driven by a scripted, client-side simulation — **fully decoupled from the
-product**: `src/index.php` ships with *zero* demo code, and the demo lives only in
-[`demo/`](demo/) (never deployed to a server by the installer). The build renders
-`index.php` as-is, then injects the simulation engine ([`demo/demo.js`](demo/demo.js))
-into the static copy:
-
-```bash
-bash demo/build.sh   # → docs/index.html + docs/demo.js
-```
-
-Then enable **Settings → Pages → Deploy from branch → `main` → `/docs`**. Data is
-fully synthetic and account names are anonymized.
+**[Live demo →](https://ayzeta.github.io/server-status-monitor/)** — the real
+dashboard driven by synthetic, client-side data (anonymized, no backend). It lives
+only in [`demo/`](demo/) and is never deployed by the installer; contributors can
+regenerate the static Pages copy with `bash demo/build.sh`.
 
 ## License
 

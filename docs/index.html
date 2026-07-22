@@ -78,21 +78,21 @@
 body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
 .wrap{max-width:1280px;margin:auto;}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
 .hdr-brand{display:flex;align-items:center;gap:12px;}
 .hdr-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;}
 .hdr-logo img{width:28px;filter:var(--logo-filter);}
 .hdr-title{color:#fff;font-size:16px;font-weight:700;letter-spacing:-.03em;line-height:1.1;}
 .hdr-sub{color:var(--hdr-sub);font-size:11px;margin-top:2px;}
-.hdr-meta{display:flex;gap:20px;flex-wrap:wrap;align-items:center;}
+.hdr-meta{display:flex;gap:20px;flex-wrap:nowrap;min-width:0;align-items:center;}
 .meta-item{text-align:right;}
 .meta-lbl{font-size:10px;color:var(--hdr-meta-lbl);text-transform:uppercase;letter-spacing:.05em;}
 .meta-val{font-size:13px;font-weight:600;color:#fff;margin-top:2px;}
-.hdr-status{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
+.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
 .hdr-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite;}
-.hdr-status-txt{font-size:11px;font-weight:600;color:#fff;}
+.hdr-status-txt{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;flex-shrink:0;}
 .hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
-.hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hdr-status-full{display:contents;} /* masaüstü: sarmalayıcı görünmez, txt+detay eskisi gibi satır içi. Mobilde dokun-aç panel olur. */
 /* Aktivite çipleri (backup/wp-toolkit/imunify + süre) — silik gri yazıyla gözden kaçıyordu.
    Konteyner sarmalı flex: çipler arasında boşluk karakteri yok (join''), flex-wrap
@@ -251,6 +251,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
   .proc-row{grid-template-columns:1fr 1fr;}
 }
+/* Header tek satırda kalsın (.hdr nowrap): geniş ekranda durum detayı sığmazsa
+   "…"+tooltip ile kısalır. Dar ekranda (≤900) meta bilgileri gizlenir ki marka +
+   durum rozeti yatay taşmadan yan yana kalsın — meta asla 2. satıra düşmez. */
+@media(max-width:900px){ .hdr-meta .meta-item{display:none;} }
 @media(max-width:680px){
   .loads-row{grid-template-columns:repeat(3,1fr);}
   /* Load kartı dikey dizilir: etiket/değer/%, grafik kartın 3. satırında tam genişlik */
@@ -353,7 +357,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail">Web 2048ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2030ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4">Web 2030ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">Hostname</div>
@@ -363,7 +367,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="meta-item"><div class="meta-lbl">Uptime</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Updated</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">11:21:35</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:16:51</span></div></div>
   </div>
 </div>
 
@@ -420,10 +424,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="res-card" id="rc-disk" style="--c:var(--c-disk)">
     <div class="res-top">
       <div class="res-left"><i class="ti ti-database res-icon"></i><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk">67%</span>
+      <span class="res-val" id="rv-disk">68%</span>
     </div>
     <div class="res-middle">
-      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:67%"></div></div></div>
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:68%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
     <div class="res-meta" id="rm-disk">159 / 236 GB</div>
@@ -483,7 +487,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-icon"><i class="ti ti-bolt"></i></div>
     <div class="info-body">
       <div class="info-label">Web Response</div>
-      <div class="info-val" id="iv-web" style="color:var(--danger)">2048 ms</div>
+      <div class="info-val" id="iv-web" style="color:var(--danger)">2030 ms</div>
       <div class="info-sub">HTTP response time</div>
     </div>
   </div>
@@ -611,14 +615,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">11:21</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">12:16</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-22 11:21:35</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-22 12:16:51</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -687,7 +691,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:67,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:21:35'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:68,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:16:51'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -707,7 +711,7 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "11:21"
+        "ts": "12:16"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -915,7 +919,7 @@ function updateOverall(data){
   if(dot)dot.style.background=col;
   if(txt)txt.textContent=t(o.status);
   if(sh)sh.textContent=t(shortLbl);
-  if(det){if(o.detail){det.textContent=o.detail;det.style.display='';}else{det.style.display='none';}}
+  if(det){if(o.detail){det.textContent=o.detail;det.title=o.detail;det.style.display='';}else{det.style.display='none';}}
   setStatusIcon(o.color,shortLbl); // sekme başlığı + favicon durumu yansıtsın
   // Mobil dokun-aç: detay varsa rozet tıklanabilir; detay kalmayınca paneli kapat
   if(st){if(o.detail){st.classList.add('has-detail');}else{st.classList.remove('has-detail');st.classList.remove('st-open');}}
