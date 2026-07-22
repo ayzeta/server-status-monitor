@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
      "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
-     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="en" data-theme="light">
+     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="tr" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -346,54 +346,54 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <div class="hdr-title">Server Status Monitor      </div>
       <div class="hdr-sub">Real-time server health</div>
     </div>
-    <button class="theme-btn" id="theme-btn" title="Toggle dark mode">
+    <button class="theme-btn" id="theme-btn" title="Karanlık modu değiştir">
       <i class="ti ti-moon" id="theme-icon"></i>
     </button>
-    <button class="theme-btn" id="lang-btn" title="Language" style="font-size:11px;font-weight:700;letter-spacing:.02em;">TR</button>
+    <button class="theme-btn" id="lang-btn" title="Dil" style="font-size:11px;font-weight:700;letter-spacing:.02em;">EN</button>
   </div>
   <div class="hdr-meta">
     <div class="hdr-status has-detail" id="hdr-status">
       <div class="hdr-status-dot" id="hdr-dot" style="background:var(--danger)"></div>
-      <span class="hdr-status-short" id="hdr-short">Issues</span>
+      <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
-        <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4">Web 2023ms · Web Offline · Mail Offline · DNS Offline · Security Offline · +4</span>
+        <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2027ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4">Web 2027ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4</span>
       </div>
     </div>
-    <div class="meta-item"><div class="meta-lbl">Hostname</div>
+    <div class="meta-item"><div class="meta-lbl">Sunucu adı</div>
       <div class="meta-val" id="hostname">demo.ayzeta.net</div></div>
-    <div class="meta-item"><div class="meta-lbl">Threads</div>
+    <div class="meta-item"><div class="meta-lbl">Çekirdek</div>
       <div class="meta-val" id="threads">1</div></div>
-    <div class="meta-item"><div class="meta-lbl">Uptime</div>
-      <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Updated</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">12:54:18</span></div></div>
+    <div class="meta-item"><div class="meta-lbl">Çalışma süresi</div>
+      <div class="meta-val" id="uptime">0 Gün 00:00:00</div></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Güncellendi</div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:54:41</span></div></div>
   </div>
 </div>
 
-<div class="sec">System metrics <span class="sec-range" id="metrics-range"></span></div>
+<div class="sec">Sistem metrikleri <span class="sec-range" id="metrics-range"></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:var(--accent)">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">1 min</span></div>
+      <div class="load-lbl">Yük ort. <span class="load-sub-inline">1 dk</span></div>
       <div class="load-val" id="v-l1">0.00</div>
-      <div class="load-pct" id="p-l1">0% of 1 cores</div>
+      <div class="load-pct" id="p-l1">%0 / 1 çekirdek</div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l1"></span><canvas class="load-spark" id="sp-l1"></canvas></span>
   </div>
   <div class="load-card" id="lc-l5" style="--c:var(--accent)">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">5 min</span></div>
+      <div class="load-lbl">Yük ort. <span class="load-sub-inline">5 dk</span></div>
       <div class="load-val" id="v-l5">0.00</div>
-      <div class="load-pct" id="p-l5">0% of 1 cores</div>
+      <div class="load-pct" id="p-l5">%0 / 1 çekirdek</div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l5"></span><canvas class="load-spark" id="sp-l5"></canvas></span>
   </div>
   <div class="load-card" id="lc-l15" style="--c:var(--accent)">
     <div class="load-left">
-      <div class="load-lbl">Load avg <span class="load-sub-inline">15 min</span></div>
+      <div class="load-lbl">Yük ort. <span class="load-sub-inline">15 dk</span></div>
       <div class="load-val" id="v-l15">0.00</div>
-      <div class="load-pct" id="p-l15">0% of 1 cores</div>
+      <div class="load-pct" id="p-l15">%0 / 1 çekirdek</div>
     </div>
     <span class="spark-wrap" style="width:80px;height:32px"><span class="spark-ssr" id="ssr-l15"></span><canvas class="load-spark" id="sp-l15"></canvas></span>
   </div>
@@ -401,18 +401,18 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:var(--c-cpu)">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name">CPU</span></div>
+      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name">İşlemci</span></div>
       <span class="res-val" id="rv-cpu">0%</span>
     </div>
     <div class="res-middle">
       <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-cpu" style="width:0%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-cpu"></span><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu">Load: 0.00 / 0.00 / 0.00</div>
+    <div class="res-meta" id="rm-cpu">Yük: 0.00 / 0.00 / 0.00</div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:var(--c-ram)">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name">RAM</span></div>
+      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name">Bellek</span></div>
       <span class="res-val" id="rv-ram">0%</span>
     </div>
     <div class="res-middle">
@@ -434,77 +434,77 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow)">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name">IO Wait</span></div>
+      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name">IO Bekleme</span></div>
       <span class="res-val" id="rv-iow">0%</span>
     </div>
     <div class="res-middle">
       <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-iow" style="width:0%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-iow"></span><canvas class="res-spark" id="sp-iow"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-iow">Disk I/O pressure</div>
+    <div class="res-meta" id="rm-iow">Disk I/O baskısı</div>
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">System info</div>
+<div class="sec" style="margin-top:12px">Sistem bilgisi</div>
 <div class="info-row">
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-arrow-down"></i></div>
     <div class="info-body">
-      <div class="info-label">Network IN</div>
+      <div class="info-label">Ağ GİRİŞ</div>
       <div class="info-val" id="iv-rx" style="color:var(--accent)">0 B/s</div>
-      <div class="info-sub" id="iv-rx-sub">incoming traffic</div>
+      <div class="info-sub" id="iv-rx-sub">gelen trafik</div>
     </div>
     <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-rx"></span><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-arrow-up"></i></div>
     <div class="info-body">
-      <div class="info-label">Network OUT</div>
+      <div class="info-label">Ağ ÇIKIŞ</div>
       <div class="info-val" id="iv-tx" style="color:var(--accent)">0 B/s</div>
-      <div class="info-sub" id="iv-tx-sub">outgoing traffic</div>
+      <div class="info-sub" id="iv-tx-sub">giden trafik</div>
     </div>
     <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-tx"></span><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-cpu"></i></div>
     <div class="info-body">
-      <div class="info-label">PHP Workers</div>
+      <div class="info-label">PHP İşçileri</div>
       <div class="info-val" id="iv-lsphp" style="color:var(--muted)">—</div>
-      <div class="info-sub" id="iv-lsphp-sub" title="Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool">running lsphp</div>
+      <div class="info-sub" id="iv-lsphp-sub" title="Değer = aktif işçiler (R/D durumu); lsphp/hesap tablosu boştaki havuz dahil tüm süreçleri listeler">çalışan lsphp</div>
     </div>
     <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-wrk"></span><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-mail"></i></div>
     <div class="info-body">
-      <div class="info-label">Mail Queue</div>
+      <div class="info-label">Mail Kuyruğu</div>
       <div class="info-val" id="iv-mailq" style="color:var(--muted)">—</div>
-      <div class="info-sub">messages queued</div>
+      <div class="info-sub">kuyruktaki mesaj</div>
     </div>
     <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-bolt"></i></div>
     <div class="info-body">
-      <div class="info-label">Web Response</div>
-      <div class="info-val" id="iv-web" style="color:var(--danger)">2023 ms</div>
-      <div class="info-sub">HTTP response time</div>
+      <div class="info-label">Web Yanıtı</div>
+      <div class="info-val" id="iv-web" style="color:var(--danger)">2027 ms</div>
+      <div class="info-sub">HTTP yanıt süresi</div>
     </div>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-database"></i></div>
     <div class="info-body">
-      <div class="info-label">MySQL Response</div>
+      <div class="info-label">MySQL Yanıtı</div>
       <div class="info-val" id="iv-mysql" style="color:var(--accent)">—</div>
-      <div class="info-sub">TCP response time</div>
+      <div class="info-sub">TCP yanıt süresi</div>
     </div>
   </div>
   <div class="info-card">
     <div class="info-icon"><i class="ti ti-users"></i></div>
     <div class="info-body">
-      <div class="info-label">Hosted Accounts</div>
+      <div class="info-label">Hesaplar</div>
       <div class="info-val" id="iv-acct">—</div>
-      <div class="info-sub">cPanel accounts</div>
+      <div class="info-sub">cPanel hesabı</div>
     </div>
   </div>
   <div class="info-card">
@@ -512,51 +512,51 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-body">
       <div class="info-label">SSL &middot; <span lang="en">demo.ayzeta.net</span></div>
       <div class="info-val" id="iv-ssl" style="color:var(--accent)">—</div>
-      <div class="info-sub" id="iv-ssl-sub">unavailable</div>
+      <div class="info-sub" id="iv-ssl-sub">yok</div>
     </div>
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">Services</div>
+<div class="sec" style="margin-top:12px">Servisler</div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-bolt"></i></div>
-      <div class="svc-info"><div class="svc-name">Web server</div><div class="svc-count" id="sk-web">0/5 checks passed</div></div>
-      <div class="badge badge-err" id="bd-web">Offline</div>
+      <div class="svc-info"><div class="svc-name">Web sunucusu</div><div class="svc-count" id="sk-web">0/5 kontrol geçti</div></div>
+      <div class="badge badge-err" id="bd-web">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">stopped</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">durdu</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-mail"></i></div>
-      <div class="svc-info"><div class="svc-name">Mail services</div><div class="svc-count" id="sk-mail">0/9 checks passed</div></div>
-      <div class="badge badge-err" id="bd-mail">Offline</div>
+      <div class="svc-info"><div class="svc-name">Mail servisleri</div><div class="svc-count" id="sk-mail">0/9 kontrol geçti</div></div>
+      <div class="badge badge-err" id="bd-mail">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-mail"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP (25)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP Submit. (587)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTPS (465)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3 (110)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3S (995)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAP (143)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAPS (993)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail (2095)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail SSL (2096)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-mail"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP (25)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP Submit. (587)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTPS (465)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3 (110)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3S (995)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAP (143)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAPS (993)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail (2095)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail SSL (2096)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-world"></i></div>
-      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns">0/2 checks passed</div></div>
-      <div class="badge badge-err" id="bd-dns">Offline</div>
+      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns">0/2 kontrol geçti</div></div>
+      <div class="badge badge-err" id="bd-dns">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-dns"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS TCP (53)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS UDP (53)</span><span class="sub-note">not detected</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-dns"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS TCP (53)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS UDP (53)</span><span class="sub-note">algılanmadı</span><span class="sub-age"></span></div>
 </div>
   </div>
 </div>
@@ -564,65 +564,65 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-shield-check"></i></div>
-      <div class="svc-info"><div class="svc-name">Security</div><div class="svc-count" id="sk-sec">0/2 verified active</div></div>
-      <div class="badge badge-err" id="bd-sec">Offline</div>
+      <div class="svc-info"><div class="svc-name">Güvenlik</div><div class="svc-count" id="sk-sec">0/2 aktif doğrulandı</div></div>
+      <div class="badge badge-err" id="bd-sec">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-sec"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Imunify360</span><span class="sub-note">unknown</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">LFD</span><span class="sub-note">unknown</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CSF firewall</span><button class="copy-btn" data-cmd="systemctl status csf" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status csf</code></div>
-<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">ModSecurity</span><button class="copy-btn" data-cmd="systemctl status httpd" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status httpd</code></div>
-<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CageFS</span><button class="copy-btn" data-cmd="cagefsctl --cagefs-status" title="Copy"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">cagefsctl --cagefs-status</code></div>
+    <div class="svc-checks" id="ch-sec"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Imunify360</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">LFD</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CSF firewall</span><button class="copy-btn" data-cmd="systemctl status csf" title="Kopyala"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status csf</code></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">ModSecurity</span><button class="copy-btn" data-cmd="systemctl status httpd" title="Kopyala"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">systemctl status httpd</code></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">CageFS</span><button class="copy-btn" data-cmd="cagefsctl --cagefs-status" title="Kopyala"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">cagefsctl --cagefs-status</code></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-database"></i></div>
-      <div class="svc-info"><div class="svc-name">Database</div><div class="svc-count" id="sk-db">0/2 checks passed</div></div>
-      <div class="badge badge-err" id="bd-db">Offline</div>
+      <div class="svc-info"><div class="svc-name">Veritabanı</div><div class="svc-count" id="sk-db">0/2 kontrol geçti</div></div>
+      <div class="badge badge-err" id="bd-db">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">not found</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">bulunamadı</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-topology-star-ring"></i></div>
-      <div class="svc-info"><div class="svc-name">Cache</div><div class="svc-count" id="sk-cache">0/2 active</div></div>
-      <div class="badge badge-err" id="bd-cache">Offline</div>
+      <div class="svc-info"><div class="svc-name">Önbellek</div><div class="svc-count" id="sk-cache">0/2 aktif</div></div>
+      <div class="badge badge-err" id="bd-cache">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-file-arrow-right"></i></div>
-      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp">0/2 checks passed</div></div>
-      <div class="badge badge-err" id="bd-ftp">Offline</div>
+      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp">0/2 kontrol geçti</div></div>
+      <div class="badge badge-err" id="bd-ftp">Çevrimdışı</div>
     </div>
-    <div class="svc-checks" id="ch-ftp"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">FTP service</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Kernel state</span><span class="sub-note">not bound</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-ftp"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">FTP service</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Kernel state</span><span class="sub-note">bağlı değil</span><span class="sub-age"></span></div>
 </div>
   </div>
 </div>
 
 
-<div class="sec" style="margin-top:12px">Event log</div>
+<div class="sec" style="margin-top:12px">Olay kaydı</div>
 <div class="log-card">
   <div class="log-hdr">
     <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
-    <span class="log-hdr-title">Recent alerts & status changes</span>
-    <button class="log-clear" id="log-clear-btn">Clear</button>
+    <span class="log-hdr-title">Son alarmlar ve durum değişiklikleri</span>
+    <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">12:54</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anlık görüntüsü yok — cron kapalı mı?</span><span class="log-ts">12:54</span></div>
   </div>
 </div>
 
 <div class="footer">
-  <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
+  <div id="footer-mode"><span class="dot"></span>30 saniyede bir yenilenir</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-22 12:54:18</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-22 12:54:41</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -663,14 +663,205 @@ document.addEventListener('DOMContentLoaded', function() {
   // Dil düğmesi: cookie'yi diğer dile çevir + yeniden yükle (sunucu o dilde render eder)
   var lb=document.getElementById('lang-btn');
   if(lb)lb.addEventListener('click', function(){
-    document.cookie='lang='+"tr"+';path=/;max-age=31536000;samesite=lax';
+    document.cookie='lang='+"en"+';path=/;max-age=31536000;samesite=lax';
     location.reload();
   });
 });
 
 // ── JS i18n — PHP ile aynı sözlük; İngilizce anahtar, TR karşılık ────────────
-const LANG_UI="en";
-const TR={};
+const LANG_UI="tr";
+const TR={
+    "All systems operational": "Tüm sistemler çalışıyor",
+    "Degraded": "Sorunlu",
+    "Issues detected": "Sorun tespit edildi",
+    "Issues": "Sorun",
+    "System metrics": "Sistem metrikleri",
+    "System info": "Sistem bilgisi",
+    "Services": "Servisler",
+    "Processes": "Süreçler",
+    "Event log": "Olay kaydı",
+    "Hostname": "Sunucu adı",
+    "Threads": "Çekirdek",
+    "Uptime": "Çalışma süresi",
+    "Updated": "Güncellendi",
+    "Snapshot": "Anlık görüntü",
+    "Load avg": "Yük ort.",
+    "1 min": "1 dk",
+    "5 min": "5 dk",
+    "15 min": "15 dk",
+    "%s%% of %s cores": "%%%s \/ %s çekirdek",
+    "Days": "Gün",
+    "CPU": "İşlemci",
+    "RAM": "Bellek",
+    "run": "çalışan",
+    "R": "O",
+    "W": "Y",
+    "Load": "Yük",
+    "blk": "bloklu",
+    "used": "kullanımda",
+    "IO Wait": "IO Bekleme",
+    "Network IN": "Ağ GİRİŞ",
+    "Network OUT": "Ağ ÇIKIŞ",
+    "incoming traffic": "gelen trafik",
+    "outgoing traffic": "giden trafik",
+    "%s%% of link": "hattın %%%s",
+    "PHP Workers": "PHP İşçileri",
+    "active": "aktif",
+    "idle": "boşta",
+    "running lsphp": "çalışan lsphp",
+    "Mail Queue": "Mail Kuyruğu",
+    "messages queued": "kuyruktaki mesaj",
+    "Web Response": "Web Yanıtı",
+    "HTTP response time": "HTTP yanıt süresi",
+    "MySQL Response": "MySQL Yanıtı",
+    "TCP response time": "TCP yanıt süresi",
+    "Hosted Accounts": "Hesaplar",
+    "cPanel accounts": "cPanel hesabı",
+    "days": "gün",
+    "Web server": "Web sunucusu",
+    "Mail services": "Mail servisleri",
+    "Security": "Güvenlik",
+    "Database": "Veritabanı",
+    "Cache": "Önbellek",
+    "Operational": "Çalışıyor",
+    "Offline": "Çevrimdışı",
+    "%s\/%s checks passed": "%s\/%s kontrol geçti",
+    "%s verified active": "%s aktif doğrulandı",
+    "%s\/%s active": "%s\/%s aktif",
+    "checks passed": "kontrol geçti",
+    "verified active": "aktif doğrulandı",
+    "blocked": "bloklu",
+    "Disk I\/O pressure": "Disk I\/O baskısı",
+    "mismatch": "uyumsuz",
+    "FTP service": "FTP servisi",
+    "Kernel state": "Çekirdek durumu",
+    "Load %s": "Yük %s",
+    "CPU %s%%": "İşlemci %%%s",
+    "RAM %s%%": "Bellek %%%s",
+    "IO wait %s%%": "IO Bekleme %%%s",
+    "Network %s%%": "Ağ %%%s",
+    "RAID issue": "RAID sorunu",
+    "%s RAID mismatch": "%s RAID uyumsuzluk",
+    "SMART fault": "SMART arıza",
+    "DB": "VT",
+    "Time(s)": "Süre(sn)",
+    "Copy": "Kopyala",
+    "Percent of a single core — multi-threaded processes can exceed 100": "Tek çekirdeğin yüzdesi — çok iş parçacıklı süreçler 100'ü aşabilir",
+    "All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R\/D) ones": "Hesabın tüm lsphp süreçleri, boştaki havuz dahil — PHP İşçileri kartı yalnız aktif (R\/D) olanları sayar",
+    "cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk": "Kotadan cPanel hesap disk kullanımı (saatlik). Renk: kırmızı >%3, turuncu >%1.5 toplam disk",
+    "Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)": "Anlık görüntü anında sorgu çalıştıran iş parçacıkları; alttaki listenin göstermediği %s sn altı olanlar dahil (durum sorgusunun kendisi 1 sayılır)",
+    "Value = active workers (R\/D state); the lsphp\/account table lists all processes incl. the idle pool": "Değer = aktif işçiler (R\/D durumu); lsphp\/hesap tablosu boştaki havuz dahil tüm süreçleri listeler",
+    "SSL %sd": "SSL %sg",
+    "MySQL %s running": "MySQL %s çalışan",
+    "Mail queue %s": "Mail kuyruğu %s",
+    "%s PHP workers": "%s PHP işçisi",
+    "Snapshot stale": "Anlık görüntü bayat",
+    "running": "çalışıyor",
+    "listening": "dinliyor",
+    "responding": "yanıt veriyor",
+    "alive": "ayakta",
+    "enabled": "etkin",
+    "port bound": "port bağlı",
+    "found": "bulundu",
+    "not found": "bulunamadı",
+    "Top processes · CPU": "En yüklü süreçler · İşlemci",
+    "Top processes · RAM": "En yüklü süreçler · Bellek",
+    "Top disk · account": "En dolu disk · hesap",
+    "PHP · account": "PHP · hesap",
+    "GB used": "GB dolu",
+    "active+idle": "aktif+boşta",
+    "User": "Kullanıcı",
+    "Command": "Komut",
+    "Account": "Hesap",
+    "State": "Durum",
+    "Query": "Sorgu",
+    "Time": "Süre",
+    "Procs": "Süreç",
+    "quota data pending": "kota verisi bekleniyor",
+    "no response": "yanıt yok",
+    "stopped": "durdu",
+    "unknown": "bilinmiyor",
+    "up %s": "%s ayakta",
+    "not listening": "dinlemiyor",
+    "not detected": "algılanmadı",
+    "not bound": "bağlı değil",
+    "disabled": "devre dışı",
+    "ok": "ok",
+    "fail": "başarısız",
+    "TESTING mode": "TEST modu",
+    "unavailable": "yok",
+    "MySQL · active queries": "MySQL · aktif sorgular",
+    "No queries running longer than %ss at snapshot time": "Anlık görüntüde %s sn üzeri çalışan sorgu yok",
+    "root snapshot, %ss ago": "root anlık görüntüsü, %s sn önce",
+    "STALE (cron?)": "BAYAT (cron?)",
+    "Recent alerts & status changes": "Son alarmlar ve durum değişiklikleri",
+    "Clear": "Temizle",
+    "No events yet.": "Henüz olay yok.",
+    "Auto-refresh every 30 seconds": "30 saniyede bir yenilenir",
+    "Static snapshot (mail attachment)": "Statik anlık görüntü (mail eki)",
+    "Static snapshot (mail attachment) — live refresh disabled": "Statik anlık görüntü (mail eki) — canlı yenileme kapalı",
+    "Toggle dark mode": "Karanlık modu değiştir",
+    "Language": "Dil",
+    "High load: %s (1m)%s": "Yüksek yük: %s (1dk)%s",
+    "Load elevated: %s (1m)%s": "Yük yükseldi: %s (1dk)%s",
+    "Load back to normal: %s": "Yük normale döndü: %s",
+    "CPU critical: %s%%%s": "CPU kritik: %s%%%s",
+    "CPU high: %s%%%s": "CPU yüksek: %s%%%s",
+    "CPU back to normal: %s%%": "CPU normale döndü: %s%%",
+    "RAM critical: %s%%": "RAM kritik: %s%%",
+    "RAM high: %s%%": "RAM yüksek: %s%%",
+    "RAM back to normal: %s%%": "RAM normale döndü: %s%%",
+    "IO Wait critical: %s%%%s": "IO Bekleme kritik: %s%%%s",
+    "IO Wait high: %s%%%s": "IO Bekleme yüksek: %s%%%s",
+    "IO Wait back to normal: %s%%": "IO Bekleme normale döndü: %s%%",
+    "Swap heavily in use: %s GB (%s%%)": "Swap yoğun kullanımda: %s GB (%%%s)",
+    "Swap in use: %s GB (%s%%)": "Swap kullanımda: %s GB (%%%s)",
+    "Swap cleared": "Swap temizlendi",
+    "Shared memory very high: %s GB (%s%% of RAM)": "Paylaşımlı bellek çok yüksek: %s GB (RAM %%%s)",
+    "Shared memory elevated: %s GB (%s%% of RAM)": "Paylaşımlı bellek yükseldi: %s GB (RAM %%%s)",
+    "Shared memory back to normal": "Paylaşımlı bellek normale döndü",
+    "Inodes critically high: %s%% (disk may fail despite free space)": "Inode kritik seviyede: %%%s (boş alan olsa da disk çökebilir)",
+    "Inode usage high: %s%%": "Inode kullanımı yüksek: %%%s",
+    "Inode usage back to normal": "Inode kullanımı normale döndü",
+    "%s — a disk is down; replace before a second fails": "%s — bir disk düştü; ikincisi ölmeden değiştir",
+    "%s — array rebuilding": "%s — dizi yeniden kuruluyor",
+    "RAID array healthy again": "RAID dizisi tekrar sağlıklı",
+    "RAID mismatch count: %s — data inconsistency found in last scrub": "RAID uyumsuzluk sayısı: %s — son taramada veri tutarsızlığı bulundu",
+    "RAID mismatch cleared": "RAID uyumsuzluğu temizlendi",
+    "Disk pre-failure — %s; plan replacement": "Disk ön-arıza — %s; değişim planla",
+    "SMART pre-failure cleared": "SMART ön-arıza temizlendi",
+    "Network link saturated: %s%% of line rate": "Ağ hattı doygun: hat oranı %%%s",
+    "Network link busy: %s%% of line rate": "Ağ hattı yoğun: hat oranı %%%s",
+    "Network load back to normal": "Ağ yükü normale döndü",
+    "MySQL threads_running very high: %s (query pileup)": "MySQL threads_running çok yüksek: %s (sorgu birikmesi)",
+    "MySQL threads_running elevated: %s": "MySQL threads_running yükseldi: %s",
+    "MySQL threads_running back to normal": "MySQL threads_running normale döndü",
+    "SSL expires in %s days!": "SSL %s günde doluyor!",
+    "SSL expires in %s days": "SSL %s günde doluyor",
+    "Root snapshot missing — cron down?": "Root anlık görüntüsü yok — cron kapalı mı?",
+    "Root snapshot stale (%ss) — cron down?": "Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?",
+    "Root snapshot fresh again (%ss)": "Root anlık görüntüsü tekrar taze (%s sn)",
+    "%s went offline": "%s kapandı",
+    "%s restored": "%s geri geldi",
+    "%s degraded": "%s sorunlu",
+    "Server unreachable": "Sunucuya ulaşılamıyor",
+    "Service feed unavailable (root snapshot stale?)": "Servis beslemesi yok (root anlık görüntüsü bayat mı?)",
+    "Service feed restored": "Servis beslemesi geri geldi",
+    "Web response time high: %sms": "Web yanıt süresi yüksek: %sms",
+    "Web response time normal: %sms": "Web yanıt süresi normal: %sms",
+    "MySQL response time high: %sms": "MySQL yanıt süresi yüksek: %sms",
+    "MySQL response time normal: %sms": "MySQL yanıt süresi normal: %sms",
+    "Mail": "Mail",
+    "top:": "üst:",
+    " (snap %ss)": " (anlık %ssn)",
+    "started": "başladı",
+    "finished": "bitti",
+    "backup": "yedekleme",
+    "system update": "sistem güncellemesi",
+    "wp-toolkit task": "wp-toolkit görevi",
+    "imunify scan": "imunify tarama",
+    "files": "dosya"
+};
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
 function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
@@ -691,7 +882,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:68,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:54:18'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:68,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:54:41'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -710,7 +901,7 @@ let prev={},logs=[];
 const seedLogs=[
     {
         "type": "err",
-        "msg": "Root snapshot missing \u2014 cron down?",
+        "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
         "ts": "12:54"
     }
 ];

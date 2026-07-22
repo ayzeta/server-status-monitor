@@ -15,17 +15,25 @@ cd "$(dirname "$0")/.."          # repo kökü
 
 command -v php >/dev/null || { echo "php gerekli (statik export için)"; exit 1; }
 
-mkdir -p docs
+mkdir -p docs docs/tr
+
+# ── EN (varsayılan) ──────────────────────────────────────────────────────
 php src/index.php > docs/index.html          # pristine ürün, boş veriyle (EN)
+php demo/inject.php docs/index.html
 cp demo/demo.js docs/demo.js
 
-# Çıktıya demo enjeksiyonu (regex yok — php str_replace, güvenli)
-php demo/inject.php docs/index.html
+# ── TR — statik demo dil değiştiremez (PHP yok); ayrı bir sayfa üretilir.
+#    Dil düğmesi demo.js içinde EN(/) ↔ TR(/tr/) arası gezinir. ─────────────
+php -r '$_COOKIE["lang"]="tr"; include "src/index.php";' > docs/tr/index.html
+php demo/inject.php docs/tr/index.html
+cp demo/demo.js docs/tr/demo.js
 
-# Build makinesinin hostname'i statik HTML'e sızmasın
+# Build makinesinin hostname'i statik HTML'e sızmasın (her iki sayfa)
 HN="$(hostname 2>/dev/null || true)"
-[ -n "${HN:-}" ] && sed -i "s/$HN/demo.ayzeta.net/g" docs/index.html || true
+if [ -n "${HN:-}" ]; then
+  sed -i "s/$HN/demo.ayzeta.net/g" docs/index.html docs/tr/index.html || true
+fi
 
 touch docs/.nojekyll
 
-echo "Built: docs/index.html ($(wc -c < docs/index.html) bytes) + docs/demo.js"
+echo "Built: docs/index.html + docs/tr/index.html + demo.js ($(wc -c < docs/index.html) bytes EN)"

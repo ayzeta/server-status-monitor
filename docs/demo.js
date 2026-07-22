@@ -308,6 +308,12 @@
   function loop(){ stepPhase(); clock=new Date(clock.getTime()+STEP*1000); try{ render(genDemoData()); }catch(e){ if(window.console)console.warn('demo',e);} }
   function start(){
     ensureSkeleton(); badge();
+    // Statik demo: dil düğmesi cookie+reload YERİNE önceden üretilmiş EN/TR sayfaları
+    // arasında gezinir (Pages'te PHP yok, reload aynı dili döndürürdü). Eski listener'ı
+    // atmak için düğmeyi klonlayıp değiştir.
+    var lb=document.getElementById('lang-btn');
+    if(lb){ var nb=lb.cloneNode(true); lb.parentNode.replaceChild(nb,lb);
+      nb.addEventListener('click', function(){ location.href=(LANG_UI==='tr')?'../':'tr/'; }); }
     // Build makinesinde .proc_snapshot yok → PHP baseline "snapshot missing" seed'ler.
     // Demo canlı olayları sıfırdan üretsin diye log'u temizle.
     logs.length=0; try{ sessionStorage.removeItem('az-logs'); }catch(e){} renderLog();

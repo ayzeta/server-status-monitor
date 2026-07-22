@@ -2243,7 +2243,7 @@ function _favLink(){let l=document.querySelector('link[rel~="icon"]');if(!l){l=d
 (function(){if(!FAV_OK)return;_favImg=new Image();_favImg.onload=()=>{_favImgOk=true;if(_favCol==='var(--danger)'||_favCol==='var(--warn)')_paintProblemFav(_favCol);};_favImg.src=FAV_OK;})();
 function _paintProblemFav(colorVar){
   const r=getComputedStyle(document.documentElement);
-  const col=(colorVar==='var(--danger)'?r.getPropertyValue('--danger'):r.getPropertyValue('--warn')).trim()||'#f59e0b';
+  const col=(colorVar==='var(--danger)'?r.getPropertyValue('--danger'):colorVar==='var(--warn)'?r.getPropertyValue('--warn'):r.getPropertyValue('--ok')).trim()||'#10b981';
   // Favicon saydam olduğundan SADECE kenar boyamak ortayı beyaz bırakır. Bu yüzden
   // TÜM yuvarlak-kare zemini durum rengiyle doldurup gerçek "A"yı (rengi korunur)
   // üstüne basarız → "A" komple renkli zeminde durur. withImg=false: taint (yerel
@@ -2262,7 +2262,9 @@ function setStatusIcon(colorVar, shortStatus){
   document.title=(shortStatus&&shortStatus!=='OK')?t(shortStatus)+' · '+SITE_TITLE:SITE_TITLE;
   if(colorVar===_favCol)return;
   _favCol=colorVar;
-  if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'){if(FAV_OK)_favLink().href=FAV_OK;return;} // sağlıklı: gerçek favicon
+  // sağlıklı: yapılandırılmış favicon varsa onu kullan; yoksa durum renginde (yeşil)
+  // ikon çiz — yoksa önceki sorun (kırmızı/turuncu) favicon'u ekranda kalırdı.
+  if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'){if(FAV_OK){_favLink().href=FAV_OK;}else{_paintProblemFav('var(--ok)');}return;}
   _paintProblemFav(colorVar);
 }
 // İlk yükte sunucu render'ındaki durumdan (ilk fetch'i beklemeden)
