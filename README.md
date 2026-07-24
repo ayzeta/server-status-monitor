@@ -1,7 +1,8 @@
 # Server Status Monitor
 
-A single-file, real-time infrastructure dashboard for **cPanel / CloudLinux**
-servers. Load, CPU, RAM, disk, IO wait, network saturation, RAID/SMART health,
+A single-file, real-time infrastructure dashboard for **cPanel** servers
+(CloudLinux optional — its CageFS / LVE / Imunify signals are auto-detected when
+present). Load, CPU, RAM, disk, IO wait, network saturation, RAID/SMART health,
 services, top processes, per-account disk & PHP workers, and a live event log —
 all on one auto-refreshing page, with **zero dependencies** (no database, no npm,
 no external services).
@@ -13,9 +14,11 @@ simulation (no backend): watch traffic climb, PHP workers and load rise, cards g
 red, backup / ImunifyAV / WP-Toolkit jobs run, a MySQL query pileup hit, RAID/SMART/
 inode/mail-queue warnings fire into the event log, then the server recover — on a loop.
 
-Because PHP runs jailed under CageFS and can't see the full process list or
-`/sys`, a tiny **root cron collector** gathers that data once a minute and hands
-it to the dashboard. Everything else is computed by the page itself.
+Almost everything is computed by the page itself. The one exception: a tiny
+**root cron collector** gathers what the web-account PHP can't reach on its own —
+the full process list, `/sys`, SMART/RAID — and hands it to the dashboard once a
+minute. (That PHP is unprivileged: jailed under CageFS on CloudLinux, or otherwise
+barred from other users' processes.)
 
 > The page also renders as a **static HTML email** (e.g. CSF's high-load alert
 > attachment): every alarm is server-rendered, and no output line exceeds the
@@ -68,7 +71,8 @@ header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Requirements
 
-- cPanel / CloudLinux server (root access for the cron collector).
+- A cPanel server; root access for the cron collector. CloudLinux is optional —
+  its CageFS / LVE / Imunify signals are auto-detected when present.
 - PHP 7.4+ served for the web account (defaults work; no extensions required
   beyond `posix` for user auto-detect).
 - Optional tools are feature-detected: `smartctl`, `mdadm`/`/proc/mdstat`,
@@ -77,8 +81,8 @@ header button (per-browser, cookie-based). The version shows in the footer.
 ## Where to host it
 
 This is a **server** dashboard, not a website — but on cPanel a PHP page must
-still be served from an account's docroot, and (because of CageFS) the root
-collector must drop its feed into that account's home. So point it at a
+still be served from an account's docroot, and (because the web PHP is
+jailed/unprivileged) the root collector must drop its feed into that account's home. So point it at a
 **dedicated account or subdomain** (e.g. `status.example.com` or a small
 `monitor` cPanel user) rather than your live site — the installer asks which
 account to use. That keeps your main site's home clean and the panel isolated.
@@ -151,9 +155,9 @@ PT_APACHESTATUS = "https://status.example.com/"
 ```
 
 When load crosses `PT_LOAD`, CSF fetches that URL and includes it in the alert.
-Because the dashboard renders every alarm **server-side** and keeps every output
-line under the SMTP **900-byte** limit, it arrives intact as a readable HTML
-attachment — no JavaScript required.
+Every alarm is rendered **server-side** and every output line stays under the SMTP
+**900-byte** limit, so it arrives intact as a readable HTML attachment — no
+JavaScript required.
 
 ### WHMCS Server Status
 
@@ -218,9 +222,8 @@ rm -f ~USER/.proc_snapshot ~USER/.metrics_history ~USER/.disk_history
 ## Demo
 
 **[Live demo →](https://ayzeta.github.io/server-status-monitor/)** — the real
-dashboard driven by synthetic, client-side data (anonymized, no backend). It lives
-only in [`demo/`](demo/) and is never deployed by the installer; contributors can
-regenerate the static Pages copy with `bash demo/build.sh`.
+dashboard on synthetic data (no backend), cycling through a load spike, a MySQL
+query pileup, and recovery.
 
 ## License
 
