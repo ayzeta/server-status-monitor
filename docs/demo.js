@@ -186,7 +186,7 @@
   function rate(kb){ kb=Math.round(kb); return kb>=1024?(kb/1024).toFixed(1)+' MB/s':kb+' KB/s'; }
 
   // ── Süreç tabloları ────────────────────────────────────────────────────────
-  var snap=1;
+  var snap=1, forceSql=null;   // forceSql: snap için sabit sorgu satırı sayısı (kare yükseklikleri eşleşsin)
   function procCpu(){
     var hot=S.cpu>75, rows=[];
     rows.push(['438726','mysql',(S.mysqlThr>=CORES?(60+Math.round(jit(8,4))):Math.round(jit(9,2))).toFixed(1),'11.8','6-15:'+pad(20+(pt%40))+':14','/usr/sbin/mariadbd']);
@@ -220,8 +220,10 @@
     'INSERT INTO wp_actionscheduler_logs ...','OPTIMIZE TABLE wp_postmeta'];
   var SQLST=['Sending data','Sorting result','Locked','Copying to tmp table','Sending data','updating'];
   function procSql(){
-    if(S.mysqlThr<8) return [];
-    var n=Math.min(12,Math.max(3,Math.round(S.mysqlThr)-3)), r=[];
+    var n;
+    if(forceSql!=null){ n=forceSql; }
+    else { if(S.mysqlThr<8) return []; n=Math.min(12,Math.max(3,Math.round(S.mysqlThr)-3)); }
+    var r=[];
     for(var i=0;i<n;i++) r.push([''+(48210+i*13),pick(i+2),pick(i+2)+'_wp'+(1+i%3),''+(5+((i*7+pt)%180)),SQLST[i%SQLST.length],SQLQ[i%SQLQ.length]]);
     r.sort(function(a,b){return parseInt(b[3])-parseInt(a[3]);});
     return r;
@@ -288,6 +290,9 @@
        ['ok','imunify scan started','15:05:30'],
        ['ok','backup started','15:04:10']].forEach(function(l){logs.push({type:l[0],msg:l[1],ts:l[2]});});
     } else if(kind==='recovery'){
+      // "Toparlanıyor" anı: header yeşil (threads 11 < çekirdek, gri) ama sorgular
+      // hâlâ boşalıyor — tabloyu issues karesiyle aynı yükseklikte doldurur (boş bant kalmaz).
+      S.mysqlThr=11; forceSql=12; S.dbrt=6;
       seedHistory('settle'); logs.length=0;
       [['ok','MySQL threads_running back to normal','15:14:31'],
        ['ok','CPU back to normal: 26%','15:14:10'],
