@@ -92,6 +92,9 @@ $TR = [
     'Disk pre-failure — %s; plan replacement' => 'Disk ön-arıza — %s; değişim planla', 'SMART pre-failure cleared' => 'SMART ön-arıza temizlendi',
     'Network link saturated: %s%% of line rate' => 'Ağ hattı doygun: hat oranı %%%s', 'Network link busy: %s%% of line rate' => 'Ağ hattı yoğun: hat oranı %%%s', 'Network load back to normal' => 'Ağ yükü normale döndü',
     'MySQL threads_running very high: %s (query pileup)' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)', 'MySQL threads_running elevated: %s' => 'MySQL threads_running yükseldi: %s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
+    'PHP workers very high: %s' => 'PHP işçileri çok yüksek: %s', 'PHP workers elevated: %s' => 'PHP işçileri yükseldi: %s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
+    'Disk critically full: %s%%' => 'Disk kritik doldu: %s%%', 'Disk usage high: %s%%' => 'Disk kullanımı yüksek: %s%%', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
+    'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
     'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
     '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
@@ -1136,6 +1139,34 @@ if ($mysqlThr !== null && $mysqlThr >= $coreCount * 2) {
     $seedLvl['mysqlthr'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL threads_running elevated: %s', $mysqlThr), 'ts' => date('H:i')];
 }
+// PHP workers (aktif lsphp, R/D) — çekirdeğe oranlı: warn ≥ N / err ≥ 2N. Birleşik
+// sağlığa (header suçluları) giriyordu ama event log'a düşmüyordu; burada seed'lenir.
+$seedLvl['wrk'] = 'ok';
+if ($lsphpTotal !== null && $lsphpTotal >= $coreCount * 2) {
+    $seedLvl['wrk'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('PHP workers very high: %s', $lsphpTotal), 'ts' => date('H:i')];
+} elseif ($lsphpTotal !== null && $lsphpTotal >= $coreCount) {
+    $seedLvl['wrk'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('PHP workers elevated: %s', $lsphpTotal), 'ts' => date('H:i')];
+}
+// Disk kullanımı — warn %75 / err %90. Header sağlığına giriyordu ama event log'a düşmüyordu.
+$seedLvl['disk'] = 'ok';
+if ($diskUsagePercent >= 90) {
+    $seedLvl['disk'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Disk critically full: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
+} elseif ($diskUsagePercent >= 75) {
+    $seedLvl['disk'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Disk usage high: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
+}
+// Mail kuyruğu — hesaba oranlı (warn ≥ hesap / err ≥ 3×). Header sağlığına giriyordu ama loglanmıyordu.
+$seedLvl['mailq'] = 'ok';
+if ($mailQ !== null && $mailQ >= $mqBase * 3) {
+    $seedLvl['mailq'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Mail queue very high: %s messages', $mailQ), 'ts' => date('H:i')];
+} elseif ($mailQ !== null && $mailQ >= $mqBase) {
+    $seedLvl['mailq'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Mail queue elevated: %s messages', $mailQ), 'ts' => date('H:i')];
+}
 
 // ════════════════════════════════════════════════════════════════
 // ROUTING
@@ -2096,7 +2127,7 @@ function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}ca
     }
     renderLog();saveLogs();
   } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
-const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok'},<?=json_encode($seedLvl)?>);
+const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},<?=json_encode($seedLvl)?>);
 const mpend={};
 function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
 function checkSnap(data,now){
@@ -2519,6 +2550,15 @@ function checkAlerts(data){
     transLog('net',ns,90,70,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
   if(data.mysqlThr!=null){const cc=data.coreCount||1;
     transLog('mysqlthr',data.mysqlThr,cc*2,cc,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
+  // PHP workers (aktif lsphp) — header birleşik sağlığıyla aynı eşik (warn ≥ çekirdek / err ≥ 2×); event log'a da düşsün.
+  if(data.lsphpTotal!=null){const cc=data.coreCount||1;
+    transLog('wrk',data.lsphpTotal,cc*2,cc,tf('PHP workers very high: %s',data.lsphpTotal),tf('PHP workers elevated: %s',data.lsphpTotal),t('PHP workers back to normal'),now);}
+  // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
+  if(data.disk!=null)transLog('disk',data.disk,90,75,
+    tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);
+  // Mail kuyruğu — hesap sayısına oranlı (warn ≥ hesap / crit ≥ 3×); header sağlığıyla aynı.
+  if(data.mailQ!=null){const b=data.acctForMailq||50;
+    transLog('mailq',data.mailQ,b*3,b,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
   if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
     if(rl!==mlvl.raid){
       if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);

@@ -278,9 +278,12 @@
       S.mysqlThr=26;S.dbrt=185;S.inode=82;S.mailq=1180;S.rxK=2880;S.txK=1140;S.rxSat=82;S.txSat=65;
       S.ioRKB=18800;S.ioWKB=24200;S.diskGrow='+3 GB/24h';S.raid='resync';S.smart='SMART: /dev/sda 4 reallocated sectors';
       S.acts=[520,null,300,360];S.imAcct=ACC[0];S.imFiles=163000;
+      mlvl.raid='warn'; mlvl.smart='err';   // checkAlerts custom raid/smart'ı tekrar eklemesin (manuel seed var)
       seedHistory('ramp');
       logs.length=0;
       [['err','MySQL threads_running very high: 26 (query pileup)','15:07:41'],
+       ['err','PHP workers very high: 60','15:07:26'],
+       ['err','Mail queue very high: 1180 messages','15:07:18'],
        ['warn','Inode usage high: 82%','15:07:12'],
        ['warn','RAID1 rebuilding 46% — array rebuilding','15:06:55'],
        ['err','SMART: /dev/sda 4 reallocated sectors','15:06:40'],

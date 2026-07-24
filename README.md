@@ -26,10 +26,24 @@ header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots
 
-| | |
-|:---:|:---:|
-| ![Issues detected — MySQL query pileup](docs/screenshots/dark-issues.jpg)<br>**Issues detected** — MySQL `threads_running` spike, red cards, offenders listed in the header | ![Recovered — back to normal](docs/screenshots/dark-recovery.jpg)<br>**Recovery** — the same server back to green, with the event log tracing what happened |
-| ![Light theme, English](docs/screenshots/light-en.jpg)<br>**Light · English** (default) | ![Light theme, Türkçe](docs/screenshots/light-tr.jpg)<br>**Light · Türkçe** |
+<table width="100%">
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dark-issues.jpg" alt="Issues detected — MySQL query pileup"></td>
+    <td width="50%"><img src="docs/screenshots/dark-recovery.jpg" alt="Recovered — back to normal"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Issues detected</b> — MySQL threads_running spike, red cards, offenders in the header</td>
+    <td align="center"><b>Recovery</b> — the same server back to green, event log tracing what happened</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/light-en.jpg" alt="Light theme, English"></td>
+    <td width="50%"><img src="docs/screenshots/light-tr.jpg" alt="Light theme, Türkçe"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Light · English</b> (default)</td>
+    <td align="center"><b>Light · Türkçe</b></td>
+  </tr>
+</table>
 
 ---
 
