@@ -334,13 +334,22 @@ function readDiskIO() {
     return ['r' => $r, 'w' => $w];
 }
 
-$c1   = readCpuLine();
-$net1 = getNetStats();
-$d1   = readDiskIO();
-usleep(250000);
-$c2   = readCpuLine();
-$net2 = getNetStats();
-$d2   = readDiskIO();
+// Collector'ın 60 sn ortalaması varsa CANLI ÖRNEKLEME HİÇ YAPILMAZ: CPU, ağ ve
+// disk I/O snapshot'tan gelir → her sayfa render'ı 250 ms kısalır. Collector yok
+// veya bayatsa eski yönteme (250 ms pencere) düşülür ki panel yalnız başına da
+// çalışsın.
+$snapNet    = ($rootFresh && !empty($procSec['net_rate'])) ? $procSec['net_rate'] : '';
+$liveSample = !($rootFresh && isset($procSec['cpu_pct']) && $snapNet !== '');
+$c1 = $c2 = $net1 = $net2 = $d1 = $d2 = null;
+if ($liveSample) {
+    $c1   = readCpuLine();
+    $net1 = getNetStats();
+    $d1   = readDiskIO();
+    usleep(250000);
+    $c2   = readCpuLine();
+    $net2 = getNetStats();
+    $d2   = readDiskIO();
+}
 
 $cpuUsage = 0; $ioWait = 0;
 if ($c1 && $c2 && ($cpuTd = $c2['total'] - $c1['total']) > 0) {
@@ -355,8 +364,23 @@ if ($c1 && $c2 && ($cpuTd = $c2['total'] - $c1['total']) > 0) {
 // aynı metriktir (collector ikisini de aynı hesaptan yazar).
 if ($rootFresh && isset($procSec['cpu_pct'])    && is_numeric($procSec['cpu_pct']))    $cpuUsage = (int)$procSec['cpu_pct'];
 if ($rootFresh && isset($procSec['iowait_pct']) && is_numeric($procSec['iowait_pct'])) $ioWait   = (int)$procSec['iowait_pct'];
-$rxRate = max(0, (int)(($net2['rx'] - $net1['rx']) * 4));
-$txRate = max(0, (int)(($net2['tx'] - $net1['tx']) * 4));
+// Arayüz bazında hızlar (B/s) — TEK kaynak: collector'ın 60 sn ortalaması, yoksa
+// canlı 250 ms örneği. Hem toplam gösterim hem hat doygunluğu bundan hesaplanır.
+$ifRates = [];
+if ($snapNet !== '') {
+    foreach (preg_split('/\s+/', trim($snapNet)) as $ent) {
+        $p = explode(':', $ent);
+        if (count($p) === 3) $ifRates[$p[0]] = ['rx' => max(0, (int)$p[1]), 'tx' => max(0, (int)$p[2])];
+    }
+} elseif ($net1 && $net2) {
+    foreach (($net2['if'] ?? []) as $n => $v2) {
+        $v1 = $net1['if'][$n] ?? ['rx' => 0, 'tx' => 0];
+        $ifRates[$n] = ['rx' => max(0, (int)(($v2['rx'] - $v1['rx']) * 4)),
+                        'tx' => max(0, (int)(($v2['tx'] - $v1['tx']) * 4))];
+    }
+}
+$rxRate = 0; $txRate = 0;
+foreach ($ifRates as $r) { $rxRate += $r['rx']; $txRate += $r['tx']; }
 // ── Ağ hattı doygunluğu (%) ───────────────────────────────────
 // Her arayüzün anlık hızını KENDİ link hızına oranlar, en kötüsünü (max) alır.
 // TOPLAMA DEĞİL: atıl bir hat (eth2 gibi) kapasiteyi şişirmesin, dolu bir hat
@@ -366,13 +390,12 @@ $txRate = max(0, (int)(($net2['tx'] - $net1['tx']) * 4));
 // gibi); trafik canlı. Tam çift-yönlü: rx/tx ayrı → Network IN/OUT ayrı renklenir.
 $netRxSat = null; $netTxSat = null;
 if ($rootFresh && $netSpeed) {
-    foreach (($net2['if'] ?? []) as $n => $v2) {
+    foreach ($ifRates as $n => $r) {
         if (empty($netSpeed[$n])) continue;          // hızı bilinmeyen/atıl port atlanır
         $cap = $netSpeed[$n] * 125000;               // Mbps → B/s (yön başına, çift-yönlü)
         if ($cap <= 0) continue;
-        $v1  = $net1['if'][$n] ?? ['rx' => 0, 'tx' => 0];
-        $netRxSat = max($netRxSat ?? 0, (int)round(max(0, ($v2['rx'] - $v1['rx']) * 4) / $cap * 100));
-        $netTxSat = max($netTxSat ?? 0, (int)round(max(0, ($v2['tx'] - $v1['tx']) * 4) / $cap * 100));
+        $netRxSat = max($netRxSat ?? 0, (int)round($r['rx'] / $cap * 100));
+        $netTxSat = max($netTxSat ?? 0, (int)round($r['tx'] / $cap * 100));
     }
 }
 $netSat = ($netRxSat === null && $netTxSat === null) ? null : max((int)$netRxSat, (int)$netTxSat);
@@ -523,20 +546,47 @@ $udpPorts       = getUdpPorts();
 function isListening($port, $ports) { return in_array($port, $ports); }
 
 // ── Response Time ─────────────────────────────────────────────
+// TCP ölçümüyle aynı kademeli mantık — ama en fazla İKİ istek: her deneme gerçek
+// bir sayfa isteğidir (sunucuya iş yükü). Hızlıysa tek istek (eski maliyet),
+// şüpheli aralıkta bir tane daha alınıp küçüğü kullanılır, gerçekten yavaşsa
+// (≥1 sn) tekrar denenmez — o zaten görülmesi gereken sorundur.
 function measureWebResponseTime() {
+    global $TH;
     $ctx = stream_context_create(['http' => ['timeout' => 3, 'follow_location' => false, 'ignore_errors' => true]]);
-    $t = microtime(true);
-    @file_get_contents('http://127.0.0.1/', false, $ctx);
-    return max(1, round((microtime(true) - $t) * 1000));
+    $one = function () use ($ctx) {
+        $t = microtime(true);
+        @file_get_contents('http://127.0.0.1/', false, $ctx);
+        return (microtime(true) - $t) * 1000;
+    };
+    $ms = $one();
+    if ($ms >= $TH['rt_warn'] && $ms < 1000) $ms = min($ms, $one());
+    return max(1, (int)round($ms));
 }
+// Tek ölçüm yanıltır: yoğun sunucuda tek bir zamanlama takılması 1 ms'lik
+// bağlantıyı 40 ms gösterir, uyarı eşiği (30 ms) aşılır ve header'da sahte
+// "yavaş veritabanı" suçlusu belirir. Çözüm KADEMELİ: ilk ölçüm hızlıysa
+// (eşiğin altında) zaten sorun yok, ek ölçüm yapılmaz — sağlıklı durumda maliyet
+// eskisiyle aynı. Yalnız ŞÜPHELİ aralıkta (eşik ile 1 sn arası) iki ölçüm daha
+// alınıp ortancası kullanılır. 1 sn üstü gerçek yavaşlıktır: tekrarlamak hem
+// gereksiz hem sayfayı bekletir.
 function measureTcpResponseTime($host, $port, $readBytes = 0) {
-    $t = microtime(true);
-    $fp = @fsockopen($host, $port, $e, $s, 2);
-    if (!$fp) return null;
-    if ($readBytes > 0) { stream_set_timeout($fp, 2); @fread($fp, $readBytes); }
-    $ms = round((microtime(true) - $t) * 1000);
-    fclose($fp);
-    return max(1, $ms);
+    global $TH;
+    $one = function () use ($host, $port, $readBytes) {
+        $t  = microtime(true);
+        $fp = @fsockopen($host, $port, $e, $s, 2);
+        if (!$fp) return null;                       // erişilemiyor → ölçüm yok
+        if ($readBytes > 0) { stream_set_timeout($fp, 2); @fread($fp, $readBytes); }
+        $ms = (microtime(true) - $t) * 1000;
+        fclose($fp);
+        return $ms;
+    };
+    $first = $one();
+    if ($first === null) return null;
+    if ($first < $TH['rt_warn'] || $first >= 1000) return max(1, (int)round($first));
+    $ms = [$first];
+    for ($i = 0; $i < 2; $i++) { $x = $one(); if ($x === null) break; $ms[] = $x; }
+    sort($ms);
+    return max(1, (int)round($ms[intdiv(count($ms), 2)]));
 }
 $webResponseTime   = measureWebResponseTime();
 $mysqlResponseTime = measureTcpResponseTime('127.0.0.1', 3306, 4);

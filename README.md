@@ -226,6 +226,15 @@ web account ── index.php ◀──────────────┘  r
   can read it. No world-readable root files.
 - The dashboard renders server-side (also for the email attachment) and refreshes
   every 30 s via `?json=1`. The same thresholds live in PHP and JS, kept in sync.
+- **CPU, IO wait and network throughput are 60-second averages**, computed by the
+  collector from the difference between cumulative kernel counters across cron
+  runs — the same method external tools use. A page-load-time sample would be a
+  fraction of a second wide, and on a busy shared host that constantly catches
+  momentary 100% bursts. Levels (RAM, disk, inode, queue depth) are read live,
+  and load average is already averaged by the kernel, so both refresh every 30 s.
+- Response times are measured once when healthy; if a sample lands above the warn
+  threshold it is re-measured (median) so a single scheduling hiccup can't post a
+  false "slow database".
 
 ## Thresholds (defaults)
 

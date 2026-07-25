@@ -49,6 +49,32 @@ fi
 echo "$CT $CI $CW" > "$CPU_STATE" 2>/dev/null
 chmod 600 "$CPU_STATE" 2>/dev/null
 
+# --- AG HIZLARI: GERCEK ~60 sn ORTALAMA (arayuz bazinda) ---------------------
+# CPU ile ayni mantik: /proc/net/dev kumulatif bayt sayaclarinin onceki calismayla
+# farki / gecen sure. Dashboard'un 250 ms ornegi anlik bir aktarimi "hat doygun"
+# sanip alarm uretebiliyordu. Arayuz BAZINDA cunku doygunluk her portun kendi link
+# hizina oranlanir. Cikti: "net_rate eth0:RX:TX eth1:RX:TX" (bayt/sn, lo haric).
+NET_STATE="$DATA_DIR/.net_state"
+NOW_TS=$(date +%s)
+# Ayristirma iki-nokta bazli: /proc/net/dev arayuz adini 6 karaktere SAGA yaslar,
+# yani kisa adlarda basta bosluk VAR (alan kayar), uzun adlarda (enp0s31f6) YOK.
+# "-F'[: ]+'" ile sabit alan numarasi kullanmak bu yuzden guvenilmez; ayrica cok
+# buyuk sayac degerinde "eth0:12345678" gibi bosluksuz bicim de olusabilir.
+NET_CUR=$(awk -F: 'NF>=2 { name=$1; gsub(/[ \t]/,"",name); if (name=="lo"||name=="") next;
+                           nf=split($2, v, " "); if (nf>=9) print name, v[1], v[9] }' /proc/net/dev)
+NET_RATE=""
+if [ -r "$NET_STATE" ]; then
+  NET_RATE=$(awk -v now="$NOW_TS" '
+    NR==FNR { if ($1=="_ts") pts=$2; else if (NF>=3) { prx[$1]=$2; ptx[$1]=$3 } ; next }
+    { if (pts=="" ) next; el = now - pts; if (el <= 0) next;
+      # sayac geriye gittiyse (reboot/wrap) o arayuzu atla
+      if (($1 in prx) && $2 >= prx[$1] && $3 >= ptx[$1])
+        printf "%s%s:%d:%d", (c++?" ":""), $1, ($2-prx[$1])/el, ($3-ptx[$1])/el }
+  ' "$NET_STATE" - <<< "$NET_CUR")
+fi
+{ echo "_ts $NOW_TS"; echo "$NET_CUR"; } > "$NET_STATE" 2>/dev/null
+chmod 600 "$NET_STATE" 2>/dev/null
+
 OUT="$HOME_DIR/.proc_snapshot"
 {
   echo "--- Top 15 by CPU ---"
@@ -146,6 +172,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # olcumunun yerine gecer; ilk calismada bos oldugu icin hic yazilmaz.
   [ -n "$CPU" ] && echo "cpu_pct $CPU"
   [ -n "$IOW" ] && echo "iowait_pct $IOW"
+  [ -n "$NET_RATE" ] && echo "net_rate $NET_RATE"
   # Aktivite yaslari (dashboard cipleri): TUM surec listesinde en eski eslesen
   # surecin etimes'i — Top-15 CPU tablosundan hesaplamak yaniltiyordu (pkgacct
   # her hesapta yeniden dogar, "10 saatlik yedek" 1m gorunurdu). Koseli parantez
@@ -290,11 +317,11 @@ read L1 L5 L15 _ < /proc/loadavg
 RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d",(t-a)*100/t}' /proc/meminfo)
 DSK=$(df -P / | awk 'NR==2{gsub("%","",$5);print $5}')
 WRK=$(ps -eo state,comm --no-headers | awk '$2=="lsphp" && ($1 ~ /^R/ || $1 ~ /^D/){c++} END{print c+0}')
-# Ağ hızı: 1 sn arayla /proc/net/dev toplamı (lo hariç), KB/s
-read RX1 TX1 < <(awk -F'[: ]+' '!/lo:/ && /:/{rx+=$3; tx+=$11} END{print rx, tx}' /proc/net/dev)
-sleep 1
-read RX2 TX2 < <(awk -F'[: ]+' '!/lo:/ && /:/{rx+=$3; tx+=$11} END{print rx, tx}' /proc/net/dev)
-RXK=$(( (RX2 - RX1) / 1024 )); TXK=$(( (TX2 - TX1) / 1024 ))
+# Ag hizi (KB/s): yukaridaki 60 sn ortalamasinin arayuz toplami — eskiden burada
+# ayri bir 1 sn ornek aliniyordu; grafik artik kartla ayni metrigi gosterir ve
+# cron calismasi 1 sn daha kisalir.
+read RXK TXK < <(awk '{r=0;t=0; n=split($0,f," "); for(i=1;i<=n;i++){split(f[i],p,":"); r+=p[2]; t+=p[3]} printf "%d %d", r/1024, t/1024}' <<< "$NET_RATE")
+RXK=${RXK:-0}; TXK=${TXK:-0}
 MQ=$(exim -bpc 2>/dev/null || echo 0)
 # 13. kolon: o dakikanin en cok CPU yiyen sureci ("comm:cpu"). Dashboard bunu
 # yuk uyarilarina iliştirir ("High load ... — top: pigz 72%"); ayni satirda
