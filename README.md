@@ -24,7 +24,7 @@ barred from other users' processes.)
 > attachment): every alarm is server-rendered, and no output line exceeds the
 > SMTP 900-byte limit.
 
-**Version 1.2.0** · bilingual UI — English (default) / Türkçe, switched from the
+**Version 1.2.1** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots
@@ -235,6 +235,11 @@ web account ── index.php ◀──────────────┘  r
 - Response times are measured once when healthy; if a sample lands above the warn
   threshold it is re-measured (median) so a single scheduling hiccup can't post a
   false "slow database".
+- **Every network probe goes through a short-lived cache** (~45 s): the response
+  time checks and the service port checks run about once a minute in total, no
+  matter how many people have the dashboard open — the monitor's own footprint
+  must not scale with the number of viewers. Failed probes are cached too, so a
+  stopped service can't make every render wait for a connection timeout.
 
 ## Thresholds (defaults)
 

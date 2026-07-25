@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.2.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.2.1'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -545,6 +545,36 @@ $listeningPorts = getListeningPorts();
 $udpPorts       = getUdpPorts();
 function isListening($port, $ports) { return in_array($port, $ports); }
 
+// ── Yoklama önbelleği ─────────────────────────────────────────
+// KURAL: ağa dokunan her ölçüm buradan geçer. Aksi halde maliyet "kaç sekme
+// açık × 30 sn tick" ile çarpılır — izleme aracının ürettiği yük, onu kaç
+// kişinin izlediğine bağlı olmamalı. Sonuç TTL boyunca tüm render'larca
+// paylaşılır, böylece ölçüm ~dakikada bir yapılır (metriklerin geri kalanıyla
+// aynı kadans). BAŞARISIZ sonuç da önbelleklenir: çöken bir servise her
+// render'da yeniden bağlanmayı denemek sayfayı timeout süresince bekletirdi.
+function probeCached($key, $ttl, callable $probe) {
+    static $data = null;
+    $file = sys_get_temp_dir() . '/az_probe_cache.json';
+    if ($data === null) {
+        $data = json_decode((string)@file_get_contents($file), true);
+        if (!is_array($data)) $data = [];
+    }
+    if (isset($data[$key]['t']) && (time() - $data[$key]['t']) < $ttl && array_key_exists('v', $data[$key])) {
+        return $data[$key]['v'];
+    }
+    $v = $probe();
+    $data[$key] = ['t' => time(), 'v' => $v];
+    @file_put_contents($file, json_encode($data), LOCK_EX);
+    return $v;
+}
+// TTL, render'ın TÜRÜNE göre: tekrarlayan yük tick'lerden gelir (her sekme 30
+// sn'de bir) — orada 45 sn önbellek maliyeti dakikada bire indirir. TAM SAYFA
+// render'ı ise nadir ama KRİTİKTİR: insan F5'i "servisi yeniden başlattım, kalktı
+// mı?" sorusudur ve CSF'nin yüksek-load çekimi alarm anının fotoğrafını maile
+// koyar. Orada bayat değer kabul edilemez (çökmüş servis "çalışıyor" görünürdü);
+// 5 sn yalnız F5 yağmurunu frenler, tazeliği pratikte bozmaz.
+define('PROBE_TTL', isset($_GET['json']) ? 45 : 5);
+
 // ── Response Time ─────────────────────────────────────────────
 // TCP ölçümüyle aynı kademeli mantık — ama en fazla İKİ istek: her deneme gerçek
 // bir sayfa isteğidir (sunucuya iş yükü). Hızlıysa tek istek (eski maliyet),
@@ -588,8 +618,8 @@ function measureTcpResponseTime($host, $port, $readBytes = 0) {
     sort($ms);
     return max(1, (int)round($ms[intdiv(count($ms), 2)]));
 }
-$webResponseTime   = measureWebResponseTime();
-$mysqlResponseTime = measureTcpResponseTime('127.0.0.1', 3306, 4);
+$webResponseTime   = probeCached('web_rt',   PROBE_TTL, 'measureWebResponseTime');
+$mysqlResponseTime = probeCached('mysql_rt', PROBE_TTL, function () { return measureTcpResponseTime('127.0.0.1', 3306, 4); });
 function rtCol($ms) {
     global $TH;
     if ($ms === null)              return 'var(--accent)';
@@ -620,10 +650,14 @@ if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+// Port yoklaması da önbellekten geçer: çöken bir servis (Redis/Memcached) aksi
+// halde HER render'ı timeout süresi kadar bloklardı — hem de her sekmede.
 function portOpen($host, $p, $timeout = 1) {
-    $fp = @fsockopen($host, $p, $e, $s, $timeout);
-    if ($fp) { fclose($fp); return true; }
-    return false;
+    return (bool)probeCached("port:$host:$p", PROBE_TTL, function () use ($host, $p, $timeout) {
+        $fp = @fsockopen($host, $p, $e, $s, $timeout);
+        if ($fp) { fclose($fp); return true; }
+        return false;
+    });
 }
 function anyExists($paths) {
     foreach ((array)$paths as $p) { if (@file_exists($p)) return true; }
