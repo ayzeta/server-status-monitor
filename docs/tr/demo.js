@@ -154,28 +154,31 @@
     if (++pt>=ph.n){ pt=0; pi=(pi+1)%PHASES.length; }
   }
 
-  // ── Renk yardımcıları (eşikler index.php ile aynı) ─────────────────────────
-  function cpuCol(v){ return v>=90?'var(--danger)':v>=80?'var(--warn)':'var(--c-cpu)'; }
-  function ramCol(v){ return v>=85?'var(--danger)':v>=70?'var(--warn)':'var(--c-ram)'; }
-  function iowCol(v){ return v>=15?'var(--danger)':v>=8?'var(--warn)':'var(--c-iow)'; }
-  function netCol(s){ return s>=90?'var(--danger)':s>=70?'var(--warn)':'var(--accent)'; }
-  function inoCol(v){ return v>=90?'var(--danger)':v>=80?'var(--warn)':'var(--hint)'; }
-  function thrCol(v){ return v>=CORES*2?'var(--danger)':v>=CORES?'var(--warn)':'var(--hint)'; }
-  function diskCol(){ if(S.smart||S.raid==='degraded'||S.inode>=90||S.disk>=90)return'var(--danger)';
-    if(S.raid==='resync'||S.mismatch>0||S.inode>=80||S.disk>=75)return'var(--warn)'; return'var(--c-disk)'; }
+  // ── Renk yardımcıları ──────────────────────────────────────────────────────
+  // Eşikler sayfanın kendi TH sabitinden okunur — demo kendi kopyasını tutarsa
+  // ürünün eşiği değiştiğinde sessizce ayrışır (üründe bu çoğaltmayı zaten
+  // kaldırdık; demo da aynı kurala uyar).
+  function cpuCol(v){ return v>=TH.cpu_crit?'var(--danger)':v>=TH.cpu_warn?'var(--warn)':'var(--c-cpu)'; }
+  function ramCol(v){ return v>=TH.ram_crit?'var(--danger)':v>=TH.ram_warn?'var(--warn)':'var(--c-ram)'; }
+  function iowCol(v){ return v>=TH.iow_crit?'var(--danger)':v>=TH.iow_warn?'var(--warn)':'var(--c-iow)'; }
+  function netCol(s){ return s>=TH.net_crit?'var(--danger)':s>=TH.net_warn?'var(--warn)':'var(--accent)'; }
+  function inoCol(v){ return v>=TH.inode_crit?'var(--danger)':v>=TH.inode_warn?'var(--warn)':'var(--hint)'; }
+  function thrCol(v){ return v>=CORES*TH.mysqlthr_crit_x?'var(--danger)':v>=CORES*TH.mysqlthr_warn_x?'var(--warn)':'var(--hint)'; }
+  function diskCol(){ if(S.smart||S.raid==='degraded'||S.inode>=TH.inode_crit||S.disk>=TH.disk_crit)return'var(--danger)';
+    if(S.raid==='resync'||S.mismatch>0||S.inode>=TH.inode_warn||S.disk>=TH.disk_warn)return'var(--warn)'; return'var(--c-disk)'; }
   function lv(v,hi,cr){ return v>=cr?2:v>=hi?1:0; }
   function overall(v){
     var L=0, off=[];
     function add(l,label){ if(l>0){ off.push([l,label]); if(l>L)L=l; } }
-    add(lv(v.load1/CORES,1.0,2.0),'load '+(v.load1/CORES).toFixed(1)+'×');
-    add(lv(v.cpu,80,90),'CPU '+Math.round(v.cpu)+'%');
-    add(lv(v.ram,70,85),'RAM '+Math.round(v.ram)+'%');
-    add(lv(v.iowait,8,15),'IO '+Math.round(v.iowait)+'%');
-    add(lv(Math.max(v.netRxSat,v.netTxSat),70,90),'net '+Math.round(Math.max(v.netRxSat,v.netTxSat))+'%');
-    add(lv(v.lsphpTotal,CORES,CORES*2),v.lsphpTotal+' workers');
-    add(lv(v.mysqlThr,CORES,CORES*2),'MySQL '+v.mysqlThr);
-    add(lv(v.inodePct,80,90),'inode '+v.inodePct+'%');
-    add(lv(v.mailQ,374,374*3),'mailq '+v.mailQ);
+    add(lv(v.load1/CORES,TH.load_warn,TH.load_crit),'load '+(v.load1/CORES).toFixed(1)+'×');
+    add(lv(v.cpu,TH.cpu_warn,TH.cpu_crit),'CPU '+Math.round(v.cpu)+'%');
+    add(lv(v.ram,TH.ram_warn,TH.ram_crit),'RAM '+Math.round(v.ram)+'%');
+    add(lv(v.iowait,TH.iow_warn,TH.iow_crit),'IO '+Math.round(v.iowait)+'%');
+    add(lv(Math.max(v.netRxSat,v.netTxSat),TH.net_warn,TH.net_crit),'net '+Math.round(Math.max(v.netRxSat,v.netTxSat))+'%');
+    add(lv(v.lsphpTotal,CORES*TH.wrk_warn_x,CORES*TH.wrk_crit_x),v.lsphpTotal+' workers');
+    add(lv(v.mysqlThr,CORES*TH.mysqlthr_warn_x,CORES*TH.mysqlthr_crit_x),'MySQL '+v.mysqlThr);
+    add(lv(v.inodePct,TH.inode_warn,TH.inode_crit),'inode '+v.inodePct+'%');
+    add(lv(v.mailQ,374*TH.mailq_warn_x,374*TH.mailq_crit_x),'mailq '+v.mailQ);
     if(S.raid==='degraded')add(2,v.raidTxt); else if(S.raid==='resync')add(1,v.raidTxt);
     if(S.smart)add(2,'SMART pre-fail');
     off.sort(function(a,b){return b[0]-a[0];});

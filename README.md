@@ -259,6 +259,17 @@ render, the CSF mail attachment, and the live 30-second ticks alike.
 | Inode  | 80% | 90% |
 | Swap   | 10% used | 50% used |
 | Shared memory | 40% of RAM † | 55% of RAM † |
+| PHP workers | ≥ 1× cores | ≥ 2× cores |
+| MySQL `threads_running` | ≥ 1× cores | ≥ 2× cores |
+| Mail queue | ≥ 1 per account | ≥ 3 per account |
+| MySQL response | 30 ms | 100 ms |
+| Web response | 500 ms | 2000 ms |
+| SSL expiry | 30 days left | 7 days left |
+| Root snapshot | — | older than 180 s |
+
+The two response times are deliberately not on the same scale: the MySQL figure is
+a TCP handshake to localhost (~1 ms when healthy), while the web figure is a full
+page request, where a few hundred milliseconds is normal.
 
 Load is orange at capacity (a fully-used server isn't "broken") and red only
 when genuinely overloaded, so red stays meaningful.

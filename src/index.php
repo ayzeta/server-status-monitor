@@ -57,7 +57,14 @@ $TH = array_merge([
     'shmem_warn'=> 40,  'shmem_crit'=> 55,    // RAM %'si (yalnız bellek baskısı varken)
     'shmem_warn_hard' => 65, 'shmem_crit_hard' => 75, // baskıdan bağımsız kaçak tavanı
     'mem_tight_avail' => 12, 'mem_tight_swap' => 10,  // "baskı" tanımı: avail% < / swap% >=
-    'rt_warn'   => 30,  'rt_crit'   => 100,   // ms — web + MySQL yanıt süresi
+    // Yanıt süreleri AYRI eşiklerde: ikisi aynı şeyi ölçmüyor. dbrt bir TCP el
+    // sıkışmasıdır (localhost'ta ~1 ms; 30 ms gerçek çekişme demektir), webrt ise
+    // TAM bir sayfa isteğidir — gerçek bir ana sayfa 200-500 ms sürer, ona 30 ms
+    // eşiği koymak sunucuyu kalıcı "Degraded" gösterirdi. webrt bilerek GENİŞ:
+    // 127.0.0.1/ her kurulumda başka şey sunar (boş vhost mu, WordPress mi),
+    // o yüzden yalnız gerçek dertte konuşsun; sıkı isteyen config'ten daraltır.
+    'dbrt_warn'  => 30,  'dbrt_crit'  => 100,   // ms — MySQL TCP bağlantısı
+    'webrt_warn' => 500, 'webrt_crit' => 2000,  // ms — tam HTTP sayfa isteği
     'ssl_warn'  => 30,  'ssl_crit'  => 7,     // kalan gün (küçük = kötü)
     'wrk_warn_x'      => 1, 'wrk_crit_x'      => 2, // × çekirdek (aktif PHP işçisi)
     'mysqlthr_warn_x' => 1, 'mysqlthr_crit_x' => 2, // × çekirdek (Threads_running)
@@ -580,8 +587,7 @@ define('PROBE_TTL', isset($_GET['json']) ? 45 : 5);
 // bir sayfa isteğidir (sunucuya iş yükü). Hızlıysa tek istek (eski maliyet),
 // şüpheli aralıkta bir tane daha alınıp küçüğü kullanılır, gerçekten yavaşsa
 // (≥1 sn) tekrar denenmez — o zaten görülmesi gereken sorundur.
-function measureWebResponseTime() {
-    global $TH;
+function measureWebResponseTime($warn, $crit) {
     $ctx = stream_context_create(['http' => ['timeout' => 3, 'follow_location' => false, 'ignore_errors' => true]]);
     $one = function () use ($ctx) {
         $t = microtime(true);
@@ -589,7 +595,7 @@ function measureWebResponseTime() {
         return (microtime(true) - $t) * 1000;
     };
     $ms = $one();
-    if ($ms >= $TH['rt_warn'] && $ms < 1000) $ms = min($ms, $one());
+    if ($ms >= $warn && $ms < $crit) $ms = min($ms, $one());
     return max(1, (int)round($ms));
 }
 // Tek ölçüm yanıltır: yoğun sunucuda tek bir zamanlama takılması 1 ms'lik
@@ -599,8 +605,7 @@ function measureWebResponseTime() {
 // eskisiyle aynı. Yalnız ŞÜPHELİ aralıkta (eşik ile 1 sn arası) iki ölçüm daha
 // alınıp ortancası kullanılır. 1 sn üstü gerçek yavaşlıktır: tekrarlamak hem
 // gereksiz hem sayfayı bekletir.
-function measureTcpResponseTime($host, $port, $readBytes = 0) {
-    global $TH;
+function measureTcpResponseTime($host, $port, $warn, $crit, $readBytes = 0) {
     $one = function () use ($host, $port, $readBytes) {
         $t  = microtime(true);
         $fp = @fsockopen($host, $port, $e, $s, 2);
@@ -612,19 +617,20 @@ function measureTcpResponseTime($host, $port, $readBytes = 0) {
     };
     $first = $one();
     if ($first === null) return null;
-    if ($first < $TH['rt_warn'] || $first >= 1000) return max(1, (int)round($first));
+    // Yalnız KARARSIZ bantta tekrar ölç: eşiğin altı zaten sağlıklı, kritiğin
+    // üstü zaten sorunlu — ikisinde de ek ölçüm verdiği kararı değiştirmez.
+    if ($first < $warn || $first >= $crit) return max(1, (int)round($first));
     $ms = [$first];
     for ($i = 0; $i < 2; $i++) { $x = $one(); if ($x === null) break; $ms[] = $x; }
     sort($ms);
     return max(1, (int)round($ms[intdiv(count($ms), 2)]));
 }
-$webResponseTime   = probeCached('web_rt',   PROBE_TTL, 'measureWebResponseTime');
-$mysqlResponseTime = probeCached('mysql_rt', PROBE_TTL, function () { return measureTcpResponseTime('127.0.0.1', 3306, 4); });
-function rtCol($ms) {
-    global $TH;
-    if ($ms === null)              return 'var(--accent)';
-    if ($ms >= $TH['rt_crit'])     return 'var(--danger)';
-    if ($ms >= $TH['rt_warn'])     return 'var(--warn)';
+$webResponseTime   = probeCached('web_rt',   PROBE_TTL, function () use ($TH) { return measureWebResponseTime($TH['webrt_warn'], $TH['webrt_crit']); });
+$mysqlResponseTime = probeCached('mysql_rt', PROBE_TTL, function () use ($TH) { return measureTcpResponseTime('127.0.0.1', 3306, $TH['dbrt_warn'], $TH['dbrt_crit'], 4); });
+function rtCol($ms, $warn, $crit) {
+    if ($ms === null)   return 'var(--accent)';
+    if ($ms >= $crit)   return 'var(--danger)';
+    if ($ms >= $warn)   return 'var(--warn)';
     return 'var(--accent)';
 }
 
@@ -1063,8 +1069,8 @@ $health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] �
     'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   tf('%s RAID mismatch', $raidMismatch)],
     'smart'    => [$smartMsg!==''?'err':'ok',                                                     t('SMART fault')],
     'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=$TH['ssl_crit']?'err':($sslDaysLeft<=$TH['ssl_warn']?'warn':'ok')), 'SSL '.$sslDaysLeft.$sslUnit],
-    'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,$TH['rt_warn'],$TH['rt_crit']),   'Web '.$webResponseTime.'ms'],
-    'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,$TH['rt_warn'],$TH['rt_crit']), 'MySQL '.$mysqlResponseTime.'ms'],
+    'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,$TH['webrt_warn'],$TH['webrt_crit']),   'Web '.$webResponseTime.'ms'],
+    'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,$TH['dbrt_warn'],$TH['dbrt_crit']), 'MySQL '.$mysqlResponseTime.'ms'],
     'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount*$TH['mysqlthr_warn_x'],$coreCount*$TH['mysqlthr_crit_x']), tf('MySQL %s running', $mysqlThr)],
     'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*$TH['mailq_crit_x']?'err':($mailQ>=$mqBase*$TH['mailq_warn_x']?'warn':'ok')), tf('Mail queue %s', $mailQ)],
     'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*$TH['wrk_crit_x']?'err':($lsphpTotal>=$coreCount*$TH['wrk_warn_x']?'warn':'ok')), tf('%s PHP workers', $lsphpTotal)],
@@ -1300,6 +1306,33 @@ if ($diskUsagePercent >= $TH['disk_crit']) {
 } elseif ($diskUsagePercent >= $TH['disk_warn']) {
     $seedLvl['disk'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Disk usage high: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
+}
+// Yanıt süreleri + SSL — bunlar da header'da suçlu olarak çıkıyordu ama sunucu
+// render'ında (ve mail ekinde) olay kaydına hiç düşmüyordu: kullanıcı "Degraded ·
+// MySQL 37ms" görüp altında bir açıklama bulamıyordu. JS'teki eşiklerin aynısı.
+$seedLvl['dbrt'] = 'ok';
+if ($mysqlResponseTime !== null && $mysqlResponseTime >= $TH['dbrt_crit']) {
+    $seedLvl['dbrt'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL response time high: %sms', $mysqlResponseTime), 'ts' => date('H:i')];
+} elseif ($mysqlResponseTime !== null && $mysqlResponseTime >= $TH['dbrt_warn']) {
+    $seedLvl['dbrt'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL response time high: %sms', $mysqlResponseTime), 'ts' => date('H:i')];
+}
+$seedLvl['webrt'] = 'ok';
+if ($webResponseTime !== null && $webResponseTime >= $TH['webrt_crit']) {
+    $seedLvl['webrt'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Web response time high: %sms', $webResponseTime), 'ts' => date('H:i')];
+} elseif ($webResponseTime !== null && $webResponseTime >= $TH['webrt_warn']) {
+    $seedLvl['webrt'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Web response time high: %sms', $webResponseTime), 'ts' => date('H:i')];
+}
+$seedLvl['ssl'] = 'ok';
+if ($sslDaysLeft !== null && $sslDaysLeft <= $TH['ssl_crit']) {
+    $seedLvl['ssl'] = 'err';
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('SSL expires in %s days!', $sslDaysLeft), 'ts' => date('H:i')];
+} elseif ($sslDaysLeft !== null && $sslDaysLeft <= $TH['ssl_warn']) {
+    $seedLvl['ssl'] = 'warn';
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('SSL expires in %s days', $sslDaysLeft), 'ts' => date('H:i')];
 }
 // Mail kuyruğu — hesaba oranlı (warn ≥ hesap / err ≥ 3×). Header sağlığına giriyordu ama loglanmıyordu.
 $seedLvl['mailq'] = 'ok';
@@ -2063,7 +2096,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-icon"><i class="ti ti-bolt"></i></div>
     <div class="info-body">
       <div class="info-label"><?=t('Web Response')?></div>
-      <div class="info-val" id="iv-web" style="color:<?=rtCol($webResponseTime)?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></div>
+      <div class="info-val" id="iv-web" style="color:<?=rtCol($webResponseTime, $TH['webrt_warn'], $TH['webrt_crit'])?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></div>
       <div class="info-sub"><?=t('HTTP response time')?></div>
     </div>
   </div>
@@ -2071,7 +2104,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-icon"><i class="ti ti-database"></i></div>
     <div class="info-body">
       <div class="info-label"><?=t('MySQL Response')?></div>
-      <div class="info-val" id="iv-mysql" style="color:<?=rtCol($mysqlResponseTime)?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></div>
+      <div class="info-val" id="iv-mysql" style="color:<?=rtCol($mysqlResponseTime, $TH['dbrt_warn'], $TH['dbrt_crit'])?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></div>
       <div class="info-sub"><?=t('TCP response time')?></div>
     </div>
   </div>
@@ -2305,7 +2338,7 @@ function transLog(key,v,cr,hi,mErr,mWarn,mOk,now){
 
 function scol(v,hi,cr,ok){return v>=cr?'var(--danger)':v>=hi?'var(--warn)':(ok||'var(--accent)');}
 function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=TH.load_crit?'var(--danger)':r>=TH.load_warn?'var(--warn)':(ok||'var(--accent)');}
-function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=TH.rt_crit)return'var(--danger)';if(ms>=TH.rt_warn)return'var(--warn)';return'var(--accent)';}
+function rtcol(ms,w,c){if(ms==null)return'var(--accent)';if(ms>=c)return'var(--danger)';if(ms>=w)return'var(--warn)';return'var(--accent)';}
 // IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
 function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
@@ -2734,10 +2767,10 @@ function checkAlerts(data){
      if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
      else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
-  if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.rt_crit,TH.rt_crit,
+  if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.webrt_crit,TH.webrt_warn,
     tf('Web response time high: %sms',data.webResponseTime),'',
     tf('Web response time normal: %sms',data.webResponseTime),now);
-  if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,TH.rt_crit,TH.rt_crit,
+  if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,TH.dbrt_crit,TH.dbrt_warn,
     tf('MySQL response time high: %sms',data.mysqlResponseTime),'',
     tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
   if(data.sslDaysLeft!=null){
@@ -2817,9 +2850,9 @@ function renderMetrics(data){
 function render(data){
   applyMetrics(data); // başlık meta + load + kaynak kartları + Network IN/OUT (ortak)
   const ew=document.getElementById('iv-web');
-  if(ew){ew.textContent=data.webResponseTime!=null?data.webResponseTime+' ms':'—';ew.style.color=rtcol(data.webResponseTime);}
+  if(ew){ew.textContent=data.webResponseTime!=null?data.webResponseTime+' ms':'—';ew.style.color=rtcol(data.webResponseTime,TH.webrt_warn,TH.webrt_crit);}
   const em=document.getElementById('iv-mysql');
-  if(em){em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=rtcol(data.mysqlResponseTime);}
+  if(em){em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=rtcol(data.mysqlResponseTime,TH.dbrt_warn,TH.dbrt_crit);}
   if(data.acctCount!=null){const e=document.getElementById('iv-acct');if(e)e.textContent=data.acctCount;}
   {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*TH.mailq_crit_x?'var(--danger)':q>=b*TH.mailq_warn_x?'var(--warn)':'var(--accent)';}}
   {const q=data.mqRaw;if(q!=null){push(hist.mq,q);spark('sp-mq',hist.mq,'var(--accent)',64,30);}}
