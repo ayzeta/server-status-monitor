@@ -23,6 +23,32 @@ fi
 export PATH=/usr/local/cpanel/bin:/usr/local/cpanel/3rdparty/bin:/usr/sbin:/usr/bin:/sbin:/bin
 sleep 20   # dodge the top-of-minute cron storm
 
+# --- CPU / IO wait: GERCEK ~60 sn ORTALAMA -----------------------------------
+# /proc/stat kumulatif sayaclarinin bir onceki cron calismasiyla farki = tum cron
+# araligi boyunca ortalama. Anlik ornekleme (dashboard'da 250 ms) yogun paylasimli
+# sunucuda surekli %100 gorur: bir lsphp dogar, bir cron tetiklenir, ornek oraya
+# denk gelir; oysa gercek kullanim %25'tir. Sayac farki bu gurultuyu tamamen eler
+# ve harici araclarla (cPanel 360 Monitoring vb.) ayni degeri uretir. Aralik tam
+# 60 sn olmasa da (cron gecikmesi) hesap dogru kalir — fark her zaman gecen sureye
+# gore normalize olur. Ilk calismada onceki sayac yok → deger bos, PHP canli
+# olcumune duser.
+CPU_STATE="$DATA_DIR/.cpu_state"
+read CT CI CW < <(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8, $5, $6}' /proc/stat)
+CPU=""; IOW=""
+if [ -r "$CPU_STATE" ]; then
+  read PT PI PW < "$CPU_STATE" 2>/dev/null
+  TD=$(( CT - ${PT:-0} )); IDL=$(( CI - ${PI:-0} )); WIO=$(( CW - ${PW:-0} ))
+  # TD<=0: yeniden baslatma (sayaclar sifirlandi) veya bozuk state → atla
+  if [ "$TD" -gt 0 ] && [ "$IDL" -ge 0 ] && [ "$WIO" -ge 0 ]; then
+    CPU=$(( 100*(TD-IDL)/TD )); IOW=$(( 100*WIO/TD ))
+    [ "$CPU" -lt 0 ] && CPU=0
+    [ "$CPU" -gt 100 ] && CPU=100
+    [ "$IOW" -lt 0 ] && IOW=0
+  fi
+fi
+echo "$CT $CI $CW" > "$CPU_STATE" 2>/dev/null
+chmod 600 "$CPU_STATE" 2>/dev/null
+
 OUT="$HOME_DIR/.proc_snapshot"
 {
   echo "--- Top 15 by CPU ---"
@@ -116,6 +142,10 @@ OUT="$HOME_DIR/.proc_snapshot"
   # rstate: kosan (R) surec sayisi. Load anatomisi: load ~ R + D (uninterruptible).
   # Root'tan alinir cunku CageFS surec sayimini cage'e sanallastirabilir.
   echo "rstate $(ps -eo state --no-headers | awk '$1 ~ /^R/{c++} END{print c+0}')"
+  # CPU/IO wait 60 sn ortalamasi (yukarida hesaplandi) — dashboard'un anlik
+  # olcumunun yerine gecer; ilk calismada bos oldugu icin hic yazilmaz.
+  [ -n "$CPU" ] && echo "cpu_pct $CPU"
+  [ -n "$IOW" ] && echo "iowait_pct $IOW"
   # Aktivite yaslari (dashboard cipleri): TUM surec listesinde en eski eslesen
   # surecin etimes'i — Top-15 CPU tablosundan hesaplamak yaniltiyordu (pkgacct
   # her hesapta yeniden dogar, "10 saatlik yedek" 1m gorunurdu). Koseli parantez
@@ -251,14 +281,11 @@ except Exception:
 chown "$WEB_USER:$WEB_USER" "$OUT"
 chmod 640 "$OUT"
 
-# --- sparkline gecmisi (3 sn pencere, dakika ortasi, 35 satir tampon) ---
+# --- sparkline gecmisi (35 satir tampon) ---
+# CPU/IOW yukaridaki 60 sn ortalamasindan gelir (eskiden burada ayri bir 3 sn
+# ornek aliniyordu): grafik ile kart artik AYNI metrigi gosterir, ustelik cron
+# calismasi 3 sn kisalir.
 HIST="$HOME_DIR/.metrics_history"
-S1=($(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8, $5, $6}' /proc/stat))
-sleep 3
-S2=($(awk '/^cpu /{print $2+$3+$4+$5+$6+$7+$8, $5, $6}' /proc/stat))
-TD=$(( S2[0]-S1[0] )); IDL=$(( S2[1]-S1[1] )); WIO=$(( S2[2]-S1[2] ))
-CPU=0; IOW=0
-if [ "$TD" -gt 0 ]; then CPU=$(( 100*(TD-IDL)/TD )); IOW=$(( 100*WIO/TD )); fi
 read L1 L5 L15 _ < /proc/loadavg
 RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d",(t-a)*100/t}' /proc/meminfo)
 DSK=$(df -P / | awk 'NR==2{gsub("%","",$5);print $5}')
@@ -273,7 +300,7 @@ MQ=$(exim -bpc 2>/dev/null || echo 0)
 # yuk uyarilarina iliştirir ("High load ... — top: pigz 72%"); ayni satirda
 # yazildigi icin metrikle zaman uyumu birebir. Bosluk/iki-nokta alt cizgiye cevrilir.
 TOPP=$(ps axo pcpu,comm --sort=-pcpu --no-headers | head -1 | awk '{n=$2; for(i=3;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); printf "%s:%d", n, $1}')
-echo "$(date +%H:%M) $L1 $L5 $L15 $CPU $RAM $DSK $IOW $WRK $RXK $TXK $MQ ${TOPP:--}" >> "$HIST"
+echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--}" >> "$HIST"
 tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"
 

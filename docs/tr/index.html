@@ -357,7 +357,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2009ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4">Web 2009ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2029ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4">Web 2029ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">Sunucu adı</div>
@@ -367,7 +367,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="meta-item"><div class="meta-lbl">Çalışma süresi</div>
       <div class="meta-val" id="uptime">0 Gün 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Güncellendi</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">02:17:21</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">16:12:59</span></div></div>
   </div>
 </div>
 
@@ -424,13 +424,13 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   <div class="res-card" id="rc-disk" style="--c:var(--c-disk)">
     <div class="res-top">
       <div class="res-left"><i class="ti ti-database res-icon"></i><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk">69%</span>
+      <span class="res-val" id="rv-disk">66%</span>
     </div>
     <div class="res-middle">
-      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:69%"></div></div></div>
+      <div class="res-bar-wrap"><div class="res-bar-track"><div class="res-bar-fill" id="rb-disk" style="width:66%"></div></div></div>
       <span class="spark-wrap" style="width:70px;height:24px"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">162 / 236 GB</div>
+    <div class="res-meta" id="rm-disk">155 / 236 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow)">
     <div class="res-top">
@@ -487,7 +487,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="info-icon"><i class="ti ti-bolt"></i></div>
     <div class="info-body">
       <div class="info-label">Web Yanıtı</div>
-      <div class="info-val" id="iv-web" style="color:var(--danger)">2009 ms</div>
+      <div class="info-val" id="iv-web" style="color:var(--danger)">2029 ms</div>
       <div class="info-sub">HTTP yanıt süresi</div>
     </div>
   </div>
@@ -615,14 +615,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anlık görüntüsü yok — cron kapalı mı?</span><span class="log-ts">02:17</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anlık görüntüsü yok — cron kapalı mı?</span><span class="log-ts">16:12</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>30 saniyede bir yenilenir</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.1.0">v1.1.0</span> &middot; 2026-07-25 02:17:22</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.1.0">v1.1.0</span> &middot; 2026-07-25 16:13:00</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -893,7 +893,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:69,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'02:17:22'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:13:00'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -913,7 +913,7 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "02:17"
+        "ts": "16:12"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda

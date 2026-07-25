@@ -347,6 +347,14 @@ if ($c1 && $c2 && ($cpuTd = $c2['total'] - $c1['total']) > 0) {
     $cpuUsage = max(0, (int)round((1 - (($c2['idle']   - $c1['idle'])   / $cpuTd)) * 100));
     $ioWait   = max(0, (int)round(     (($c2['iowait'] - $c1['iowait']) / $cpuTd)  * 100));
 }
+// Root collector'ın ~60 sn ORTALAMASI asıldır; yukarıdaki 250 ms örneği yalnızca
+// yedektir (collector yok/bayat). Neden: çeyrek saniyelik pencere yoğun paylaşımlı
+// sunucuda sürekli %100 yakalar (bir lsphp doğar, bir cron tetiklenir) — kart
+// yanıp söner, favicon kızarır, oysa gerçek kullanım çok daha düşüktür. Sayaç
+// farkına dayanan 60 sn ortalaması hem gürültüsüzdür hem sparkline geçmişiyle
+// aynı metriktir (collector ikisini de aynı hesaptan yazar).
+if ($rootFresh && isset($procSec['cpu_pct'])    && is_numeric($procSec['cpu_pct']))    $cpuUsage = (int)$procSec['cpu_pct'];
+if ($rootFresh && isset($procSec['iowait_pct']) && is_numeric($procSec['iowait_pct'])) $ioWait   = (int)$procSec['iowait_pct'];
 $rxRate = max(0, (int)(($net2['rx'] - $net1['rx']) * 4));
 $txRate = max(0, (int)(($net2['tx'] - $net1['tx']) * 4));
 // ── Ağ hattı doygunluğu (%) ───────────────────────────────────
