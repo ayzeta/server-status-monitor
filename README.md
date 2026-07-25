@@ -24,7 +24,7 @@ barred from other users' processes.)
 > attachment): every alarm is server-rendered, and no output line exceeds the
 > SMTP 900-byte limit.
 
-**Version 1.0.0** · bilingual UI — English (default) / Türkçe, switched from the
+**Version 1.1.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots
