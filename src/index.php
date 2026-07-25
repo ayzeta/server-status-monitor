@@ -2232,7 +2232,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ── JS i18n — PHP ile aynı sözlük; İngilizce anahtar, TR karşılık ────────────
-const TH=<?=json_encode($TH)?>; // eşikler — PHP $TH ile TEK kaynak (config 'thresholds' dahil)
+// Eşikler — PHP $TH ile TEK kaynak (config 'thresholds' dahil). PRETTY_PRINT
+// şart: tek satıra basılırsa config'ten eşik eklendikçe büyür ve mail ekinin
+// 900 baytlık satır sınırını aşar ($TR/$histSeed de aynı sebeple böyle basılır.)
+const TH=<?=json_encode($TH, JSON_PRETTY_PRINT)?>;
 const LANG_UI=<?=json_encode($LANG_UI)?>;
 const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
