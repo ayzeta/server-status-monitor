@@ -119,16 +119,22 @@ if [ -n "${ALLOW_IPS:-}" ]; then
     echo "      Add your own 'Require ip' rules there manually."
   else
     SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    # 2.2 sözdizimi (Order/Deny/Allow): hem Apache'de (mod_access_compat, cPanel
+    # EA4'te varsayılan açık) hem LiteSpeed'de uygulanır. 2.4 <RequireAny> blokları
+    # LiteSpeed'in .htaccess işleyicisinde YOK SAYILIR — sayfa sessizce açık kalır.
     cat > "$HTFILE" <<EOF
 # BEGIN $HTMARK (managed by install.sh — this file is rewritten on re-install)
+# 2.2-style rules: LiteSpeed ignores 2.4 <RequireAny> in .htaccess.
 # Loopback + the server's own IP stay allowed so CSF's high-load fetch works.
-# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP to the list below.
-<RequireAny>
-  Require ip 127.0.0.1 ::1${SERVER_IP:+ $SERVER_IP}
-  Require ip $ALLOW_IPS
-</RequireAny>
-# END $HTMARK
+# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP as another Allow line.
+Order deny,allow
+Deny from all
+Allow from 127.0.0.1
+Allow from ::1
 EOF
+    [ -n "${SERVER_IP:-}" ] && echo "Allow from $SERVER_IP" >> "$HTFILE"
+    for ip in $ALLOW_IPS; do echo "Allow from $ip" >> "$HTFILE"; done
+    echo "# END $HTMARK" >> "$HTFILE"
     chown "$WEB_USER:$WEB_USER" "$HTFILE"; chmod 644 "$HTFILE"
     echo "Access restricted to: $ALLOW_IPS  (+ ${SERVER_IP:-server IP} & loopback for CSF)"
   fi

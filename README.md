@@ -95,14 +95,18 @@ manage it yourself, drop a `.htaccess` next to `index.php` (works on both Apache
 and LiteSpeed):
 
 ```apacheconf
-<RequireAny>
-  # loopback + the server's own IP — keeps CSF's high-load fetch working
-  Require ip 127.0.0.1 ::1 198.51.100.5
-  # your static IP(s)
-  Require ip 203.0.113.10
-</RequireAny>
+Order deny,allow
+Deny from all
+Allow from 127.0.0.1
+Allow from ::1
+Allow from 198.51.100.5   # the server's own IP — keeps CSF's fetch working
+Allow from 203.0.113.10   # your static IP(s)
 ```
 
+- The 2.2-style syntax above is deliberate: **LiteSpeed ignores 2.4
+  `<RequireAny>`/`Require ip` blocks in `.htaccess`** (the page would silently
+  stay open), while `Order`/`Allow` is enforced by both LiteSpeed and Apache
+  (`mod_access_compat`, enabled by default on cPanel EA4).
 - **CSF** fetches `PT_APACHESTATUS` from the server itself — keep loopback and
   the server's main IP in the list.
 - **WHMCS** polls `?raw=1` from the WHMCS server — add that server's IP too.
