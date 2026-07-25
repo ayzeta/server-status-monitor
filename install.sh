@@ -23,7 +23,9 @@ SITE_TITLE="Infrastructure Monitor"; SITE_SUBTITLE=""; LOGO_URL=""; FAVICON_URL=
 ALLOW_IPS=""; ACCESS_KEY=""
 [ -f "$CONF" ] && . "$CONF"
 
-ask() { local p="$1" d="$2" v; read -r -p "$p [$d]: " v || true; echo "${v:-$d}"; }
+# Enter = kayıtlı cevabı koru; '-' = kayıtlı cevabı TEMİZLE (boş kaydet).
+# (Boş girişle silmek imkânsızdı: Enter varsayılanı koruduğu için.)
+ask() { local p="$1" d="$2" v; read -r -p "$p [$d]: " v || true; v="${v:-$d}"; [ "$v" = "-" ] && v=""; echo "$v"; }
 
 if [ $AUTO -eq 1 ]; then
   # Non-interactive: reuse saved answers, no prompts, keep existing config.php.
@@ -37,6 +39,7 @@ if [ $AUTO -eq 1 ]; then
   echo "  web account : $WEB_USER   dashboard: $WEB_DIR   collector: $DATA_DIR"
 else
   echo "── Server Status Monitor install ──"
+  echo "Tip: Enter keeps the saved answer shown in [brackets]; type '-' to clear it."
   WEB_USER="$(ask 'Web account (cPanel user that hosts the dashboard)' "$WEB_USER")"
   [ -n "$WEB_USER" ] || { echo "ERROR: web account is required."; exit 1; }
   id "$WEB_USER" >/dev/null 2>&1 || { echo "ERROR: user '$WEB_USER' does not exist."; exit 1; }
@@ -137,6 +140,14 @@ EOF
     echo "# END $HTMARK" >> "$HTFILE"
     chown "$WEB_USER:$WEB_USER" "$HTFILE"; chmod 644 "$HTFILE"
     echo "Access restricted to: $ALLOW_IPS  (+ ${SERVER_IP:-server IP} & loopback for CSF)"
+  fi
+else
+  # Allowlist temizlendi ('-' ile) → bizim yönettiğimiz dosya kalırsa sayfa kilitli
+  # kalır ve kullanıcı "kaldırdım" sanır. Yalnız MARKER'lı dosya silinir; kullanıcının
+  # kendi yazdığı .htaccess'e dokunulmaz.
+  if [ -f "$HTFILE" ] && grep -q "$HTMARK" "$HTFILE"; then
+    rm -f "$HTFILE"
+    echo "Allowlist cleared — removed the managed .htaccess (page is open again)."
   fi
 fi
 

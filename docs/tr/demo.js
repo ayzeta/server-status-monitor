@@ -290,7 +290,6 @@
        ['err','CPU critical: 91%','15:06:20'],
        ['err','High load: 25.80 (1m)','15:06:02'],
        ['warn','RAM high: 84%','15:05:48'],
-       ['ok','imunify scan started','15:05:30'],
        ['ok','backup started','15:04:10']].forEach(function(l){logs.push({type:l[0],msg:l[1],ts:l[2]});});
     } else if(kind==='recovery'){
       // "Toparlanıyor" anı: header yeşil (threads 11 < çekirdek, gri) ama sorgular
@@ -304,7 +303,6 @@
        ['ok','Inode usage back to normal','15:13:22'],
        ['ok','RAID array healthy again','15:13:05'],
        ['ok','SMART pre-failure cleared','15:12:50'],
-       ['ok','imunify scan finished','15:12:31'],
        ['ok','backup finished','15:12:10'],
        ['err','MySQL threads_running very high: 26 (query pileup)','15:07:41']].forEach(function(l){logs.push({type:l[0],msg:l[1],ts:l[2]});});
     } else { seedHistory('flat'); logs.length=0; }

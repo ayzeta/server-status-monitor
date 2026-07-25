@@ -148,7 +148,7 @@ $TR = [
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama', 'files' => 'dosya',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
 ];
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
@@ -721,6 +721,9 @@ $actDefs = [
     ['system update',   'act_update',  '/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i', 0, null],
     ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15, null],
     ['imunify scan',    'act_imunify', '/im360\.run|aibolit|rustbolit/i',               15, 'act_imunify_n'],
+    // wappspector: cPanel'in uygulama-keşif taraması (WP Toolkit envanterini besler).
+    // Hesap hesap kısa turlarla döner — çip JS tarafında SESSİZ (event log'a yazmaz).
+    ['app discovery',   'act_appdisc', '/wappspector/i',                                15, null],
 ];
 $actChips = []; $acts = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
@@ -2487,7 +2490,11 @@ function renderProcs(data){
     // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
     // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
     // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
-    const defs=[['backup running',/pkgacct|cpbackup/i,0],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15],['imunify scan',/im360\.run|aibolit|rustbolit/i,15]];
+    // [etiket, desen, minCpu, sessiz] — sessiz=true: çip görünür ama started/finished
+    // Event log'a YAZILMAZ. Hesap-hesap kısa turlarla dönen tarama işleri
+    // (wp-toolkit, imunify hesap taramaları, wappspector) log'u spam'liyordu;
+    // yalnız uzun/seyrek işler (backup, system update) loglanır.
+    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,true],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,true],['app discovery',/wappspector/i,15,true]];
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(i===3&&data.actImunifyP==='incremental')return null;
@@ -2506,7 +2513,8 @@ function renderProcs(data){
     const st=chips.map(c=>c!=null?'1':'0').join('');
     if(actWas===null)actWas=st;
     else if(st!==actWas){
-      defs.forEach(([lbl],i)=>{
+      defs.forEach(([lbl,,,silent],i)=>{
+        if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]!==actWas[i])addLog('ok',t(lbl.replace(' running',''))+' '+t(st[i]==='1'?'started':'finished'),data.time.split(' ')[1]);});
       actWas=st;
     }

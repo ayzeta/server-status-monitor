@@ -129,6 +129,9 @@ OUT="$HOME_DIR/.proc_snapshot"
   # surec sezgiseli kalir. Kalici sw-engine-fpm havuzu bosta %0'da gezdigi icin
   # esik onu eler; WPT gorevleri kisa omurlu oldugundan pcpu ortalamasi guvenilir.
   A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/{if($1>m)m=$1} END{if(m)print m}'); [ -n "$A" ] && echo "act_wpt $A"
+  # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
+  # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
+  A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]appspector/{if($1>m)m=$1} END{if(m)print m}'); [ -n "$A" ] && echo "act_appdisc $A"
   # imunify: OTORITER kaynak — ajanin kendi kayitlari (running durumundaki en eski
   # taramanin yasi). Surec sezgiseli burada calismaz: tarama kalici rustbolit
   # --resident icinde kosar, ps pcpu'su omur-boyu ortalama oldugundan iki yonde

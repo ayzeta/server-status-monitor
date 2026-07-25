@@ -367,7 +367,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <div class="meta-item"><div class="meta-lbl">Uptime</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Updated</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">01:16:23</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">01:51:48</span></div></div>
   </div>
 </div>
 
@@ -615,14 +615,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">01:16</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing — cron down?</span><span class="log-ts">01:51</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-25 01:16:23</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.0.0">v1.0.0</span> &middot; 2026-07-25 01:51:49</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -692,7 +692,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:69,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'01:16:23'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:69,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'01:51:49'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -712,7 +712,7 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "01:16"
+        "ts": "01:51"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1044,7 +1044,11 @@ function renderProcs(data){
     // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
     // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
     // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
-    const defs=[['backup running',/pkgacct|cpbackup/i,0],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15],['imunify scan',/im360\.run|aibolit|rustbolit/i,15]];
+    // [etiket, desen, minCpu, sessiz] — sessiz=true: çip görünür ama started/finished
+    // Event log'a YAZILMAZ. Hesap-hesap kısa turlarla dönen tarama işleri
+    // (wp-toolkit, imunify hesap taramaları, wappspector) log'u spam'liyordu;
+    // yalnız uzun/seyrek işler (backup, system update) loglanır.
+    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,true],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,true],['app discovery',/wappspector/i,15,true]];
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(i===3&&data.actImunifyP==='incremental')return null;
@@ -1063,7 +1067,8 @@ function renderProcs(data){
     const st=chips.map(c=>c!=null?'1':'0').join('');
     if(actWas===null)actWas=st;
     else if(st!==actWas){
-      defs.forEach(([lbl],i)=>{
+      defs.forEach(([lbl,,,silent],i)=>{
+        if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]!==actWas[i])addLog('ok',t(lbl.replace(' running',''))+' '+t(st[i]==='1'?'started':'finished'),data.time.split(' ')[1]);});
       actWas=st;
     }
