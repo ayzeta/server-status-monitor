@@ -1277,6 +1277,11 @@ if (isset($_GET['json'])) {
 
 // Parametresiz veya ?dashboard → HTML
 header('Content-Type: text/html; charset=utf-8');
+// Sayfa kodu (threshold'lar, alarm mantığı) HTML'e gömülü: tarayıcı bayat kopyayı
+// servis ederse kullanıcı güncellemeden SONRA bile eski JS'i çalıştırır (footer eski
+// sürümü gösterir, kaldırılmış log davranışı sürer). no-cache = her açılışta sunucuya
+// sor (304 ile ucuz), no-store değil.
+header('Cache-Control: no-cache');
 
 function renderChecks($checks) {
     $out = '';
