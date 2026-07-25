@@ -41,6 +41,30 @@ if ($ACCESS_KEY !== '') {
     }
 }
 
+// ── Eşikler — TEK KAYNAK ────────────────────────────────────────
+// Tüm alarm/renk eşikleri burada yaşar; config.php 'thresholds' ile tek tek
+// ezilebilir: 'thresholds' => ['ram_warn' => 80]. JS'e const TH olarak basılır —
+// sunucu render + mail eki (PHP) ve 30sn canlı tick (JS) hep aynı sayıları okur.
+$TH = array_merge([
+    'load_warn' => 1.0, 'load_crit' => 2.0,   // × çekirdek (load / cores oranı)
+    'cpu_warn'  => 80,  'cpu_crit'  => 90,    // %
+    'ram_warn'  => 70,  'ram_crit'  => 85,    // %
+    'disk_warn' => 75,  'disk_crit' => 90,    // %
+    'iow_warn'  => 8,   'iow_crit'  => 15,    // %
+    'net_warn'  => 70,  'net_crit'  => 90,    // hat kapasitesinin %'si
+    'inode_warn'=> 80,  'inode_crit'=> 90,    // %
+    'swap_warn' => 10,  'swap_crit' => 50,    // swap'ın %'si
+    'shmem_warn'=> 40,  'shmem_crit'=> 55,    // RAM %'si (yalnız bellek baskısı varken)
+    'shmem_warn_hard' => 65, 'shmem_crit_hard' => 75, // baskıdan bağımsız kaçak tavanı
+    'mem_tight_avail' => 12, 'mem_tight_swap' => 10,  // "baskı" tanımı: avail% < / swap% >=
+    'rt_warn'   => 30,  'rt_crit'   => 100,   // ms — web + MySQL yanıt süresi
+    'ssl_warn'  => 30,  'ssl_crit'  => 7,     // kalan gün (küçük = kötü)
+    'wrk_warn_x'      => 1, 'wrk_crit_x'      => 2, // × çekirdek (aktif PHP işçisi)
+    'mysqlthr_warn_x' => 1, 'mysqlthr_crit_x' => 2, // × çekirdek (Threads_running)
+    'mailq_warn_x'    => 1, 'mailq_crit_x'    => 3, // × hesap sayısı
+    'snap_stale' => 180, // sn — root snapshot bundan yaşlıysa bayat
+], (array)($cfg['thresholds'] ?? []));
+
 // ── Dil (i18n) ────────────────────────────────────────────────
 // UI dili = cookie ?? config['lang'] ?? 'en'. Cookie, arayüzdeki dil düğmesiyle
 // set edilir → hem sunucu-render hem JS aynı dili kullanır. Mail eki (cookie yok)
@@ -226,7 +250,7 @@ $whmServices  = [];
 $whmApiOk     = false;
 $whmAcctCount = null;
 $svcSrc       = 'none';
-$rootFresh    = ($procAge !== null && $procAge <= 180);
+$rootFresh    = ($procAge !== null && $procAge <= $TH['snap_stale']);
 
 if ($rootFresh && $rootSvc) {
     $whmServices = $rootSvc;
@@ -397,11 +421,11 @@ $memAvailPct     = $memTotal  > 0 ? round($memAvailable / $memTotal * 100)      
 // ~%40). Yalnız gerçek bellek baskısı (available düşük VEYA swap kullanımda) varken
 // alarm ver; %75+ ise (kaçak — "76 GB krizi") baskıdan bağımsız kritik, %65+ ise
 // baskı olmasa da erken uyarı. Böylece sağlıklı taban seviyesi boşuna ötmez.
-$memTight        = ($memAvailPct < 12) || ($swapPct >= 10);
-$shmemLevel      = ($shmemPct >= 75)               ? 'err'
-                 : (($memTight && $shmemPct >= 55) ? 'err'
-                 : (($shmemPct >= 65)              ? 'warn'
-                 : (($memTight && $shmemPct >= 40) ? 'warn' : 'ok')));
+$memTight        = ($memAvailPct < $TH['mem_tight_avail']) || ($swapPct >= $TH['mem_tight_swap']);
+$shmemLevel      = ($shmemPct >= $TH['shmem_crit_hard'])               ? 'err'
+                 : (($memTight && $shmemPct >= $TH['shmem_crit'])      ? 'err'
+                 : (($shmemPct >= $TH['shmem_warn_hard'])              ? 'warn'
+                 : (($memTight && $shmemPct >= $TH['shmem_warn'])      ? 'warn' : 'ok')));
 $shmemCol        = $shmemLevel === 'err' ? 'var(--danger)' : ($shmemLevel === 'warn' ? 'var(--warn)' : 'var(--hint)');
 
 // ── Disk ──────────────────────────────────────────────────────
@@ -509,9 +533,10 @@ function measureTcpResponseTime($host, $port, $readBytes = 0) {
 $webResponseTime   = measureWebResponseTime();
 $mysqlResponseTime = measureTcpResponseTime('127.0.0.1', 3306, 4);
 function rtCol($ms) {
-    if ($ms === null) return 'var(--accent)';
-    if ($ms >= 100)   return 'var(--danger)';
-    if ($ms >= 30)    return 'var(--warn)';
+    global $TH;
+    if ($ms === null)              return 'var(--accent)';
+    if ($ms >= $TH['rt_crit'])     return 'var(--danger)';
+    if ($ms >= $TH['rt_warn'])     return 'var(--warn)';
     return 'var(--accent)';
 }
 
@@ -641,7 +666,7 @@ $rState = ($rootFresh && isset($procSec['rstate']) && is_numeric($procSec['rstat
 $inodePct = ($rootFresh && isset($procSec['inode_pct']) && is_numeric($procSec['inode_pct']))
        ? (int)$procSec['inode_pct'] : null;
 $inodeCol = $inodePct === null ? 'var(--hint)'
-          : ($inodePct >= 90 ? 'var(--danger)' : ($inodePct >= 80 ? 'var(--warn)' : 'var(--hint)'));
+          : ($inodePct >= $TH['inode_crit'] ? 'var(--danger)' : ($inodePct >= $TH['inode_warn'] ? 'var(--warn)' : 'var(--hint)'));
 // RAID durumu (cron /proc/mdstat'tan): degraded = disk sessizce ölmüş (RAID5'te
 // ikincisi ölene kadar fark edilmez — asıl izlenmesi gereken bu), resync =
 // rebuild/eşitleme sürüyor. Dizi yoksa (RAID değil) $raidState null.
@@ -731,17 +756,19 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
 // Eşik→renk (metrik kimlik rengi sağlıklıda; sarı/kırmızı override)
 // Mail queue eşiği HESAP BAŞINA (taşınabilir): 1/hesap sarı, 3/hesap kırmızı
 function mqCol($q, $acct) {
+    global $TH;
     if ($q === null) return 'var(--muted)';
     $base = ($acct && $acct > 0) ? $acct : 50; // hesap sayısı yoksa makul taban
-    return $q >= $base * 3 ? 'var(--danger)' : ($q >= $base * 1 ? 'var(--warn)' : 'var(--accent)');
+    return $q >= $base * $TH['mailq_crit_x'] ? 'var(--danger)' : ($q >= $base * $TH['mailq_warn_x'] ? 'var(--warn)' : 'var(--accent)');
 }
 // ÇALIŞAN worker eşiği = ÇEKİRDEK SAYISI standardı: eşzamanlı aktif iş
 // sayısı çekirdek sayısını aşınca işler kuyruklanır (load average mantığı).
 // Sarı = tüm çekirdekler dolu (n >= cores), Kırmızı = kuyruk 2× (n >= 2*cores).
 function lsphpCol($n, $cores) {
+    global $TH;
     if ($n === null) return 'var(--muted)';
     $c = ($cores && $cores > 0) ? $cores : 1;
-    return $n >= $c * 2 ? 'var(--danger)' : ($n >= $c ? 'var(--warn)' : 'var(--accent)');
+    return $n >= $c * $TH['wrk_crit_x'] ? 'var(--danger)' : ($n >= $c * $TH['wrk_warn_x'] ? 'var(--warn)' : 'var(--accent)');
 }
 $mailOk     = array_sum(array_column($mailChecks, 'ok'));
 $mailTotal  = count($mailChecks);
@@ -928,25 +955,25 @@ $mqBase    = ($whmAcctCount && $whmAcctCount > 0) ? $whmAcctCount : 50;
 $loadRatio = $load1 / max($coreCount, 1);
 $sslUnit = $LANG_UI === 'tr' ? 'g' : 'd';
 $health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] — etiketler diller arası t()/tf() ile
-    'load'     => [$loadRatio>=2.0?'err':($loadRatio>=1.0?'warn':'ok'),                          tf('Load %s', number_format($load1,2))],
-    'cpu'      => [hLvlHi($cpuUsage,80,90),                                                       tf('CPU %s%%', $cpuUsage)],
-    'ram'      => [hLvlHi($memUsagePercent,70,85),                                                tf('RAM %s%%', $memUsagePercent)],
-    'disk'     => [hLvlHi($diskUsagePercent,75,90),                                               'Disk '.$diskUsagePercent.'%'],
-    'iow'      => [hLvlHi($ioWait,8,15),                                                          tf('IO wait %s%%', $ioWait)],
-    'net'      => [$netSat===null?'ok':hLvlHi($netSat,70,90),                                     tf('Network %s%%', $netSat)],
-    'inode'    => [$inodePct===null?'ok':hLvlHi($inodePct,80,90),                                 'inode '.$inodePct.'%'],
-    'swap'     => [hLvlHi($swapPct,10,50),                                                        'swap '.$swapPct.'%'],
+    'load'     => [$loadRatio>=$TH['load_crit']?'err':($loadRatio>=$TH['load_warn']?'warn':'ok'), tf('Load %s', number_format($load1,2))],
+    'cpu'      => [hLvlHi($cpuUsage,$TH['cpu_warn'],$TH['cpu_crit']),                             tf('CPU %s%%', $cpuUsage)],
+    'ram'      => [hLvlHi($memUsagePercent,$TH['ram_warn'],$TH['ram_crit']),                      tf('RAM %s%%', $memUsagePercent)],
+    'disk'     => [hLvlHi($diskUsagePercent,$TH['disk_warn'],$TH['disk_crit']),                   'Disk '.$diskUsagePercent.'%'],
+    'iow'      => [hLvlHi($ioWait,$TH['iow_warn'],$TH['iow_crit']),                               tf('IO wait %s%%', $ioWait)],
+    'net'      => [$netSat===null?'ok':hLvlHi($netSat,$TH['net_warn'],$TH['net_crit']),           tf('Network %s%%', $netSat)],
+    'inode'    => [$inodePct===null?'ok':hLvlHi($inodePct,$TH['inode_warn'],$TH['inode_crit']),   'inode '.$inodePct.'%'],
+    'swap'     => [hLvlHi($swapPct,$TH['swap_warn'],$TH['swap_crit']),                            'swap '.$swapPct.'%'],
     'shmem'    => [$shmemLevel,                                                                  'shmem '.$shmemPct.'%'],
     'raid'     => [$raidState==='degraded'?'err':($raidState==='resync'?'warn':'ok'),             $raidTxt!==''?$raidTxt:t('RAID issue')],
     'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   tf('%s RAID mismatch', $raidMismatch)],
     'smart'    => [$smartMsg!==''?'err':'ok',                                                     t('SMART fault')],
-    'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=7?'err':($sslDaysLeft<=30?'warn':'ok')), 'SSL '.$sslDaysLeft.$sslUnit],
-    'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,30,100),                  'Web '.$webResponseTime.'ms'],
-    'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,30,100),              'MySQL '.$mysqlResponseTime.'ms'],
-    'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount,$coreCount*2),               tf('MySQL %s running', $mysqlThr)],
-    'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*3?'err':($mailQ>=$mqBase?'warn':'ok')),    tf('Mail queue %s', $mailQ)],
-    'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*2?'err':($lsphpTotal>=$coreCount?'warn':'ok')), tf('%s PHP workers', $lsphpTotal)],
-    'snap'     => [($procAge===null||$procAge>180)?'warn':'ok',                                   t('Snapshot stale')],
+    'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=$TH['ssl_crit']?'err':($sslDaysLeft<=$TH['ssl_warn']?'warn':'ok')), 'SSL '.$sslDaysLeft.$sslUnit],
+    'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,$TH['rt_warn'],$TH['rt_crit']),   'Web '.$webResponseTime.'ms'],
+    'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,$TH['rt_warn'],$TH['rt_crit']), 'MySQL '.$mysqlResponseTime.'ms'],
+    'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount*$TH['mysqlthr_warn_x'],$coreCount*$TH['mysqlthr_crit_x']), tf('MySQL %s running', $mysqlThr)],
+    'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*$TH['mailq_crit_x']?'err':($mailQ>=$mqBase*$TH['mailq_warn_x']?'warn':'ok')), tf('Mail queue %s', $mailQ)],
+    'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*$TH['wrk_crit_x']?'err':($lsphpTotal>=$coreCount*$TH['wrk_warn_x']?'warn':'ok')), tf('%s PHP workers', $lsphpTotal)],
+    'snap'     => [($procAge===null||$procAge>$TH['snap_stale'])?'warn':'ok',                     t('Snapshot stale')],
 ];
 foreach (['Web'=>$webStatus,'Mail'=>$mailStatus,'DNS'=>$dnsStatus,'Security'=>$secStatus,'Database'=>$dbStatus,'Cache'=>$cacheStatus,'FTP'=>$ftpStatus] as $n=>$st) {
     $health['svc_'.strtolower($n)] = [$st==='offline'?'err':($st==='degraded'?'warn':'ok'), t($n).' '.t(ucfirst($st))];
@@ -966,9 +993,9 @@ if ($allIssues) {
     if (count($allIssues) > 5) $overallDetail .= ' · +'.(count($allIssues)-5);
 }
 // Metrik kartı renkleri — kendi metriği + ilgili alt-sinyallerin en kötüsü.
-$netRxCol    = scolCss((int)$netRxSat, 70, 90, 'var(--accent)'); // Network IN/OUT değer+spark rengi
-$netTxCol    = scolCss((int)$netTxSat, 70, 90, 'var(--accent)');
-$mysqlThrCol = $mysqlThr === null ? 'var(--hint)' : scolCss($mysqlThr, $coreCount, $coreCount*2, 'var(--hint)'); // Threads_running
+$netRxCol    = scolCss((int)$netRxSat, $TH['net_warn'], $TH['net_crit'], 'var(--accent)'); // Network IN/OUT değer+spark rengi
+$netTxCol    = scolCss((int)$netTxSat, $TH['net_warn'], $TH['net_crit'], 'var(--accent)');
+$mysqlThrCol = $mysqlThr === null ? 'var(--hint)' : scolCss($mysqlThr, $coreCount*$TH['mysqlthr_warn_x'], $coreCount*$TH['mysqlthr_crit_x'], 'var(--hint)'); // Threads_running
 $cpuCardCol  = hCol($health['cpu'][0], 'var(--c-cpu)');
 $ramCardCol  = hCol(hWorst($health['ram'][0],  $health['swap'][0],  $health['shmem'][0]), 'var(--c-ram)');
 $diskCardCol = hCol(hWorst($health['disk'][0], $health['inode'][0], $health['raid'][0], $health['mismatch'][0], $health['smart'][0]), 'var(--c-disk)');
@@ -976,8 +1003,8 @@ $iowCardCol  = hCol($health['iow'][0], 'var(--c-iow)');
 
 $sslColorCss = 'var(--accent)';
 if ($sslDaysLeft !== null) {
-    if ($sslDaysLeft <= 7)      $sslColorCss = 'var(--danger)';
-    elseif ($sslDaysLeft <= 30) $sslColorCss = 'var(--warn)';
+    if ($sslDaysLeft <= $TH['ssl_crit'])      $sslColorCss = 'var(--danger)';
+    elseif ($sslDaysLeft <= $TH['ssl_warn']) $sslColorCss = 'var(--warn)';
 }
 
 
@@ -1052,19 +1079,19 @@ if (!empty($histSeed['t'])) {
             if ($tn !== '') $sfx = ' — ' . t('top:') . ' ' . str_replace('_', ' ', $tn) . ' ' . (int)$tc . '%';
         }
         $chk = [
-            'load' => [$l1v / max($coreCount, 1), 2.0, 1.0,
+            'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
                        tf('High load: %s (1m)%s', number_format($l1v, 2), $sfx),
                        tf('Load elevated: %s (1m)%s', number_format($l1v, 2), $sfx),
                        tf('Load back to normal: %s', number_format($l1v, 2))],
-            'cpu'  => [$histSeed['cpu'][$i], 90, 80,
+            'cpu'  => [$histSeed['cpu'][$i], $TH['cpu_crit'], $TH['cpu_warn'],
                        tf('CPU critical: %s%%%s', $histSeed['cpu'][$i], $sfx),
                        tf('CPU high: %s%%%s', $histSeed['cpu'][$i], $sfx),
                        tf('CPU back to normal: %s%%', $histSeed['cpu'][$i])],
-            'ram'  => [$histSeed['ram'][$i], 85, 70,
+            'ram'  => [$histSeed['ram'][$i], $TH['ram_crit'], $TH['ram_warn'],
                        tf('RAM critical: %s%%', $histSeed['ram'][$i]),
                        tf('RAM high: %s%%', $histSeed['ram'][$i]),
                        tf('RAM back to normal: %s%%', $histSeed['ram'][$i])],
-            'iow'  => [$histSeed['iow'][$i], 15, 8,
+            'iow'  => [$histSeed['iow'][$i], $TH['iow_crit'], $TH['iow_warn'],
                        tf('IO Wait critical: %s%%%s', $histSeed['iow'][$i], $sfx),
                        tf('IO Wait high: %s%%%s', $histSeed['iow'][$i], $sfx),
                        tf('IO Wait back to normal: %s%%', $histSeed['iow'][$i])],
@@ -1086,7 +1113,7 @@ if (!empty($histSeed['t'])) {
 // bu da Event log'a düşer (mail ekinde de görünür), köşedeki STALE
 // etiketiyle sınırlı kalmaz.
 $seedLvl['snap'] = 'ok';
-if ($procAge === null || $procAge > 180) {
+if ($procAge === null || $procAge > $TH['snap_stale']) {
     $seedLvl['snap'] = 'err';
     $seedLogs[] = ['type' => 'err',
         'msg'  => $procAge === null
@@ -1098,10 +1125,10 @@ if ($procAge === null || $procAge > 180) {
 // Swap kullanımı — RAM baskısının en erken habercisi. Eşik ORANSAL (swap'ın
 // %'si): >=%50 kritik, >=%10 uyarı. Düz MB farklı swap boyutlarında yanıltırdı.
 $seedLvl['swap'] = 'ok';
-if ($swapPct >= 50) {
+if ($swapPct >= $TH['swap_crit']) {
     $seedLvl['swap'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Swap heavily in use: %s GB (%s%%)', $swapUsedGB, $swapPct), 'ts' => date('H:i')];
-} elseif ($swapPct >= 10) {
+} elseif ($swapPct >= $TH['swap_warn']) {
     $seedLvl['swap'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Swap in use: %s GB (%s%%)', $swapUsedGB, $swapPct), 'ts' => date('H:i')];
 }
@@ -1114,10 +1141,10 @@ if ($shmemLevel === 'err') {
 }
 // Inode — disk alanı boşken bile tükenirse sunucu çöker. Eşik %90/%80.
 $seedLvl['inode'] = 'ok';
-if ($inodePct !== null && $inodePct >= 90) {
+if ($inodePct !== null && $inodePct >= $TH['inode_crit']) {
     $seedLvl['inode'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Inodes critically high: %s%% (disk may fail despite free space)', $inodePct), 'ts' => date('H:i')];
-} elseif ($inodePct !== null && $inodePct >= 80) {
+} elseif ($inodePct !== null && $inodePct >= $TH['inode_warn']) {
     $seedLvl['inode'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Inode usage high: %s%%', $inodePct), 'ts' => date('H:i')];
 }
@@ -1144,47 +1171,47 @@ if ($smartMsg !== '') {
 }
 // Ağ hattı doygunluğu — hattın kendi hızının %'si (warn %70 / err %90).
 $seedLvl['net'] = 'ok';
-if ($netSat !== null && $netSat >= 90) {
+if ($netSat !== null && $netSat >= $TH['net_crit']) {
     $seedLvl['net'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Network link saturated: %s%% of line rate', $netSat), 'ts' => date('H:i')];
-} elseif ($netSat !== null && $netSat >= 70) {
+} elseif ($netSat !== null && $netSat >= $TH['net_warn']) {
     $seedLvl['net'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Network link busy: %s%% of line rate', $netSat), 'ts' => date('H:i')];
 }
 // Threads_running — DB'de aynı anda koşan sorgu (çekirdeğe oranlı: warn ≥ N / err ≥ 2N).
 $seedLvl['mysqlthr'] = 'ok';
-if ($mysqlThr !== null && $mysqlThr >= $coreCount * 2) {
+if ($mysqlThr !== null && $mysqlThr >= $coreCount * $TH['mysqlthr_crit_x']) {
     $seedLvl['mysqlthr'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL threads_running very high: %s (query pileup)', $mysqlThr), 'ts' => date('H:i')];
-} elseif ($mysqlThr !== null && $mysqlThr >= $coreCount) {
+} elseif ($mysqlThr !== null && $mysqlThr >= $coreCount * $TH['mysqlthr_warn_x']) {
     $seedLvl['mysqlthr'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL threads_running elevated: %s', $mysqlThr), 'ts' => date('H:i')];
 }
 // PHP workers (aktif lsphp, R/D) — çekirdeğe oranlı: warn ≥ N / err ≥ 2N. Birleşik
 // sağlığa (header suçluları) giriyordu ama event log'a düşmüyordu; burada seed'lenir.
 $seedLvl['wrk'] = 'ok';
-if ($lsphpTotal !== null && $lsphpTotal >= $coreCount * 2) {
+if ($lsphpTotal !== null && $lsphpTotal >= $coreCount * $TH['wrk_crit_x']) {
     $seedLvl['wrk'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('PHP workers very high: %s', $lsphpTotal), 'ts' => date('H:i')];
-} elseif ($lsphpTotal !== null && $lsphpTotal >= $coreCount) {
+} elseif ($lsphpTotal !== null && $lsphpTotal >= $coreCount * $TH['wrk_warn_x']) {
     $seedLvl['wrk'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('PHP workers elevated: %s', $lsphpTotal), 'ts' => date('H:i')];
 }
 // Disk kullanımı — warn %75 / err %90. Header sağlığına giriyordu ama event log'a düşmüyordu.
 $seedLvl['disk'] = 'ok';
-if ($diskUsagePercent >= 90) {
+if ($diskUsagePercent >= $TH['disk_crit']) {
     $seedLvl['disk'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Disk critically full: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
-} elseif ($diskUsagePercent >= 75) {
+} elseif ($diskUsagePercent >= $TH['disk_warn']) {
     $seedLvl['disk'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Disk usage high: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
 }
 // Mail kuyruğu — hesaba oranlı (warn ≥ hesap / err ≥ 3×). Header sağlığına giriyordu ama loglanmıyordu.
 $seedLvl['mailq'] = 'ok';
-if ($mailQ !== null && $mailQ >= $mqBase * 3) {
+if ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_crit_x']) {
     $seedLvl['mailq'] = 'err';
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Mail queue very high: %s messages', $mailQ), 'ts' => date('H:i')];
-} elseif ($mailQ !== null && $mailQ >= $mqBase) {
+} elseif ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_warn_x']) {
     $seedLvl['mailq'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Mail queue elevated: %s messages', $mailQ), 'ts' => date('H:i')];
 }
@@ -1292,7 +1319,7 @@ function blabel($s) { return t($s === 'operational' ? 'Operational' : ($s === 'd
 // Mail eklerinde JS ölü olabilir (taşıma katmanı 998+ baytlık satırları
 // kırar, kısıtlı ortamlar script'i engelleyebilir). Grafikler bu yüzden
 // PHP'de SVG olarak da çizilir; canlıda JS ilk karesini çizince SVG'yi söker.
-function lcolCss($v, $t, $ok = 'var(--accent)') { $r = $v / max($t, 1); return $r >= 2.0 ? 'var(--danger)' : ($r >= 1.0 ? 'var(--warn)' : $ok); } // 1.0×=doygun / 2.0×=aşırı yük
+function lcolCss($v, $t, $ok = 'var(--accent)') { global $TH; $r = $v / max($t, 1); return $r >= $TH['load_crit'] ? 'var(--danger)' : ($r >= $TH['load_warn'] ? 'var(--warn)' : $ok); } // warn×=doygun / crit×=aşırı yük
 function scolCss($v, $hi, $cr, $ok = 'var(--accent)') { return $v >= $cr ? 'var(--danger)' : ($v >= $hi ? 'var(--warn)' : $ok); }
 
 function svgSpark($data, $W, $H, $col, $ssrId) {
@@ -2030,7 +2057,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
 <div class="sec" style="margin-top:12px"><?=t('Processes')?>
-  <span class="proc-age<?=($procAge !== null && $procAge > 180) ? ' stale' : ''?>" id="proc-age">&middot; <?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > 180) ? ' — ' . t('STALE (cron?)') : ''?></span>
+  <span class="proc-age<?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' stale' : ''?>" id="proc-age">&middot; <?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' — ' . t('STALE (cron?)') : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
 <div class="proc-row" id="proc-row"><?=renderProcTables($procCpu, $procRam, $procPhp, $diskAcct)?></div>
@@ -2105,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ── JS i18n — PHP ile aynı sözlük; İngilizce anahtar, TR karşılık ────────────
+const TH=<?=json_encode($TH)?>; // eşikler — PHP $TH ile TEK kaynak (config 'thresholds' dahil)
 const LANG_UI=<?=json_encode($LANG_UI)?>;
 const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
@@ -2154,7 +2182,7 @@ const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'
 const mpend={};
 function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
 function checkSnap(data,now){
-  const sl=(data.procAge==null||data.procAge>180)?'err':'ok';
+  const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'err':'ok';
   if(sl!==mlvl.snap){
     if(sl==='err')addLog('err',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
     else addLog('ok',tf('Root snapshot fresh again (%ss)',data.procAge),now);
@@ -2173,8 +2201,8 @@ function transLog(key,v,cr,hi,mErr,mWarn,mOk,now){
 }
 
 function scol(v,hi,cr,ok){return v>=cr?'var(--danger)':v>=hi?'var(--warn)':(ok||'var(--accent)');}
-function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=2.0?'var(--danger)':r>=1.0?'var(--warn)':(ok||'var(--accent)');}
-function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=100)return'var(--danger)';if(ms>=30)return'var(--warn)';return'var(--accent)';}
+function lcol(v,t,ok){const r=v/Math.max(t,1);return r>=TH.load_crit?'var(--danger)':r>=TH.load_warn?'var(--warn)':(ok||'var(--accent)');}
+function rtcol(ms){if(ms==null)return'var(--accent)';if(ms>=TH.rt_crit)return'var(--danger)';if(ms>=TH.rt_warn)return'var(--warn)';return'var(--accent)';}
 // IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
 function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
@@ -2225,10 +2253,10 @@ function redrawSparks(){
   spark('sp-l1',hist.l1,lcol(L('l1'),t),80,32);
   spark('sp-l5',hist.l5,lcol(L('l5'),t),80,32);
   spark('sp-l15',hist.l15,lcol(L('l15'),t),80,32);
-  spark('sp-cpu',hist.cpu,lastCardCol.cpu||scol(L('cpu'),80,90,'var(--c-cpu)'),70,24);
-  spark('sp-ram',hist.ram,lastCardCol.ram||scol(L('ram'),70,85,'var(--c-ram)'),70,24);
-  spark('sp-disk',hist.disk,lastCardCol.disk||scol(L('disk'),75,90,'var(--c-disk)'),70,24);
-  spark('sp-iow',hist.iow,lastCardCol.iow||scol(L('iow'),8,15,'var(--c-iow)'),70,24);
+  spark('sp-cpu',hist.cpu,lastCardCol.cpu||scol(L('cpu'),TH.cpu_warn,TH.cpu_crit,'var(--c-cpu)'),70,24);
+  spark('sp-ram',hist.ram,lastCardCol.ram||scol(L('ram'),TH.ram_warn,TH.ram_crit,'var(--c-ram)'),70,24);
+  spark('sp-disk',hist.disk,lastCardCol.disk||scol(L('disk'),TH.disk_warn,TH.disk_crit,'var(--c-disk)'),70,24);
+  spark('sp-iow',hist.iow,lastCardCol.iow||scol(L('iow'),TH.iow_warn,TH.iow_crit,'var(--c-iow)'),70,24);
   spark('sp-wrk',hist.wrk,'var(--accent)',64,30);
   spark('sp-rx',hist.rx,lastCardCol.rx||'var(--accent)',64,30);
   spark('sp-tx',hist.tx,lastCardCol.tx||'var(--accent)',64,30);
@@ -2447,7 +2475,7 @@ function renderProcs(data){
   if(!document.getElementById('proc-row'))return;
   const age=document.getElementById('proc-age');
   if(age&&data.procAge!=null){
-    const stale=data.procAge>180;
+    const stale=data.procAge>TH.snap_stale;
     age.textContent=' · '+tf('root snapshot, %ss ago',data.procAge)+(stale?' — '+t('STALE (cron?)'):'');
     age.className='proc-age'+(stale?' stale':'');
   }
@@ -2542,46 +2570,46 @@ function checkAlerts(data){
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
   let top='';
-  if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=180){
+  if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=TH.snap_stale){
     const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
     if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
   }
-  transLog('load',data.load1/cores,2.0,1.0,
+  transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load back to normal: %s',data.load1.toFixed(2)),now);
-  transLog('cpu',data.cpu,90,80,
+  transLog('cpu',data.cpu,TH.cpu_crit,TH.cpu_warn,
     tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);
-  transLog('ram',data.ram,85,70,
+  transLog('ram',data.ram,TH.ram_crit,TH.ram_warn,
     tf('RAM critical: %s%%',data.ram),tf('RAM high: %s%%',data.ram),tf('RAM back to normal: %s%%',data.ram),now);
-  transLog('iow',data.iowait,15,8,
+  transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
     tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
-  if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,50,10,
+  if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
     tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
   // shmem AKILLI (PHP $shmemLevel ile birebir): yalnız bellek baskısı (available<%12
   // veya swap≥%10) varken alarm; %75+ kaçak her durumda kritik, %65+ erken uyarı.
   // Seviye sentetik değere çevrilip transLog'un 2-tick doğrulaması korunur.
   if(data.shmemPct!=null){
-    const tight=(data.memAvailPct!=null&&data.memAvailPct<12)||(data.swapPct>=10);
-    const sh=(data.shmemPct>=75)?'err':(tight&&data.shmemPct>=55)?'err':(data.shmemPct>=65)?'warn':(tight&&data.shmemPct>=40)?'warn':'ok';
+    const tight=(data.memAvailPct!=null&&data.memAvailPct<TH.mem_tight_avail)||(data.swapPct>=TH.mem_tight_swap);
+    const sh=(data.shmemPct>=TH.shmem_crit_hard)?'err':(tight&&data.shmemPct>=TH.shmem_crit)?'err':(data.shmemPct>=TH.shmem_warn_hard)?'warn':(tight&&data.shmemPct>=TH.shmem_warn)?'warn':'ok';
     transLog('shmem', sh==='err'?100:sh==='warn'?45:0, 55,40,
       tf('Shared memory very high: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),tf('Shared memory elevated: %s GB (%s%% of RAM)',data.shmemGB,data.shmemPct),t('Shared memory back to normal'),now);
   }
-  if(data.inodePct!=null)transLog('inode',data.inodePct,90,80,
+  if(data.inodePct!=null)transLog('inode',data.inodePct,TH.inode_crit,TH.inode_warn,
     tf('Inodes critically high: %s%% (disk may fail despite free space)',data.inodePct),tf('Inode usage high: %s%%',data.inodePct),t('Inode usage back to normal'),now);
   if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
-    transLog('net',ns,90,70,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
+    transLog('net',ns,TH.net_crit,TH.net_warn,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
   if(data.mysqlThr!=null){const cc=data.coreCount||1;
-    transLog('mysqlthr',data.mysqlThr,cc*2,cc,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
+    transLog('mysqlthr',data.mysqlThr,cc*TH.mysqlthr_crit_x,cc*TH.mysqlthr_warn_x,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
   // PHP workers (aktif lsphp) — header birleşik sağlığıyla aynı eşik (warn ≥ çekirdek / err ≥ 2×); event log'a da düşsün.
   if(data.lsphpTotal!=null){const cc=data.coreCount||1;
-    transLog('wrk',data.lsphpTotal,cc*2,cc,tf('PHP workers very high: %s',data.lsphpTotal),tf('PHP workers elevated: %s',data.lsphpTotal),t('PHP workers back to normal'),now);}
+    transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s',data.lsphpTotal),tf('PHP workers elevated: %s',data.lsphpTotal),t('PHP workers back to normal'),now);}
   // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
-  if(data.disk!=null)transLog('disk',data.disk,90,75,
+  if(data.disk!=null)transLog('disk',data.disk,TH.disk_crit,TH.disk_warn,
     tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);
   // Mail kuyruğu — hesap sayısına oranlı (warn ≥ hesap / crit ≥ 3×); header sağlığıyla aynı.
   if(data.mailQ!=null){const b=data.acctForMailq||50;
-    transLog('mailq',data.mailQ,b*3,b,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
+    transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
   if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
     if(rl!==mlvl.raid){
       if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);
@@ -2598,14 +2626,14 @@ function checkAlerts(data){
      if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
      else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
-  if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,100,100,
+  if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.rt_crit,TH.rt_crit,
     tf('Web response time high: %sms',data.webResponseTime),'',
     tf('Web response time normal: %sms',data.webResponseTime),now);
-  if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,100,100,
+  if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,TH.rt_crit,TH.rt_crit,
     tf('MySQL response time high: %sms',data.mysqlResponseTime),'',
     tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
   if(data.sslDaysLeft!=null){
-    const sl=data.sslDaysLeft<=7?'err':(data.sslDaysLeft<=30?'warn':'ok');
+    const sl=data.sslDaysLeft<=TH.ssl_crit?'err':(data.sslDaysLeft<=TH.ssl_warn?'warn':'ok');
     if(sl!==mlvl.ssl){
       if(sl==='err')addLog('err',tf('SSL expires in %s days!',data.sslDaysLeft),now);
       else if(sl==='warn')addLog('warn',tf('SSL expires in %s days',data.sslDaysLeft),now);
@@ -2654,7 +2682,7 @@ function applyMetrics(data){
   // kartı RAID/SMART/inode sorununda da kızarır, %'si düşük olsa bile. Snapshot
   // eksikse metriğin kendi eşik rengine düşülür; redrawSparks (tema) için stash.
   const cc=data.cardCol||{};
-  lastCardCol={cpu:cc.cpu||scol(data.cpu,80,90,'var(--c-cpu)'),ram:cc.ram||scol(data.ram,70,85,'var(--c-ram)'),disk:cc.disk||scol(data.disk,75,90,'var(--c-disk)'),iow:cc.iow||scol(data.iowait,8,15,'var(--c-iow)'),rx:data.netRxCol||'var(--accent)',tx:data.netTxCol||'var(--accent)'};
+  lastCardCol={cpu:cc.cpu||scol(data.cpu,TH.cpu_warn,TH.cpu_crit,'var(--c-cpu)'),ram:cc.ram||scol(data.ram,TH.ram_warn,TH.ram_crit,'var(--c-ram)'),disk:cc.disk||scol(data.disk,TH.disk_warn,TH.disk_crit,'var(--c-disk)'),iow:cc.iow||scol(data.iowait,TH.iow_warn,TH.iow_crit,'var(--c-iow)'),rx:data.netRxCol||'var(--accent)',tx:data.netTxCol||'var(--accent)'};
   setRes('rv-cpu','rc-cpu','rb-cpu','sp-cpu','rm-cpu','cpu',data.cpu,lastCardCol.cpu,cpuMeta(data));
   setRes('rv-ram','rc-ram','rb-ram','sp-ram','rm-ram','ram',data.ram,lastCardCol.ram,ramMeta(data));
   setRes('rv-disk','rc-disk','rb-disk','sp-disk','rm-disk','disk',data.disk,lastCardCol.disk,diskMeta(data));
@@ -2685,15 +2713,15 @@ function render(data){
   const em=document.getElementById('iv-mysql');
   if(em){em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=rtcol(data.mysqlResponseTime);}
   if(data.acctCount!=null){const e=document.getElementById('iv-acct');if(e)e.textContent=data.acctCount;}
-  {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*3?'var(--danger)':q>=b*1?'var(--warn)':'var(--accent)';}}
+  {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*TH.mailq_crit_x?'var(--danger)':q>=b*TH.mailq_warn_x?'var(--warn)':'var(--accent)';}}
   {const q=data.mqRaw;if(q!=null){push(hist.mq,q);spark('sp-mq',hist.mq,'var(--accent)',64,30);}}
   if(data.lsphpIdle!=null)lsphpIdle=data.lsphpIdle;
   {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
-  {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*2?'var(--danger)':n>=c?'var(--warn)':'var(--accent)';}}
+  {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*TH.wrk_crit_x?'var(--danger)':n>=c*TH.wrk_warn_x?'var(--warn)':'var(--accent)';}}
   {const n=data.lsphpTotal;if(n!=null){push(hist.wrk,n);spark('sp-wrk',hist.wrk,'var(--accent)',64,30);}}
   if(data.sslDaysLeft!=null){
     const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
-    const col=data.sslDaysLeft<=7?'var(--danger)':data.sslDaysLeft<=30?'var(--warn)':'var(--accent)';
+    const col=data.sslDaysLeft<=TH.ssl_crit?'var(--danger)':data.sslDaysLeft<=TH.ssl_warn?'var(--warn)':'var(--accent)';
     if(e){e.textContent=data.sslDaysLeft+' '+t('days');e.style.color=col;}
     if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
   }
@@ -2764,10 +2792,10 @@ renderLog();
   spark('sp-l1',hist.l1,lcol(init.l1,init.t),80,32);
   spark('sp-l5',hist.l5,lcol(init.l5,init.t),80,32);
   spark('sp-l15',hist.l15,lcol(init.l15,init.t),80,32);
-  spark('sp-cpu',hist.cpu,scol(init.cpu,80,90,'var(--c-cpu)'),70,24);
-  spark('sp-ram',hist.ram,scol(init.ram,70,85,'var(--c-ram)'),70,24);
-  spark('sp-disk',hist.disk,scol(init.disk,75,90,'var(--c-disk)'),70,24);
-  spark('sp-iow',hist.iow,scol(init.iow,8,15,'var(--c-iow)'),70,24);
+  spark('sp-cpu',hist.cpu,scol(init.cpu,TH.cpu_warn,TH.cpu_crit,'var(--c-cpu)'),70,24);
+  spark('sp-ram',hist.ram,scol(init.ram,TH.ram_warn,TH.ram_crit,'var(--c-ram)'),70,24);
+  spark('sp-disk',hist.disk,scol(init.disk,TH.disk_warn,TH.disk_crit,'var(--c-disk)'),70,24);
+  spark('sp-iow',hist.iow,scol(init.iow,TH.iow_warn,TH.iow_crit,'var(--c-iow)'),70,24);
   spark('sp-wrk',hist.wrk,'var(--accent)',64,30);
   spark('sp-rx',hist.rx,lastCardCol.rx||'var(--accent)',64,30);
   spark('sp-tx',hist.tx,lastCardCol.tx||'var(--accent)',64,30);

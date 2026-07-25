@@ -35,6 +35,17 @@ return [
     // IP allowlist (see README "Securing the dashboard").
     // 'access_key' => '',
 
+    // ── Thresholds (optional) ─────────────────────────────────
+    // Override any alert/color threshold; unlisted keys keep their defaults.
+    // The same values drive the server render, the CSF mail attachment, and
+    // the live 30s ticks — one source. Full key list & defaults: README
+    // "Thresholds". Examples:
+    // 'thresholds' => [
+    //     'ram_warn'   => 80,   // % (default 70)
+    //     'shmem_warn' => 50,   // % of RAM under memory pressure (default 40)
+    //     'ssl_warn'   => 14,   // days left (default 30)
+    // ],
+
     // ── Footer credit (optional) ──────────────────────────────
     // Small attribution link in the footer. Set to your own, or '' to hide.
     'credit_text'   => 'Ayzeta',

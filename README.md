@@ -225,6 +225,11 @@ web account ── index.php ◀──────────────┘  r
 
 ## Thresholds (defaults)
 
+Every value below can be overridden per-server from `config.php` —
+`'thresholds' => ['ram_warn' => 80, ...]` (see
+[`config.php.example`](config.php.example)). One definition drives the server
+render, the CSF mail attachment, and the live 30-second ticks alike.
+
 | Metric | warn | critical |
 |--------|------|----------|
 | Load   | ≥ 1.0× cores (at capacity) | ≥ 2.0× cores (overloaded) |
