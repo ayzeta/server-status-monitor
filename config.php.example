@@ -26,6 +26,15 @@ return [
     // Empty → a generated colored tile with the title initial.
     'favicon_url'   => '', // e.g. 'https://example.com/img/favicon-96.png'
 
+    // ── Access key (optional) ─────────────────────────────────
+    // When set, every request must carry the key: open ?key=YOUR-KEY once in the
+    // browser (a cookie remembers it), and append it to integration URLs —
+    // CSF: PT_APACHESTATUS = "https://.../status/?key=YOUR-KEY"
+    // WHMCS status address:  https://.../status/?raw=1&key=YOUR-KEY
+    // Empty = disabled. Use a long random string. Combines with the .htaccess
+    // IP allowlist (see README "Securing the dashboard").
+    // 'access_key' => '',
+
     // ── Footer credit (optional) ──────────────────────────────
     // Small attribution link in the footer. Set to your own, or '' to hide.
     'credit_text'   => 'Ayzeta',

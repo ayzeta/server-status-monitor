@@ -20,6 +20,27 @@ $CREDIT_URL  = $cfg['credit_url']    ?? 'https://ayzeta.net';
 $_tw = array_values(array_filter(preg_split('/\s+/', trim($SITE_TITLE)))); // logo yoksa baş harfler (substr: mbstring garanti değil)
 $INITIALS = strtoupper(count($_tw) >= 2 ? substr($_tw[0], 0, 1) . substr($_tw[1], 0, 1) : substr(($_tw[0] ?? 'SM'), 0, 2));
 
+// ── Erişim anahtarı (opsiyonel; .htaccess IP allowlist'in alternatifi/eki) ──
+// config 'access_key' doluysa her istek anahtarı taşımalı: ?key=... (ilk doğru
+// girişte 1 yıllık cookie yazılır, sonrası cookie ile) — CSF/WHMCS gibi cookie
+// tutmayan tüketiciler anahtarı URL'de taşır (PT_APACHESTATUS / ?raw=1&key=).
+// Boş anahtar = özellik kapalı. 403 kasıtlı olarak markasız/bilgisiz.
+$ACCESS_KEY = (string)($cfg['access_key'] ?? '');
+if ($ACCESS_KEY !== '') {
+    $givenKey = (string)($_GET['key'] ?? ($_COOKIE['az_key'] ?? ''));
+    if (!hash_equals($ACCESS_KEY, $givenKey)) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        exit("Forbidden\n");
+    }
+    if (isset($_GET['key']) && !isset($_COOKIE['az_key'])) {
+        setcookie('az_key', $ACCESS_KEY, [
+            'expires' => time() + 31536000, 'path' => '/',
+            'secure'  => !empty($_SERVER['HTTPS']), 'httponly' => true, 'samesite' => 'Lax',
+        ]);
+    }
+}
+
 // ── Dil (i18n) ────────────────────────────────────────────────
 // UI dili = cookie ?? config['lang'] ?? 'en'. Cookie, arayüzdeki dil düğmesiyle
 // set edilir → hem sunucu-render hem JS aynı dili kullanır. Mail eki (cookie yok)
@@ -1176,6 +1197,7 @@ if ($mailQ !== null && $mailQ >= $mqBase * 3) {
 // ════════════════════════════════════════════════════════════════
 if (isset($_GET['raw'])) {
     header('Content-Type: text/plain; charset=utf-8');
+    header('Cache-Control: no-store'); // anlık durum — ara proxy'ler önbelleklemesin
     echo "<load>{$load15}</load>\n";
     echo "<uptime>{$uptimeFormatted}</uptime>\n";
     exit;
@@ -1183,6 +1205,7 @@ if (isset($_GET['raw'])) {
 
 if (isset($_GET['json'])) {
     header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store'); // 30sn tick'i taze kalsın — ara proxy'ler önbelleklemesin
     echo json_encode([
         'hostname'          => gethostname(), 'threads' => $coreCount,
         'time'              => date('Y-m-d H:i:s'),

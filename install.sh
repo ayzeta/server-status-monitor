@@ -20,6 +20,7 @@ command -v whmapi1 >/dev/null 2>&1 || echo "WARNING: whmapi1 not found — this 
 # ── Defaults (overridden by a previous run) ─────────────────────
 WEB_USER=""; WEB_SUBDIR="public_html/status"; DATA_DIR="/root/server-status-monitor"
 SITE_TITLE="Infrastructure Monitor"; SITE_SUBTITLE=""; LOGO_URL=""; FAVICON_URL=""
+ALLOW_IPS=""; ACCESS_KEY=""
 [ -f "$CONF" ] && . "$CONF"
 
 ask() { local p="$1" d="$2" v; read -r -p "$p [$d]: " v || true; echo "${v:-$d}"; }
@@ -48,6 +49,16 @@ else
   SITE_SUBTITLE="$(ask 'Site subtitle' "$SITE_SUBTITLE")"
   LOGO_URL="$(ask 'Logo URL (blank = initials)' "$LOGO_URL")"
   FAVICON_URL="$(ask 'Favicon URL, same-origin (blank = generated tile)' "$FAVICON_URL")"
+  # Erişim kısıtı (önerilir): panel sürüm/hesap adı/süreç komutu gösterir — herkese
+  # açık kalmamalı. IP verilirse .htaccess allowlist yazılır; boş = atla.
+  echo "Access restriction (recommended): the dashboard shows versions, account"
+  echo "names and process commands. Enter your static IP(s) to write an .htaccess"
+  echo "allowlist (server's own IP + loopback stay allowed for CSF/WHMCS fetches)."
+  ALLOW_IPS="$(ask 'Allowed IPs, space-separated (blank = skip)' "$ALLOW_IPS")"
+  # Sabit IP'si olmayanlar için alternatif/ek katman: erişim anahtarı (?key=...).
+  echo "No static IP? An access key protects the page instead (or in addition):"
+  echo "visitors need ?key=... once; CSF/WHMCS URLs carry it as a parameter."
+  ACCESS_KEY="$(ask 'Access key, long random string (blank = none)' "$ACCESS_KEY")"
 
   WEB_DIR="$HOME_DIR/$WEB_SUBDIR"
   echo
@@ -60,6 +71,7 @@ else
   cat > "$CONF" <<EOF
 WEB_USER="$WEB_USER"; WEB_SUBDIR="$WEB_SUBDIR"; DATA_DIR="$DATA_DIR"
 SITE_TITLE="$SITE_TITLE"; SITE_SUBTITLE="$SITE_SUBTITLE"; LOGO_URL="$LOGO_URL"; FAVICON_URL="$FAVICON_URL"
+ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"
 EOF
 fi
 
@@ -87,6 +99,7 @@ else
   'site_subtitle' => '$(printf '%s' "$SITE_SUBTITLE" | sed "s/'/\\\\'/g")',
   'logo_url'      => '$(printf '%s' "$LOGO_URL"      | sed "s/'/\\\\'/g")',
   'favicon_url'   => '$(printf '%s' "$FAVICON_URL"   | sed "s/'/\\\\'/g")',
+  'access_key'    => '$(printf '%s' "$ACCESS_KEY"    | sed "s/'/\\\\'/g")',
 );
 EOF
   chown "$WEB_USER:$WEB_USER" "$WEB_DIR/config.php"
@@ -94,6 +107,32 @@ EOF
 fi
 chown "$WEB_USER:$WEB_USER" "$WEB_DIR/index.php"
 chmod 644 "$WEB_DIR/index.php"
+
+# ── Access control (.htaccess IP allowlist, optional) ───────────
+# Marker'lı blok: bizim dosyamızı günceller, kullanıcının kendi .htaccess'ine
+# (marker yoksa) DOKUNMAZ. Loopback + sunucunun kendi IP'si daima izinli kalır —
+# CSF'nin PT_APACHESTATUS çekmesi sunucunun kendisinden gelir.
+HTFILE="$WEB_DIR/.htaccess"; HTMARK="server-status-monitor access control"
+if [ -n "${ALLOW_IPS:-}" ]; then
+  if [ -f "$HTFILE" ] && ! grep -q "$HTMARK" "$HTFILE"; then
+    echo "NOTE: $HTFILE exists and isn't managed by this installer — left untouched."
+    echo "      Add your own 'Require ip' rules there manually."
+  else
+    SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    cat > "$HTFILE" <<EOF
+# BEGIN $HTMARK (managed by install.sh — this file is rewritten on re-install)
+# Loopback + the server's own IP stay allowed so CSF's high-load fetch works.
+# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP to the list below.
+<RequireAny>
+  Require ip 127.0.0.1 ::1${SERVER_IP:+ $SERVER_IP}
+  Require ip $ALLOW_IPS
+</RequireAny>
+# END $HTMARK
+EOF
+    chown "$WEB_USER:$WEB_USER" "$HTFILE"; chmod 644 "$HTFILE"
+    echo "Access restricted to: $ALLOW_IPS  (+ ${SERVER_IP:-server IP} & loopback for CSF)"
+  fi
+fi
 
 # ── Cron (idempotent; safe under set -e) ────────────────────────
 CRON_LINE="* * * * * $DATA_DIR/collector.sh >/dev/null 2>&1"
@@ -116,3 +155,8 @@ URL_PATH="${WEB_SUBDIR#public_html}"; URL_PATH="${URL_PATH#/}"
 echo "Dashboard: https://<your-domain>/$URL_PATH   (files at $WEB_DIR)"
 echo "Collector: $DATA_DIR/collector.sh  (cron: every minute)"
 echo "Edit branding later in $WEB_DIR/config.php, or re-run this installer."
+if [ -n "${ACCESS_KEY:-}" ]; then
+  echo "Access key active — integration URLs must carry it:"
+  echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH?key=$ACCESS_KEY\""
+  echo "  WHMCS: https://<your-domain>/$URL_PATH?raw=1&key=$ACCESS_KEY"
+fi

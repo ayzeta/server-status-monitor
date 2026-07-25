@@ -87,6 +87,43 @@ jailed/unprivileged) the root collector must drop its feed into that account's h
 `monitor` cPanel user) rather than your live site — the installer asks which
 account to use. That keeps your main site's home clean and the panel isolated.
 
+## Securing the dashboard
+
+The page shows software versions, account names, and process commands — treat it
+as **admin-only**. The installer offers to write an IP allowlist during setup; to
+manage it yourself, drop a `.htaccess` next to `index.php` (works on both Apache
+and LiteSpeed):
+
+```apacheconf
+<RequireAny>
+  # loopback + the server's own IP — keeps CSF's high-load fetch working
+  Require ip 127.0.0.1 ::1 198.51.100.5
+  # your static IP(s)
+  Require ip 203.0.113.10
+</RequireAny>
+```
+
+- **CSF** fetches `PT_APACHESTATUS` from the server itself — keep loopback and
+  the server's main IP in the list.
+- **WHMCS** polls `?raw=1` from the WHMCS server — add that server's IP too.
+- No static IP? Use HTTP basic auth instead (`AuthType Basic` + `htpasswd`), or
+  combine both.
+
+### Access key
+
+An alternative (or addition) that needs no static IP: set
+`'access_key' => 'long-random-string'` in `config.php` — the installer also asks
+for one. Every request must then carry the key; opening
+`https://.../status/?key=long-random-string` once stores it in a cookie for the
+browser. Integrations carry it as a URL parameter:
+
+```
+PT_APACHESTATUS = "https://status.example.com/?key=long-random-string"   # CSF
+https://status.example.com/?raw=1&key=long-random-string                 # WHMCS
+```
+
+Requests without the key get a plain `403` (no page content, no branding).
+
 ## Install (recommended)
 
 ```bash
