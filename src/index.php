@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.2.2'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.2.3'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -148,6 +148,8 @@ $TR = [
     'Disk critically full: %s%%' => 'Disk kritik doldu: %s%%', 'Disk usage high: %s%%' => 'Disk kullanımı yüksek: %s%%', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
     'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
+    // Disk büyüme projeksiyonu — hf = hafta, ay = ay (kısaltmalar fmtAgeShort ile aynı ruhta)
+    '+%s GB/wk' => '+%s GB/hf', '<1wk' => '<1hf', '%smo' => '%say', '%swk' => '%shf', '80%% in %s' => '%%80\'e %s',
     'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
     '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
     'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
@@ -497,11 +499,16 @@ if ($diskTotalGB > 0 && is_readable($dhFile)) {
             $days = ($t1 - $t0) / 86400;
             if ($days >= 2 && $u1 > $u0) {              // sadece NET büyümede projeksiyon
                 $perWeek = ($u1 - $u0) / $days * 7;
-                $diskGrow = '+' . round($perWeek, 1) . ' GB/wk';
+                // Birimler sözlükten geçer (hf/ay): metin sunucuda kurulup JS'e hazır
+                // string olarak gider, o yüzden burada çevirmek her iki yolu da kapsar.
+                $diskGrow = tf('+%s GB/wk', round($perWeek, 1));
                 $target80 = $diskTotalGB * 0.8;
                 if ($u1 < $target80) {
                     $weeksTo80 = ($target80 - $u1) / $perWeek;
-                    $diskGrow .= ' · 80% in ' . ($weeksTo80 < 1 ? '<1wk' : ($weeksTo80 >= 8 ? round($weeksTo80 / 4.3) . 'mo' : round($weeksTo80) . 'wk'));
+                    $dur = $weeksTo80 < 1     ? t('<1wk')
+                         : ($weeksTo80 >= 8   ? tf('%smo', round($weeksTo80 / 4.3))
+                                              : tf('%swk', round($weeksTo80)));
+                    $diskGrow .= ' · ' . tf('80%% in %s', $dur);
                 }
             }
         }
