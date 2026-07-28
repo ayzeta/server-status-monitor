@@ -337,7 +337,10 @@ chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"
 DHIST="$HOME_DIR/.disk_history"
 DTODAY=$(date +%F)
 if [ "$(tail -1 "$DHIST" 2>/dev/null | awk '{print $1}')" != "$DTODAY" ]; then
-  DUSED=$(df -P / | awk 'NR==2{printf "%d", $3/1048576}')  # kullanilan GB
+  # ONDALIKLI GB: tam sayi yazmak felaketti — 500+ GB'lik diskte gunluk buyume
+  # ~0.1 GB, yani 1 GB'lik cozunurlugun ALTINDA kaliyor; egim hesabi tamamen
+  # yuvarlama gurultusune donusuyordu (projeksiyon 4 ay <-> 70 ay ziplamasi).
+  DUSED=$(df -P / | awk 'NR==2{printf "%.2f", $3/1048576}')  # kullanilan GB
   echo "$DTODAY $DUSED" >> "$DHIST"
   tail -400 "$DHIST" > "$DHIST.tmp" && mv "$DHIST.tmp" "$DHIST"
   chown "$WEB_USER:$WEB_USER" "$DHIST"; chmod 640 "$DHIST"

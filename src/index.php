@@ -149,7 +149,7 @@ $TR = [
     'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
     // Disk büyüme projeksiyonu — hf = hafta, ay = ay (kısaltmalar fmtAgeShort ile aynı ruhta)
-    '+%s GB/wk' => '+%s GB/hf', '<1wk' => '<1hf', '%smo' => '%say', '%swk' => '%shf', '80%% in %s' => '%%80\'e %s',
+    '+%s GB/wk' => '+%s GB/hf', '<1wk' => '<1hf', '2+ yr' => '2+ yıl', '%smo' => '%say', '%swk' => '%shf', '80%% in %s' => '%%80\'e %s',
     'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
     '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
     'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
@@ -487,27 +487,46 @@ if ($diskTotalGB > 0 && is_readable($dhFile)) {
     $pts = [];
     foreach (@file($dhFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
         $p = preg_split('/\s+/', trim($ln));
-        if (count($p) === 2 && ($ts = strtotime($p[0])) && is_numeric($p[1])) $pts[] = [$ts, (int)$p[1]];
+        // float: collector artık ondalıklı GB yazıyor (eski tam sayı satırlar da okunur)
+        if (count($p) === 2 && ($ts = strtotime($p[0])) && is_numeric($p[1])) $pts[] = [$ts, (float)$p[1]];
     }
     if (count($pts) >= 2) {
         $tLast = $pts[count($pts) - 1][0];
-        $cutoff = $tLast - 30 * 86400;                  // son 30 gün
+        $cutoff = $tLast - 60 * 86400;                  // son 60 gün
         $win = array_values(array_filter($pts, fn($p) => $p[0] >= $cutoff));
         if (count($win) >= 2) {
-            [$t0, $u0] = $win[0];
-            [$t1, $u1] = $win[count($win) - 1];
-            $days = ($t1 - $t0) / 86400;
-            if ($days >= 2 && $u1 > $u0) {              // sadece NET büyümede projeksiyon
-                $perWeek = ($u1 - $u0) / $days * 7;
+            // EN KÜÇÜK KARELER — penceredeki TÜM noktalar. Eskiden yalnız ilk ve son
+            // nokta kullanılıyordu: günlük değer 1 GB'a yuvarlandığı ve büyüme günde
+            // ~0.1 GB olduğu için tek bir uç noktanın yuvarlama hatası eğimi belirliyor,
+            // projeksiyon 4 ay ↔ 70 ay arası zıplıyordu. Regresyon gürültüyü ortalar;
+            // tek seferlik temizlik hâlâ eğimi aşağı çeker (istenen: net büyüme yoksa
+            // projeksiyon gösterilmez), 60 gün sonra pencereden düşer.
+            $n = count($win); $t0 = $win[0][0];
+            $sx = $sy = $sxy = $sxx = 0.0;
+            foreach ($win as [$ts, $gb]) {
+                $x = ($ts - $t0) / 86400;
+                $sx += $x; $sy += $gb; $sxy += $x * $gb; $sxx += $x * $x;
+            }
+            $days  = ($win[$n - 1][0] - $t0) / 86400;
+            $den   = $n * $sxx - $sx * $sx;
+            $perDay = $den > 0 ? ($n * $sxy - $sx * $sy) / $den : 0;
+            $u1    = $win[$n - 1][1];
+            // En az 7 gün: daha kısa pencerede eğim hâlâ gürültüden ibaret.
+            if ($days >= 7 && $perDay > 0) {
+                $perWeek = $perDay * 7;
                 // Birimler sözlükten geçer (hf/ay): metin sunucuda kurulup JS'e hazır
                 // string olarak gider, o yüzden burada çevirmek her iki yolu da kapsar.
                 $diskGrow = tf('+%s GB/wk', round($perWeek, 1));
                 $target80 = $diskTotalGB * 0.8;
                 if ($u1 < $target80) {
                     $weeksTo80 = ($target80 - $u1) / $perWeek;
-                    $dur = $weeksTo80 < 1     ? t('<1wk')
-                         : ($weeksTo80 >= 8   ? tf('%smo', round($weeksTo80 / 4.3))
-                                              : tf('%swk', round($weeksTo80)));
+                    // 2 yılı aşan projeksiyon sahte hassasiyettir (30-60 günlük,
+                    // ondalık çözünürlüklü veriden "70 ay" demek anlamsız) — kapasite
+                    // planlaması için "2+ yıl" bilgisi zaten yeterli.
+                    $dur = $weeksTo80 < 1      ? t('<1wk')
+                         : ($weeksTo80 >= 104  ? t('2+ yr')
+                         : ($weeksTo80 >= 8    ? tf('%smo', round($weeksTo80 / 4.3))
+                                               : tf('%swk', round($weeksTo80))));
                     $diskGrow .= ' · ' . tf('80%% in %s', $dur);
                 }
             }
@@ -2410,9 +2429,12 @@ function redrawSparks(){
 const tipEl=document.createElement('div');
 tipEl.className='spark-tip';
 document.body.appendChild(tipEl);
+// Tooltip birimleri kartlarla AYNI eşikte MB'ye geçer (PHP fmtBytes ile eş): kart
+// "4.5 MB/s" derken tooltip "4595 KB/s" göstermesin.
+function fmtKB(v){return v>=1024?(v/1024).toFixed(1)+' MB/s':Math.round(v)+' KB/s';}
 const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.toFixed(2),
   'sp-cpu':v=>Math.round(v)+'%','sp-ram':v=>Math.round(v)+'%','sp-disk':v=>Math.round(v)+'%','sp-iow':v=>Math.round(v)+'%',
-  'sp-rx':v=>Math.round(v)+' KB/s','sp-tx':v=>Math.round(v)+' KB/s','sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
+  'sp-rx':fmtKB,'sp-tx':fmtKB,'sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
 document.addEventListener('mousemove',e=>{
   const c=e.target.closest?e.target.closest('canvas.load-spark,canvas.res-spark,canvas.info-spark-canvas'):null;
   if(!c||!c._d||c._d.length<2){tipEl.style.opacity=0;return;}
