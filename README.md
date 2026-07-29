@@ -24,7 +24,7 @@ barred from other users' processes.)
 > attachment): every alarm is server-rendered, and no output line exceeds the
 > SMTP 900-byte limit.
 
-**Version 1.2.3** · bilingual UI — English (default) / Türkçe, switched from the
+**Version 1.3.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots
@@ -235,6 +235,19 @@ web account ── index.php ◀──────────────┘  r
 - Response times are measured once when healthy; if a sample lands above the warn
   threshold it is re-measured (median) so a single scheduling hiccup can't post a
   false "slow database".
+- **Charts are drawn on a fixed scale, not a rolling one.** CPU, RAM, disk and IO
+  wait run 0–100%; load runs 0 to the core count; the worker and mail-queue charts
+  run 0 to their warning threshold. The line height therefore means the same thing
+  every time you look at it, and a queue drifting between 2 and 8 messages stays
+  flat near the floor instead of filling the card. When a value passes the top of
+  its scale the ceiling grows to the observed maximum, so a real spike keeps its
+  shape. Network throughput has no such ceiling — a gigabit link normally sits at
+  1–3% — so those two charts stay auto-scaled and the caption names the window
+  peak (`79% of link · peak 2.8 MB/s`).
+- **One colouring rule across every metric card:** the value, the card border, the
+  sparkline and the bottom fill bar all carry the same level colour. A card with a
+  red number always has a red border. Cards without a health level — the hosted
+  account count — stay neutral by design.
 - **Every network probe goes through a short-lived cache** (~45 s): the response
   time checks and the service port checks run about once a minute in total, no
   matter how many people have the dashboard open — the monitor's own footprint
@@ -256,12 +269,12 @@ render, the CSF mail attachment, and the live 30-second ticks alike.
 | Disk   | 75% | 90% |
 | IO Wait| 8%  | 15% |
 | Network| 70% of link | 90% of link |
-| Inode  | 80% | 90% |
+| Inode  | 75% | 90% |
 | Swap   | 10% used | 50% used |
 | Shared memory | 40% of RAM † | 55% of RAM † |
 | PHP workers | ≥ 1× cores | ≥ 2× cores |
 | MySQL `threads_running` | ≥ 1× cores | ≥ 2× cores |
-| Mail queue | ≥ 1 per account | ≥ 3 per account |
+| Mail queue | ≥ 1× base ‡ | ≥ 3× base ‡ |
 | MySQL response | 30 ms | 100 ms |
 | Web response | 500 ms | 2000 ms |
 | SSL expiry | 30 days left | 7 days left |
@@ -273,6 +286,12 @@ page request, where a few hundred milliseconds is normal.
 
 Load is orange at capacity (a fully-used server isn't "broken") and red only
 when genuinely overloaded, so red stays meaningful.
+
+‡ **The mail queue base is the account count clamped to 25–100.** Scaling straight
+off the account count breaks at both ends: on a 374-account server nothing warns
+until 374 messages have piled up, and on a 10-account server a single newsletter
+trips the alarm. The clamp keeps a stuck queue visible on a small server (red at
+75 messages) without crying wolf on a large one (red at 300).
 
 † **Shared memory is pressure-gated.** `tmpfs` / `/dev/shm` / opcache routinely sit
 at ~40% of RAM on a healthy cPanel box and that is *not* a problem, so the 40% / 55%

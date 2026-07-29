@@ -15,6 +15,9 @@
   if (P.get('theme')) document.documentElement.setAttribute('data-theme', P.get('theme'));
 
   var CORES = 12, TICK_MS = 2600, STEP = 60;
+  // Mail kuyrugu esik tabani: urundeki $mqBase ile AYNI formul —
+  // min(max(hesapSayisi, 25), 100). 374 hesap icin 100.
+  var ACCOUNTS = 374, MQ_BASE = Math.min(Math.max(ACCOUNTS, 25), 100);
   var ACC = ['bluewave','shopfast','pixelcart','acmeco','nordvps','ledger','brightmail',
              'zencache','oakhost','riverside','maplebox','summitio','harborlab','delta7',
              'novastore','quibble','fernpost','glacier','tandem','vector9'];
@@ -95,7 +98,7 @@
     var base=new Date(clock.getTime()-30*STEP*1000);
     for (var i=0;i<30;i++){
       var f=i/29, w=Math.sin(i/3.5), w2=Math.sin(i/5+1);
-      var ramp = kind==='ramp'? f : kind==='settle'? (1-f) : 0.15;   // 0..1 eğilim
+      var ramp = kind==='ramp'? f : kind==='settle'? (1-f) : 0;      // 0..1 eğilim (flat: taban değerlerle AYNI hizada başlasın, sağ uçta yapay düşüş olmasın)
       histT.push(pad(base.getHours())+':'+pad(base.getMinutes()));
       hist.l1.push(+(4.2+ramp*20+w*0.5).toFixed(2));
       hist.l5.push(+(5.0+ramp*17+w2*0.4).toFixed(2));
@@ -178,7 +181,7 @@
     add(lv(v.lsphpTotal,CORES*TH.wrk_warn_x,CORES*TH.wrk_crit_x),v.lsphpTotal+' workers');
     add(lv(v.mysqlThr,CORES*TH.mysqlthr_warn_x,CORES*TH.mysqlthr_crit_x),'MySQL '+v.mysqlThr);
     add(lv(v.inodePct,TH.inode_warn,TH.inode_crit),'inode '+v.inodePct+'%');
-    add(lv(v.mailQ,374*TH.mailq_warn_x,374*TH.mailq_crit_x),'mailq '+v.mailQ);
+    add(lv(v.mailQ,MQ_BASE*TH.mailq_warn_x,MQ_BASE*TH.mailq_crit_x),'mailq '+v.mailQ);
     if(S.raid==='degraded')add(2,v.raidTxt); else if(S.raid==='resync')add(1,v.raidTxt);
     if(S.smart)add(2,'SMART pre-fail');
     off.sort(function(a,b){return b[0]-a[0];});
@@ -236,7 +239,10 @@
   function genDemoData(){
     var d={
       hostname:'demo.ayzeta.net', threads:CORES, coreCount:CORES, time:stamp(),
-      uptime:'35 Days '+pad(15)+':'+pad(22+pi)+':14',
+      // 'Days' SABIT yazilmamali: TR sayfada baslik 'ÇALIŞMA SÜRESİ' iken deger
+      // '35 Days ...' kaliyordu ve bu yayinlanan ekran goruntusune dusuyordu.
+      // Urunun kendi t()'si kullaniliyor ki yeni dil eklenince kendiliginden calissin.
+      uptime:'35 '+t('Days')+' '+pad(15)+':'+pad(22+pi)+':14',
       load1:+S.load1.toFixed(2), load5:+S.load5.toFixed(2), load15:+S.load15.toFixed(2),
       cpu:Math.round(jit(S.cpu,S.cpu>80?1.2:0.8)), ram:Math.round(S.ram), disk:Math.round(S.disk), iowait:Math.max(0,Math.round(S.iow)),
       memUsedGB:Math.round(S.ram/100*94), memTotalGB:94, shmemGB:34, shmemPct:36, shmemCol:'var(--hint)',
@@ -249,7 +255,10 @@
       rxRate:rate(S.rxK), txRate:rate(S.txK), rxK:Math.round(S.rxK), txK:Math.round(S.txK),
       netRxSat:Math.round(S.rxSat), netTxSat:Math.round(S.txSat), netRxCol:netCol(S.rxSat), netTxCol:netCol(S.txSat),
       lsphpTotal:Math.round(S.workers), lsphpIdle:Math.round(S.idle),
-      mailQ:Math.round(S.mailq), mqRaw:Math.round(S.mailq), acctForMailq:374, acctCount:374,
+      // acctForMailq KISITLANMIS taban olmali (urunde min(max(hesap,25),100)).
+      // Ham 374 gonderilince demo, urunun kullanmadigi 374*3=1122 esigini kullaniyor
+      // ve kuyruk kartini urunden farkli renklendiriyordu.
+      mailQ:Math.round(S.mailq), mqRaw:Math.round(S.mailq), acctForMailq:MQ_BASE, acctCount:374,
       webResponseTime:Math.round(S.webrt), mysqlResponseTime:Math.round(S.dbrt),
       sslDaysLeft:61, sslExpiry:'2026-09-21',
       mysqlThr:Math.round(S.mysqlThr), mysqlThrCol:thrCol(Math.round(S.mysqlThr)),
