@@ -22,9 +22,13 @@ barred from other users' processes.)
 
 > The page also renders as a **static HTML email** (e.g. CSF's high-load alert
 > attachment): every alarm is server-rendered, and no output line exceeds the
-> SMTP 900-byte limit.
+> SMTP 900-byte limit. Nothing is fetched from a CDN — icons are inline SVG and
+> the type is the system font stack — so the attachment looks the same whether or
+> not the mail client allows remote content. All non-ASCII characters are emitted
+> as HTML entities, because sanitizing webmail clients (Roundcube among them) drop
+> the `<head>` and with it the `charset` declaration.
 
-**Version 1.3.0** · bilingual UI — English (default) / Türkçe, switched from the
+**Version 1.4.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots

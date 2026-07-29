@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.3.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.4.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -162,6 +162,21 @@ $TR = [
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
 function tf($s, ...$a) { global $T; return vsprintf($T[$s] ?? $s, $a); } // sprintf'li
+// Dile gore BUYUK HARF. CSS'in text-transform:uppercase'ine guvenilmez:
+// sanitize eden webmail istemcileri (Roundcube) <html lang>'i atip icerigi
+// KENDI sayfasina gomuyor, Turkce kural sizip 'SYSTEM METRICS' yerine
+// 'SYSTEM METRİCS' cikiyordu (i->İ). Mail ekinin dili cerezsiz cekildigi icin
+// zaten config'ten gelir ve PHP tarafinda KESIN bilinir — donusum burada.
+// mb_* yok: mbstring her cPanel sunucusunda yuklu degil. strtoupper yalnizca
+// a-z'yi cevirir, cok baytli harfleri bozmaz; Turkce ozel esleme onde yapilir.
+function upper($s) {
+    global $LANG_UI;
+    if ($LANG_UI === 'tr') {
+        $s = str_replace(['i', 'ı', 'ş', 'ğ', 'ü', 'ö', 'ç'],
+                         ['İ', 'I', 'Ş', 'Ğ', 'Ü', 'Ö', 'Ç'], $s);
+    }
+    return strtoupper($s);
+}
 function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (string)$n))); } // ' · ' bileşik notlar
 
 // ── Process snapshot ──────────────────────────────────────────
@@ -1080,6 +1095,45 @@ tagVer($cacheChecks[1], 'memcached', false);
 function hLvlHi($v, $hi, $cr) { return $v >= $cr ? 'err' : ($v >= $hi ? 'warn' : 'ok'); }
 function hWorst(...$ls)       { $o = ['ok'=>0,'warn'=>1,'err'=>2]; $m='ok'; foreach ($ls as $l) if (($o[$l] ?? 0) > $o[$m]) $m=$l; return $m; }
 function hCol($lvl, $ok)      { return $lvl==='err' ? 'var(--danger)' : ($lvl==='warn' ? 'var(--warn)' : $ok); }
+// ── Ikonlar ───────────────────────────────────────────────────────────
+// Tabler Icons v3.19.0 (MIT) — https://github.com/tabler/tabler-icons
+// Yalniz KULLANILAN 17 ikon satir ici gomulu. Eskiden jsdelivr'dan ikon
+// webfont'u + Google Fonts cekiliyordu; mail ekinde istemci uzak icerigi
+// bloke edince ikonlar bos kare oluyor, yuklerse de okundu bilgisi ve IP
+// o CDN'lere sizyordu. Simdi ek dosya tamamen kendi kendine yeter.
+// <symbol>+<use> deposu daha az bayt ederdi ama bazi mail istemcileri
+// <defs>/<use> etiketlerini temizlerken atiyor — her kullanimda tam SVG.
+$ICONS = [
+    'activity' => '<path d="M3 12h4l3 8l4 -16l3 8h4" />',
+    'arrow-down' => '<path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" />',
+    'arrow-up' => '<path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" />',
+    'bolt' => '<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />',
+    'cpu' => '<path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" />',
+    'database' => '<path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" />',
+    'file-arrow-right' => '<path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 15h6" /><path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" />',
+    'list' => '<path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" />',
+    'lock' => '<path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" />',
+    'mail' => '<path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" />',
+    'moon' => '<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />',
+    'server' => '<path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M7 8l0 .01" /><path d="M7 16l0 .01" />',
+    'shield-check' => '<path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06" /><path d="M15 19l2 2l4 -4" />',
+    'sun' => '<path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />',
+    'topology-star-ring' => '<path d="M14 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 4a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12h4" /><path d="M14 12h4" /><path d="M13.5 5.5l5 5" /><path d="M5.5 13.5l5 5" /><path d="M13.5 18.5l5 -5" /><path d="M10.5 5.5l-5 5" /><path d="M12 6v4" /><path d="M12 14v4" />',
+    'users' => '<path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />',
+    'world' => '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M3.6 9h16.8" /><path d="M3.6 15h16.8" /><path d="M11.5 3a17 17 0 0 0 0 18" /><path d="M12.5 3a17 17 0 0 1 0 18" />',
+];
+
+// Ikon cizer. Boyut/renk BILEREK verilmez: .ic{width:1em;height:1em} ile
+// font-size'dan, stroke=currentColor ile color'dan miras alinir — yani ikon
+// webfont'unun davranisinin aynisi. Boylece mevcut 15/16/17px baglamlari ve
+// satir ici 'font-size:15px' gibi stiller oldugu gibi calismaya devam eder.
+function icon($n, $cls = '', $attr = '') {
+    global $ICONS;
+    if (!isset($ICONS[$n])) return '';
+    return '<svg class="ic' . ($cls !== '' ? ' ' . $cls : '') . '" viewBox="0 0 24 24" fill="none"'
+         . ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+         . ' aria-hidden="true"' . ($attr !== '' ? ' ' . $attr : '') . '>' . $ICONS[$n] . '</svg>';
+}
 function cardBorderCss($col)  { return ($col==='var(--danger)' || $col==='var(--warn)') ? ';border-color:'.$col : ''; }
 
 // Mail kuyrugu tabani: hesap sayisiyla olceklenir AMA 50-200 arasina kisilir.
@@ -1543,7 +1597,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
     $out = '<div class="proc-card"><div class="proc-title">' . t('Top processes · CPU') . '</div>'
-         . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num" title="' . htmlspecialchars(t('Percent of a single core — multi-threaded processes can exceed 100')) . '">CPU%</th><th class="num">MEM%</th><th>' . t('Time') . '</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num" title="' . htmlspecialchars(t('Percent of a single core — multi-threaded processes can exceed 100')) . '">CPU%</th><th class="num">MEM%</th><th>' . upper(t('Time')) . '</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
     foreach ($procCpu as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
               . '<td class="num ' . pcpuClass($p[2]) . '">' . $h($p[2]) . '</td>'
@@ -1553,7 +1607,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $out .= '</tbody></table></div>';
 
     $out .= '<div class="proc-card"><div class="proc-title">' . t('Top processes · RAM') . '</div>'
-          . '<table class="proc-table"><thead><tr><th>PID</th><th>' . t('User') . '</th><th class="num">MEM%</th><th class="num">RSS</th><th>' . t('Command') . '</th></tr></thead><tbody id="pt-ram">' . "\n";
+          . '<table class="proc-table"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num">MEM%</th><th class="num">RSS</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-ram">' . "\n";
     foreach ($procRam as $p) {
         $mc = pmemClass($p[3]);
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
@@ -1566,7 +1620,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     $out .= renderDiskCard($diskAcct, $h);
 
     $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . ' <span class="proc-age">&middot; ' . t('active+idle') . '</span></div>'
-          . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . t('Procs') . '</th></tr></thead><tbody id="pt-php">' . "\n";
+          . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
     foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
     foreach ($procPhp as $p) {
@@ -1595,7 +1649,7 @@ function renderDiskCard($diskAcct, $h) {
     global $diskTotalGB;
     $out = '<div class="proc-card"><div class="proc-title">' . t('Top disk · account')
          . '<span class="proc-age" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">&middot; ' . t('GB used') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>' . t('Account') . '</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
     }
@@ -1620,7 +1674,7 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
          . '<span class="proc-age" id="sql-thr" title="' . htmlspecialchars(tf('Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)', (int)$sqlMinSec)) . '">'
          . ($mysqlThr !== null ? ' &middot; Threads_running: <span id="sql-thr-n" style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . t('User') . '</th><th>' . t('DB') . '</th><th>' . t('Query') . '</th><th class="num">' . t('Time(s)') . '</th><th>' . t('State') . '</th></tr></thead><tbody id="pt-sql">' . "\n";
+         . '<table class="proc-table"><thead><tr><th>ID</th><th>' . upper(t('User')) . '</th><th>' . upper(t('DB')) . '</th><th>' . upper(t('Query')) . '</th><th class="num">' . upper(t('Time(s)')) . '</th><th>' . upper(t('State')) . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
         $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
     }
@@ -1632,21 +1686,67 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     $out .= '</tbody></table></div>';
     return $out;
 }
+
+// ── Cikti tamponu: noktalama isaretlerini HTML entity'sine cevir ─────────
+// Mail istemcileri (or. Roundcube) HTML'i temizlerken <html> ve <head>'i atip
+// icerigi kendi sayfalarina gomuyor. Bizim <meta charset="utf-8"> beyanimiz
+// boylece kayboluyor ve '·' (2 bayt) 'Â·', '—' ise 'â€"' olarak ciziliyordu.
+// Entity'ler saf ASCII oldugu icin hangi charset varsayilirsa dogru cizilir.
+// <script> bloklarina DOKUNULMAZ: JS dizeleri HTML olarak ayristirilmadigi
+// icin orada '&middot;' harfi harfine gorunurdu; tarayicida charset zaten
+// dogru oldugu icin JS'in duz karakter kullanmasi sorun degil.
+ob_start(function ($html) {
+    // ASCII disi HER karakter sayisal entity olur — yalniz noktalama degil, Turkce
+    // harfler de. Yoksa TR sayfasinin mail eki bastan asaga bozuk gorunurdu
+    // ('Yuk ort.' yerine 'YÃ¼k ort.').
+    //
+    // mb_* KULLANILMAZ: mbstring her cPanel sunucusunda yuklu degil. Kod cozme
+    // elle yapiliyor, boylece ek eklenti gerekmiyor.
+    //
+    // try/catch ZORUNLU: ob_start geri cagrisinda olumcul hata olursa PHP tamponu
+    // sessizce atar ve sayfa HTTP 200 ile BOS doner — pano bombos acilir, mail eki
+    // bos gider. Filtre patlarsa orijinal HTML aynen teslim edilir.
+    try {
+        $parts = preg_split('~(<script\b[^>]*>.*?</script>)~is', $html, -1,
+                            PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) return $html;
+        foreach ($parts as $i => $p) {
+            if ($i % 2 !== 0) continue;                  // <script> blogu: dokunma
+            $out = preg_replace_callback('/[^\x00-\x7F]/u', function ($m) {
+                $c = $m[0];
+                $n = strlen($c);
+                if ($n === 2) $cp = ((ord($c[0]) & 0x1F) << 6)  |  (ord($c[1]) & 0x3F);
+                elseif ($n === 3) $cp = ((ord($c[0]) & 0x0F) << 12) | ((ord($c[1]) & 0x3F) << 6)
+                                      |  (ord($c[2]) & 0x3F);
+                elseif ($n === 4) $cp = ((ord($c[0]) & 0x07) << 18) | ((ord($c[1]) & 0x3F) << 12)
+                                      | ((ord($c[2]) & 0x3F) << 6) |  (ord($c[3]) & 0x3F);
+                else return $c;
+                return '&#' . $cp . ';';
+            }, $p);
+            if ($out !== null) $parts[$i] = $out;         // regex hatasi olursa parcayi koru
+        }
+        return implode('', $parts);
+    } catch (\Throwable $e) {
+        return $html;
+    }
+});
 ?>
 <!DOCTYPE html>
-<!-- lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
-     "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
-     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="<?=$LANG_UI?>" data-theme="light">
+<?php
+/* lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
+   "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
+   hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil).
+
+   NOT: Bu açıklama eskiden <!-- --> HTML yorumuydu, yani her render'da ve her
+   CSF mail ekinde teslim ediliyordu. Türkçe harfleri de charset'i soyan mail
+   istemcilerinde bozuk görünüyordu. PHP yorumuna alındı, çıktıya girmiyor. */
+?><html lang="<?=$LANG_UI?>" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?=htmlspecialchars($SITE_TITLE, ENT_QUOTES, 'UTF-8')?></title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <?php if ($FAVICON_URL): ?><link rel="icon" type="image/png" href="<?=htmlspecialchars($FAVICON_URL, ENT_QUOTES, 'UTF-8')?>"><?php endif; ?>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root,[data-theme="light"]{
@@ -1711,7 +1811,7 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
   --c-disk: #2dd4bf;
   --c-iow:  #38bdf8;
 }
-body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
+body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
 .wrap{max-width:1280px;margin:auto;}
 
 .hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
@@ -1764,6 +1864,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .res-card::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,100%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .res-left{display:flex;align-items:center;gap:7px;}
+/* Satir ici SVG ikonlar: 1em ile font-size'i, currentColor ile color'i miras
+   alir — kaldirilan ikon webfont'uyla ayni davranis. */
+.ic{width:1em;height:1em;display:inline-block;vertical-align:-.125em;flex-shrink:0;}
+/* Tema ikonu artik JS ile sinif degistirmiyor; hangi ikonun gorunecegine
+   data-theme'e bakan CSS karar veriyor (3 satir JS eksildi). */
+.ic-sun{display:none;}
+[data-theme="dark"] .ic-sun{display:inline-block;}
+[data-theme="dark"] .ic-moon{display:none;}
 .res-icon{font-size:15px;color:var(--hint);}
 .res-name{font-size:11px;font-weight:600;color:var(--muted);}
 .res-val{font-size:22px;font-weight:700;letter-spacing:-.04em;color:var(--c,var(--accent));transition:color .3s;}
@@ -1980,7 +2088,15 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 </style>
 </head>
 <body>
-<div class="wrap">
+<?php
+/* lang BURADA da tekrar ediliyor (<html lang> zaten var). Sebebi: sanitize eden
+   webmail istemcileri (Roundcube) <html> ve <head>'i atip icerigi KENDI sayfasina
+   gomuyor. Dil bilgisi kaybolunca text-transform:uppercase o sayfanin dilini
+   uyguluyor ve Turkce kuralla "SYSTEM METRICS" -> "SYSTEM METRİCS" oluyordu
+   (i->İ). CSS buyutme kurali en yakin lang atasindan miras alindigi icin,
+   sarmalayicidaki bu nitelik korunursa dogru dil uygulanir. */
+?>
+<div class="wrap" lang="<?=$LANG_UI?>">
 
 <div class="hdr">
   <div class="hdr-brand">
@@ -1999,7 +2115,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <div class="hdr-sub"><?=htmlspecialchars($SITE_SUB, ENT_QUOTES, 'UTF-8')?></div>
     </div>
     <button class="theme-btn" id="theme-btn" title="<?=htmlspecialchars(t('Toggle dark mode'), ENT_QUOTES, 'UTF-8')?>">
-      <i class="ti ti-moon" id="theme-icon"></i>
+      <?=icon('moon','ic-moon')?><?=icon('sun','ic-sun')?>
     </button>
     <button class="theme-btn" id="lang-btn" title="<?=htmlspecialchars(t('Language'), ENT_QUOTES, 'UTF-8')?>" style="font-size:11px;font-weight:700;letter-spacing:.02em;"><?=$LANG_UI === 'tr' ? 'EN' : 'TR'?></button>
   </div>
@@ -2012,18 +2128,18 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
         <span class="hdr-status-detail" id="hdr-detail" title="<?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?>"<?=$overallDetail===''?' style="display:none"':''?>><?=htmlspecialchars($overallDetail, ENT_QUOTES, 'UTF-8')?></span>
       </div>
     </div>
-    <div class="meta-item"><div class="meta-lbl"><?=t('Hostname')?></div>
+    <div class="meta-item"><div class="meta-lbl"><?=upper(t('Hostname'))?></div>
       <div class="meta-val" id="hostname"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></div></div>
-    <div class="meta-item"><div class="meta-lbl"><?=t('Threads')?></div>
+    <div class="meta-item"><div class="meta-lbl"><?=upper(t('Threads'))?></div>
       <div class="meta-val" id="threads"><?=$coreCount?></div></div>
-    <div class="meta-item"><div class="meta-lbl"><?=t('Uptime')?></div>
+    <div class="meta-item"><div class="meta-lbl"><?=upper(t('Uptime'))?></div>
       <div class="meta-val" id="uptime"><?=$uptimeFormatted?></div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl"><?=t('Updated')?></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl"><?=upper(t('Updated'))?></div>
       <div class="meta-val"><span class="dot"></span><span id="time-val"><?=date('H:i:s')?></span></div></div>
   </div>
 </div>
 
-<div class="sec"><?=t('System metrics')?> <span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?>&middot; <?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
+<div class="sec"><?=upper(t('System metrics'))?> <span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?>&middot; <?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:<?=$lc1=lcolCss($load1, $coreCount)?>;--fill:<?=min(round($load1/max($coreCount,1)*100),100)?>%<?=cardBorderCss($lc1)?>">
       <div class="res-top"><div class="res-left"><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('1 min')?></span></span></div><span class="res-val" id="v-l1"><?=number_format($load1,2)?></span></div>
@@ -2044,7 +2160,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:<?=$cpuCardCol?>;--fill:<?=$cpuUsage?>%<?=cardBorderCss($cpuCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name"><?=t('CPU')?></span></div>
+      <div class="res-left"><?=icon('cpu','res-icon')?><span class="res-name"><?=t('CPU')?></span></div>
       <span class="res-val" id="rv-cpu"><?=$cpuUsage?>%</span>
     </div>
     <div class="res-middle">
@@ -2054,7 +2170,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?>;--fill:<?=$memUsagePercent?>%<?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name"><?=t('RAM')?></span></div>
+      <div class="res-left"><?=icon('server','res-icon')?><span class="res-name"><?=t('RAM')?></span></div>
       <span class="res-val" id="rv-ram"><?=$memUsagePercent?>%</span>
     </div>
     <div class="res-middle">
@@ -2064,7 +2180,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="res-card" id="rc-disk" style="--c:<?=$diskCardCol?>;--fill:<?=$diskUsagePercent?>%<?=cardBorderCss($diskCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-database res-icon"></i><span class="res-name">Disk</span></div>
+      <div class="res-left"><?=icon('database','res-icon')?><span class="res-name">Disk</span></div>
       <span class="res-val" id="rv-disk"><?=$diskUsagePercent?>%</span>
     </div>
     <div class="res-middle">
@@ -2074,7 +2190,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="res-card" id="rc-iow" style="--c:<?=$iowCardCol?>;--fill:<?=min($ioWait,100)?>%<?=cardBorderCss($iowCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name"><?=t('IO Wait')?></span></div>
+      <div class="res-left"><?=icon('activity','res-icon')?><span class="res-name"><?=t('IO Wait')?></span></div>
       <span class="res-val" id="rv-iow"><?=$ioWait?>%</span>
     </div>
     <div class="res-middle">
@@ -2091,51 +2207,51 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px"><?=t('System info')?></div>
+<div class="sec" style="margin-top:12px"><?=upper(t('System info'))?></div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:<?=$netRxCol?>;--fill:<?=$netRxSat !== null ? min((int)$netRxSat,100) : 0?>%<?=cardBorderCss($netRxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-arrow-down"></i></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=fmtBytes($rxRate)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=fmtBytes($rxRate)?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['rx'], 260, 52, $netRxCol, 'ssr-rx')?><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub"><?=$netRxSat !== null ? tf('%s%% of link · peak %s', $netRxSat, fmtBytes(($ssr['rx'] ? max($ssr['rx']) : 0) * 1024)) : t('incoming traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:<?=$netTxCol?>;--fill:<?=$netTxSat !== null ? min((int)$netTxSat,100) : 0?>%<?=cardBorderCss($netTxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-arrow-up"></i></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=fmtBytes($txRate)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=fmtBytes($txRate)?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['tx'], 260, 52, $netTxCol, 'ssr-tx')?><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub"><?=$netTxSat !== null ? tf('%s%% of link · peak %s', $netTxSat, fmtBytes(($ssr['tx'] ? max($ssr['tx']) : 0) * 1024)) : t('outgoing traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-wrk" style="--c:<?=$wrkCol = lsphpCol($lsphpTotal, $coreCount)?>;--fill:<?=$lsphpTotal !== null ? min((int)round($lsphpTotal/max($coreCount * $TH['wrk_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($wrkCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-cpu"></i></span><span class="res-name"><?=t('PHP Workers')?></span></div><span class="res-val" id="iv-lsphp" style="color:<?=$wrkCol?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('cpu')?></span><span class="res-name"><?=t('PHP Workers')?></span></div><span class="res-val" id="iv-lsphp" style="color:<?=$wrkCol?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['wrk'], 260, 52, $wrkCol, 'ssr-wrk', [0, sparkTop($ssr['wrk'], $coreCount * $TH['wrk_warn_x'])])?><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
       <div class="res-meta" id="iv-lsphp-sub" title="<?=htmlspecialchars(t('Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool'))?>"><?=$lsphpIdle !== null ? t('active') . ' &middot; ' . $lsphpIdle . ' ' . t('idle') : t('running lsphp')?></div>
     </div>
   <div class="info-card has-fill" id="ic-mq" style="--c:<?=$mqColV = mqCol($mailQ, $mqBase)?>;--fill:<?=$mailQ !== null ? min((int)round($mailQ/max($mqBase * $TH['mailq_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($mqColV)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-mail"></i></span><span class="res-name"><?=t('Mail Queue')?></span></div><span class="res-val" id="iv-mailq" style="color:<?=$mqColV?>"><?=$mailQ !== null ? $mailQ : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('mail')?></span><span class="res-name"><?=t('Mail Queue')?></span></div><span class="res-val" id="iv-mailq" style="color:<?=$mqColV?>"><?=$mailQ !== null ? $mailQ : '—'?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['mq'], 260, 52, $mqColV, 'ssr-mq', [0, sparkTop($ssr['mq'], $mqBase * $TH['mailq_warn_x'])])?><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta"><?=t('messages queued')?></div>
     </div>
   <div class="info-card" id="ic-web" style="--c:<?=$webRtCol = rtCol($webResponseTime, $TH['webrt_warn'], $TH['webrt_crit'])?><?=cardBorderCss($webRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-bolt"></i></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></span></div>
       <div class="res-meta"><?=t('HTTP response time')?></div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:<?=$dbRtCol = rtCol($mysqlResponseTime, $TH['dbrt_warn'], $TH['dbrt_crit'])?><?=cardBorderCss($dbRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-database"></i></span><span class="res-name"><?=t('MySQL Response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('database')?></span><span class="res-name"><?=t('MySQL Response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></span></div>
       <div class="res-meta"><?=t('TCP response time')?></div>
     </div>
   <div class="info-card">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-users"></i></span><span class="res-name"><?=t('Hosted Accounts')?></span></div><span class="res-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('users')?></span><span class="res-name"><?=t('Hosted Accounts')?></span></div><span class="res-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></span></div>
       <div class="res-meta"><?=t('cPanel accounts')?></div>
     </div>
   <div class="info-card" id="ic-ssl" style="--c:<?=$sslColorCss?><?=cardBorderCss($sslColorCss)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-lock"></i></span><span class="res-name">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></span></div><span class="res-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' ' . t('days') : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('lock')?></span><span class="res-name">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></span></div><span class="res-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' ' . t('days') : '—'?></span></div>
       <div class="res-meta" id="iv-ssl-sub"><?=$sslExpiry ?? t('unavailable')?></div>
     </div>
 </div>
 
-<div class="sec" style="margin-top:12px"><?=t('Services')?></div>
+<div class="sec" style="margin-top:12px"><?=upper(t('Services'))?></div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-bolt"></i></div>
+      <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><?=icon('bolt')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('Web server')?></div><div class="svc-count" id="sk-web"><?=$webOk?>/<?=$webTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($webStatus)?>" id="bd-web"><?=blabel($webStatus)?></div>
     </div>
@@ -2143,7 +2259,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-mail"></i></div>
+      <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><?=icon('mail')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('Mail services')?></div><div class="svc-count" id="sk-mail"><?=$mailOk?>/<?=$mailTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($mailStatus)?>" id="bd-mail"><?=blabel($mailStatus)?></div>
     </div>
@@ -2151,7 +2267,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-world"></i></div>
+      <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><?=icon('world')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('DNS')?></div><div class="svc-count" id="sk-dns"><?=$dnsOk?>/<?=$dnsTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($dnsStatus)?>" id="bd-dns"><?=blabel($dnsStatus)?></div>
     </div>
@@ -2161,7 +2277,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="svcs-row2">
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-shield-check"></i></div>
+      <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><?=icon('shield-check')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('Security')?></div><div class="svc-count" id="sk-sec"><?=$secOk?>/<?=$secTotal?> <?=t('verified active')?></div></div>
       <div class="badge <?=bclass($secStatus)?>" id="bd-sec"><?=blabel($secStatus)?></div>
     </div>
@@ -2169,7 +2285,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-database"></i></div>
+      <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><?=icon('database')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('Database')?></div><div class="svc-count" id="sk-db"><?=$dbOk?>/<?=$dbTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($dbStatus)?>" id="bd-db"><?=blabel($dbStatus)?></div>
     </div>
@@ -2177,7 +2293,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-topology-star-ring"></i></div>
+      <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><?=icon('topology-star-ring')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('Cache')?></div><div class="svc-count" id="sk-cache"><?=$cacheOk?>/<?=$cacheTotal?> <?=t('active')?></div></div>
       <div class="badge <?=bclass($cacheStatus)?>" id="bd-cache"><?=blabel($cacheStatus)?></div>
     </div>
@@ -2185,7 +2301,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-file-arrow-right"></i></div>
+      <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><?=icon('file-arrow-right')?></div>
       <div class="svc-info"><div class="svc-name"><?=t('FTP')?></div><div class="svc-count" id="sk-ftp"><?=$ftpOk?>/<?=$ftpTotal?> <?=t('checks passed')?></div></div>
       <div class="badge <?=bclass($ftpStatus)?>" id="bd-ftp"><?=blabel($ftpStatus)?></div>
     </div>
@@ -2194,7 +2310,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 </div>
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
-<div class="sec" style="margin-top:12px"><?=t('Processes')?>
+<div class="sec" style="margin-top:12px"><?=upper(t('Processes'))?>
   <span class="proc-age<?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' stale' : ''?>" id="proc-age">&middot; <?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' — ' . t('STALE (cron?)') : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
@@ -2202,10 +2318,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <div class="proc-row-sql"><?=renderSqlTable($procSql, $sqlMinSec, $mysqlThr, $mysqlThrCol)?></div>
 <?php endif; ?>
 
-<div class="sec" style="margin-top:12px"><?=t('Event log')?></div>
+<div class="sec" style="margin-top:12px"><?=upper(t('Event log'))?></div>
 <div class="log-card">
   <div class="log-hdr">
-    <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
+    <?=icon('list','','style="font-size:15px;color:var(--hint)"')?>
     <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
     <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
   </div>
@@ -2239,8 +2355,6 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       if (!localStorage.getItem('az-theme')) {
         const t = e.matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', t);
-        const icon = document.getElementById('theme-icon');
-        if (icon) icon.className = t === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
       }
     });
   }
@@ -2249,14 +2363,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('az-theme', theme);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.className = theme === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.className = cur === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
   document.getElementById('theme-btn').addEventListener('click', function() {
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
@@ -2278,6 +2388,10 @@ const LANG_UI=<?=json_encode($LANG_UI)?>;
 const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
 function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
+// PHP upper() ile es: CSS'e guvenmeden buyuk harf.
+function UPPER(s){return LANG_UI==='tr'
+  ? String(s).replace(/[iışğüöç]/g,c=>({i:'İ','ı':'I','ş':'Ş','ğ':'Ğ','ü':'Ü','ö':'Ö','ç':'Ç'})[c]).toUpperCase()
+  : String(s).toUpperCase();}
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
@@ -3011,7 +3125,9 @@ renderLog();
 if(location.protocol==='file:'){
   // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
   document.body.classList.add('static-mode');
-  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent='Snapshot';
+  // 'Snapshot' eskiden SABIT Ingilizce yaziliydi (TR sayfada da 'Snapshot'
+  // gorunuyordu). t()'den geciyor ve PHP tarafiyla ayni sekilde buyutuluyor.
+  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Snapshot'));
   const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
          new Date().toTimeString().slice(0,8));

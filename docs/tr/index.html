@@ -1,16 +1,10 @@
 <!DOCTYPE html>
-<!-- lang dile göre: tr'de text-transform:uppercase Türkçe kuralı uygular (i→İ,
-     "SİSTEM BİLGİSİ" doğru); en'de İngilizce (i→I). Teknik i'li tek metin
-     hostname — o span lang="en" ile İngilizce dökümde kalır (LIN, LİN değil). --><html lang="tr" data-theme="light">
+<html lang="tr" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Server Status Monitor</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root,[data-theme="light"]{
@@ -75,7 +69,7 @@
   --c-disk: #2dd4bf;
   --c-iow:  #38bdf8;
 }
-body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
+body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;color:var(--text);-webkit-font-smoothing:antialiased;padding:16px;transition:background .3s,color .3s;}
 .wrap{max-width:1280px;margin:auto;}
 
 .hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;background:var(--brand);border-radius:14px;padding:16px 22px;margin-bottom:10px;transition:background .3s;}
@@ -93,10 +87,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .hdr-status-txt{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;flex-shrink:0;}
 .hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
 .hdr-status-detail{font-size:11px;color:rgba(255,255,255,.72);border-left:1px solid rgba(255,255,255,.28);padding-left:8px;margin-left:2px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.hdr-status-full{display:contents;} /* masaüstü: sarmalayıcı görünmez, txt+detay eskisi gibi satır içi. Mobilde dokun-aç panel olur. */
-/* Aktivite çipleri (backup/wp-toolkit/imunify + süre) — silik gri yazıyla gözden kaçıyordu.
-   Konteyner sarmalı flex: çipler arasında boşluk karakteri yok (join''), flex-wrap
-   olmadan mobilde satır kırılamayıp ekran dışına taşıyordu. */
+.hdr-status-full{display:contents;} /* masa&#252;st&#252;: sarmalay&#305;c&#305; g&#246;r&#252;nmez, txt+detay eskisi gibi sat&#305;r i&#231;i. Mobilde dokun-a&#231; panel olur. */
+/* Aktivite &#231;ipleri (backup/wp-toolkit/imunify + s&#252;re) &#8212; silik gri yaz&#305;yla g&#246;zden ka&#231;&#305;yordu.
+   Konteyner sarmal&#305; flex: &#231;ipler aras&#305;nda bo&#351;luk karakteri yok (join''), flex-wrap
+   olmadan mobilde sat&#305;r k&#305;r&#305;lamay&#305;p ekran d&#305;&#351;&#305;na ta&#351;&#305;yordu. */
 #act-chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle;max-width:100%;margin-left:6px;}
 .bk-chip{font-size:9px;font-weight:700;background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;}
 .theme-btn{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;transition:background .2s;}
@@ -128,10 +122,18 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .res-card::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,100%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .res-left{display:flex;align-items:center;gap:7px;}
+/* Satir ici SVG ikonlar: 1em ile font-size'i, currentColor ile color'i miras
+   alir &#8212; kaldirilan ikon webfont'uyla ayni davranis. */
+.ic{width:1em;height:1em;display:inline-block;vertical-align:-.125em;flex-shrink:0;}
+/* Tema ikonu artik JS ile sinif degistirmiyor; hangi ikonun gorunecegine
+   data-theme'e bakan CSS karar veriyor (3 satir JS eksildi). */
+.ic-sun{display:none;}
+[data-theme="dark"] .ic-sun{display:inline-block;}
+[data-theme="dark"] .ic-moon{display:none;}
 .res-icon{font-size:15px;color:var(--hint);}
 .res-name{font-size:11px;font-weight:600;color:var(--muted);}
 .res-val{font-size:22px;font-weight:700;letter-spacing:-.04em;color:var(--c,var(--accent));transition:color .3s;}
-/* Info kartlarinda deger metinsel olabiliyor (235 KB/s, 2026-09-21) — bir tik kucuk. */
+/* Info kartlarinda deger metinsel olabiliyor (235 KB/s, 2026-09-21) &#8212; bir tik kucuk. */
 .info-card .res-val{font-size:17px;}
 .info-card .res-meta,.load-card .res-meta{margin-top:6px;}
 .res-card .res-meta{margin-top:6px;}
@@ -164,12 +166,12 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
 .sub-dot.muted{background:var(--hint);}
-.sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmasın; sıkışınca önce sürüm kırpılır */
+.sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmas&#305;n; s&#305;k&#305;&#351;&#305;nca &#246;nce s&#252;r&#252;m k&#305;rp&#305;l&#305;r */
 .sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
-.sub-note.note-warn{color:var(--warn);font-weight:600;} /* yakın zamanda restart olmuş servis */
-/* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
+.sub-note.note-warn{color:var(--warn);font-weight:600;} /* yak&#305;n zamanda restart olmu&#351; servis */
+/* Ya&#351; s&#252;tunu: her sat&#305;rda sabit geni&#351;lik &#8594; sa&#287; kenarda dikey hizal&#305;, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
-/* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
+/* S&#252;r&#252;m &#8212; etiketin yan&#305;nda silik; dar pencerede yaln&#305;z o k&#305;rp&#305;l&#305;r (tamam&#305; hover'da) */
 .sub-ver{font-size:9px;font-weight:400;color:var(--hint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;}
 .copy-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--hint);flex-shrink:0;transition:background .15s,color .15s,border-color .15s;}
 .copy-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
@@ -183,7 +185,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .proc-age.stale{color:var(--warn);font-weight:600;}
 .proc-table{width:100%;border-collapse:collapse;font-size:11px;}
 .proc-table th{text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--hint);padding:2px 6px 5px 0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
-/* Tıklanır sıralama göstergesi (canlı sayfa; mail ekinde JS ölü, cron sıralaması kalır) */
+/* T&#305;klan&#305;r s&#305;ralama g&#246;stergesi (canl&#305; sayfa; mail ekinde JS &#246;l&#252;, cron s&#305;ralamas&#305; kal&#305;r) */
 .proc-table th.sorted-desc:after{content:" \2193";color:var(--accent);}
 .proc-table th.sorted-asc:after{content:" \2191";color:var(--accent);}
 .proc-table th[title]{cursor:help;text-decoration:underline dotted;text-underline-offset:2px;}
@@ -194,10 +196,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 .proc-table .warm{color:var(--warn);font-weight:600;}
 .proc-cmd{font-family:'SFMono-Regular',Consolas,monospace;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;cursor:pointer;}
 .proc-table td.td-fill{width:100%;max-width:0;}
-/* MySQL sorgu tablosu düzeni: kimlik (ID/kullanıcı/VT) solda, SORGU ortada
-   kalan alanı alır, metrikler (SÜRE/DURUM) sağda. Diğer kolonlar içeriğine göre
-   boyutlanır AMA en az taban genişliğinde — boş tabloda dengeli durur, uzun
-   içerik gelince taban aşılıp büyür. SORGU (4. kolon) kalanı alıp kırpılır. */
+/* MySQL sorgu tablosu d&#252;zeni: kimlik (ID/kullan&#305;c&#305;/VT) solda, SORGU ortada
+   kalan alan&#305; al&#305;r, metrikler (S&#220;RE/DURUM) sa&#287;da. Di&#287;er kolonlar i&#231;eri&#287;ine g&#246;re
+   boyutlan&#305;r AMA en az taban geni&#351;li&#287;inde &#8212; bo&#351; tabloda dengeli durur, uzun
+   i&#231;erik gelince taban a&#351;&#305;l&#305;p b&#252;y&#252;r. SORGU (4. kolon) kalan&#305; al&#305;p k&#305;rp&#305;l&#305;r. */
 .proc-row-sql th:nth-child(4){width:100%;}
 .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1){min-width:34px;}
 .proc-row-sql th:nth-child(2),.proc-row-sql td:nth-child(2){min-width:96px;}
@@ -240,11 +242,11 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 [data-theme="dark"] .spark-tip{background:var(--card2);color:var(--text);border:1px solid var(--border);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;position:relative;}
-/* Credit'i sol/sağ öğelerden bağımsız TAM ortala: akıştan çıkarıp footer'ın
-   yatay merkezine kilitle (flex:1 ortalaması sol/sağ eşit değilse kayıyordu). */
+/* Credit'i sol/sa&#287; &#246;&#287;elerden ba&#287;&#305;ms&#305;z TAM ortala: ak&#305;&#351;tan &#231;&#305;kar&#305;p footer'&#305;n
+   yatay merkezine kilitle (flex:1 ortalamas&#305; sol/sa&#287; e&#351;it de&#287;ilse kay&#305;yordu). */
 .footer-credit{position:absolute;left:0;right:0;margin-inline:auto;width:max-content;max-width:46%;text-align:center;}
-/* Mobil: mutlak-ortalı credit sığmıyor → footer dikey yığın, hepsi ortalı;
-   credit en alta (order) — durum / zaman / imza sırası. */
+/* Mobil: mutlak-ortal&#305; credit s&#305;&#287;m&#305;yor &#8594; footer dikey y&#305;&#287;&#305;n, hepsi ortal&#305;;
+   credit en alta (order) &#8212; durum / zaman / imza s&#305;ras&#305;. */
 @media(max-width:680px){
   .footer{flex-direction:column;align-items:center;gap:4px;text-align:center;}
   .footer-credit{position:static;max-width:none;width:auto;order:3;}
@@ -260,14 +262,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
   .proc-row{grid-template-columns:1fr 1fr;}
 }
-/* Header tek satırda kalsın (.hdr nowrap): geniş ekranda durum detayı sığmazsa
-   "…"+tooltip ile kısalır. Dar ekranda (≤900) meta bilgileri gizlenir ki marka +
-   durum rozeti yatay taşmadan yan yana kalsın — meta asla 2. satıra düşmez. */
+/* Header tek sat&#305;rda kals&#305;n (.hdr nowrap): geni&#351; ekranda durum detay&#305; s&#305;&#287;mazsa
+   "&#8230;"+tooltip ile k&#305;sal&#305;r. Dar ekranda (&#8804;900) meta bilgileri gizlenir ki marka +
+   durum rozeti yatay ta&#351;madan yan yana kals&#305;n &#8212; meta asla 2. sat&#305;ra d&#252;&#351;mez. */
 @media(max-width:900px){ .hdr-meta .meta-item{display:none;} }
 @media(max-width:680px){
-  /* Yeni kalıpta her kart bir mini grafik taşıyor: 390px'e üç load kartı sığmaz
-     (etiket + büyük değer aynı satırda, kart min-content'in altına inemiyordu ve
-     yatay taşma yapıyordu). Mobilde load tek sütun, grafikler alçak. */
+  /* Yeni kal&#305;pta her kart bir mini grafik ta&#351;&#305;yor: 390px'e &#252;&#231; load kart&#305; s&#305;&#287;maz
+     (etiket + b&#252;y&#252;k de&#287;er ayn&#305; sat&#305;rda, kart min-content'in alt&#305;na inemiyordu ve
+     yatay ta&#351;ma yap&#305;yordu). Mobilde load tek s&#252;tun, grafikler al&#231;ak. */
   .loads-row{grid-template-columns:1fr;}
   .res-left{min-width:0;}
   .res-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -276,36 +278,36 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .metric-spark{height:64px;}
   .info-spark{height:36px;}
   /* minmax(0,1fr): kart min-content'i (64px sparkline + en uzun kelime)
-     kolonu genişletip yatay taşma yaratmasın, kart daralabilsin */
+     kolonu geni&#351;letip yatay ta&#351;ma yaratmas&#305;n, kart daralabilsin */
   .resources-row,.info-row{grid-template-columns:repeat(2,minmax(0,1fr));}
-  /* İkon dekoratif, mobilde gizlenir; sparkline veri taşıdığı için kalır */
-  /* Sürüm masaüstü/mail teşhis detayı — dar ekranda kırpık sürüm gürültü olur */
+  /* &#304;kon dekoratif, mobilde gizlenir; sparkline veri ta&#351;&#305;d&#305;&#287;&#305; i&#231;in kal&#305;r */
+  /* S&#252;r&#252;m masa&#252;st&#252;/mail te&#351;his detay&#305; &#8212; dar ekranda k&#305;rp&#305;k s&#252;r&#252;m g&#252;r&#252;lt&#252; olur */
   .sub-ver{display:none;}
   .svcs-row1,.svcs-row2{grid-template-columns:1fr;}
   .proc-row{grid-template-columns:1fr;}
-  /* Mobilde meta satırı sığmıyor: hostname/threads/uptime/updated gizlenir AMA
-     en kritik bilgi — genel durum — kalır. Alt satıra taşmasın diye başlık tek
-     satıra kilitlenir (uzunsa "…"), brand daralır, kompakt durum rozeti (renkli
-     nokta + OK/Degraded/Issues) tema düğmesinin yanında SAĞ ÜST köşede sabit. */
+  /* Mobilde meta sat&#305;r&#305; s&#305;&#287;m&#305;yor: hostname/threads/uptime/updated gizlenir AMA
+     en kritik bilgi &#8212; genel durum &#8212; kal&#305;r. Alt sat&#305;ra ta&#351;mas&#305;n diye ba&#351;l&#305;k tek
+     sat&#305;ra kilitlenir (uzunsa "&#8230;"), brand daral&#305;r, kompakt durum rozeti (renkli
+     nokta + OK/Degraded/Issues) tema d&#252;&#287;mesinin yan&#305;nda SA&#286; &#220;ST k&#246;&#351;ede sabit. */
   .hdr{padding:12px 14px;gap:8px;flex-wrap:nowrap;}
   .hdr-brand{flex:1 1 auto;min-width:0;}
   .hdr-brand>div{min-width:0;}
-  /* Başlık alanı (logo'dan sonraki 2. div) esner ve taşarsa "…" —
-     tema+dil düğmeleri başlıktan ayrılıp sağa toplanır, metnin üstüne binmez */
+  /* Ba&#351;l&#305;k alan&#305; (logo'dan sonraki 2. div) esner ve ta&#351;arsa "&#8230;" &#8212;
+     tema+dil d&#252;&#287;meleri ba&#351;l&#305;ktan ayr&#305;l&#305;p sa&#287;a toplan&#305;r, metnin &#252;st&#252;ne binmez */
   .hdr-brand>div:nth-of-type(2){flex:1 1 auto;min-width:0;overflow:hidden;}
   .hdr-title{overflow:hidden;text-overflow:ellipsis;}
   .hdr-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .hdr-meta{display:flex;gap:0;flex:0 0 auto;align-items:center;}
   .hdr-meta .meta-item{display:none;}
-  .hdr-status{height:32px;padding:0 11px;position:relative;gap:6px;} /* tema düğmesiyle (32px) eşit yükseklik */
-  .hdr-status-dot{width:9px;height:9px;} /* metin yok — nokta biraz büyük, görünür */
-  .hdr-status-short{display:none;} /* mobilde metin yok: alan değerli, renkli nokta yeterli */
-  .hdr-status-full{display:none;} /* detay dokununca açılır */
-  /* Detay varsa dokunulabilir olduğunu belli eden küçük ok işareti (nokta yanında) */
+  .hdr-status{height:32px;padding:0 11px;position:relative;gap:6px;} /* tema d&#252;&#287;mesiyle (32px) e&#351;it y&#252;kseklik */
+  .hdr-status-dot{width:9px;height:9px;} /* metin yok &#8212; nokta biraz b&#252;y&#252;k, g&#246;r&#252;n&#252;r */
+  .hdr-status-short{display:none;} /* mobilde metin yok: alan de&#287;erli, renkli nokta yeterli */
+  .hdr-status-full{display:none;} /* detay dokununca a&#231;&#305;l&#305;r */
+  /* Detay varsa dokunulabilir oldu&#287;unu belli eden k&#252;&#231;&#252;k ok i&#351;areti (nokta yan&#305;nda) */
   .hdr-status.has-detail{cursor:pointer;}
   .hdr-status.has-detail::after{content:'\25BE';font-size:9px;opacity:.8;color:#fff;}
   .hdr-status.has-detail.st-open::after{content:'\25B4';}
-  /* Açık: sağ üstten aşağı açılan panel — tam durum + sorun listesi (sarılır) */
+  /* A&#231;&#305;k: sa&#287; &#252;stten a&#351;a&#287;&#305; a&#231;&#305;lan panel &#8212; tam durum + sorun listesi (sar&#305;l&#305;r) */
   .hdr-status.st-open .hdr-status-full{
     display:flex;flex-direction:column;gap:5px;align-items:flex-start;
     position:absolute;top:calc(100% + 7px);right:0;z-index:60;
@@ -315,11 +317,11 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .hdr-status.st-open .hdr-status-txt{display:block;font-size:12px;font-weight:700;color:#fff;}
   .hdr-status.st-open .hdr-status-detail{display:block!important;border-left:none;padding-left:0;margin-left:0;max-width:none;white-space:normal;overflow:visible;line-height:1.5;color:rgba(255,255,255,.82);}
   .hdr-title{font-size:14px;white-space:nowrap;}
-  /* Mobilde tablo EKRANA SIĞAR (kaydırma yok): düşük değerli kolonlar
-     gizlenir, komut sütunu daralır; dokununca satır dikey açılır. */
+  /* Mobilde tablo EKRANA SI&#286;AR (kayd&#305;rma yok): d&#252;&#351;&#252;k de&#287;erli kolonlar
+     gizlenir, komut s&#252;tunu daral&#305;r; dokununca sat&#305;r dikey a&#231;&#305;l&#305;r. */
   .proc-table{font-size:10px;}
   .proc-table td,.proc-table th{padding-right:4px;}
-  /* Mobilde PID/ID gizlenir (telefonda işlevsiz); yüzdeler ve renk sinyalleri görünür kalır */
+  /* Mobilde PID/ID gizlenir (telefonda i&#351;levsiz); y&#252;zdeler ve renk sinyalleri g&#246;r&#252;n&#252;r kal&#305;r */
   .proc-row .proc-card:nth-child(1) th:nth-child(1),
   .proc-row .proc-card:nth-child(1) td:nth-child(1),
   .proc-row .proc-card:nth-child(2) th:nth-child(1),
@@ -328,14 +330,14 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
   .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
   .proc-row-sql td.sql-empty{display:table-cell!important;}
-  /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
-     SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
-     sabit oran / table-layout:fixed gerekmez (masaüstüyle aynı yaklaşım). */
+  /* G&#246;r&#252;n&#252;r 3 kolonun (Kullan&#305;c&#305;/S&#252;re/Sorgu) d&#252;zeni base kuraldan gelir:
+     SORGU kalan&#305; al&#305;r, di&#287;erleri i&#231;eri&#287;ine g&#246;re boyutlan&#305;r &#8212; mobilde ekstra
+     sabit oran / table-layout:fixed gerekmez (masa&#252;st&#252;yle ayn&#305; yakla&#351;&#305;m). */
 }
 @media(max-width:379px){
-  /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
-     (320px'te başlık+rozet hâlâ tek satır); daha da darsa nowrap kalkar,
-     rozet alt satıra sarar — sayfa kaydırmaz. */
+  /* &#199;ok dar ekran: ba&#351;l&#305;k sat&#305;r&#305; yatay ta&#351;ma yapmas&#305;n. Fontlar k&#252;&#231;&#252;l&#252;r
+     (320px'te ba&#351;l&#305;k+rozet h&#226;l&#226; tek sat&#305;r); daha da darsa nowrap kalkar,
+     rozet alt sat&#305;ra sarar &#8212; sayfa kayd&#305;rmaz. */
   .hdr-brand{gap:8px;}
   .hdr-title{font-size:12.5px;white-space:normal;}
   .hdr-sub{font-size:10px;}
@@ -345,7 +347,7 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 <script>(function(){var f=window.fetch;window.fetch=function(u){try{if(typeof u==="string"&&(""+u).indexOf("json=1")>-1)return new Promise(function(){});}catch(e){}return f.apply(this,arguments);};})();</script>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" lang="tr">
 
 <div class="hdr">
   <div class="hdr-brand">
@@ -356,9 +358,8 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <div class="hdr-title">Server Status Monitor      </div>
       <div class="hdr-sub">Real-time server health</div>
     </div>
-    <button class="theme-btn" id="theme-btn" title="Karanlık modu değiştir">
-      <i class="ti ti-moon" id="theme-icon"></i>
-    </button>
+    <button class="theme-btn" id="theme-btn" title="Karanl&#305;k modu de&#287;i&#351;tir">
+      <svg class="ic ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" /></svg><svg class="ic ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" /></svg>    </button>
     <button class="theme-btn" id="lang-btn" title="Dil" style="font-size:11px;font-weight:700;letter-spacing:.02em;">EN</button>
   </div>
   <div class="hdr-meta">
@@ -367,52 +368,52 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2031ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4">Web 2031ms · Web Çevrimdışı · Mail Çevrimdışı · DNS Çevrimdışı · Güvenlik Çevrimdışı · +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2010ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2010ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
       </div>
     </div>
-    <div class="meta-item"><div class="meta-lbl">Sunucu adı</div>
+    <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
       <div class="meta-val" id="hostname">demo.ayzeta.net</div></div>
-    <div class="meta-item"><div class="meta-lbl">Çekirdek</div>
+    <div class="meta-item"><div class="meta-lbl">&#199;EK&#304;RDEK</div>
       <div class="meta-val" id="threads">1</div></div>
-    <div class="meta-item"><div class="meta-lbl">Çalışma süresi</div>
-      <div class="meta-val" id="uptime">0 Gün 00:00:00</div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">Güncellendi</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">12:52:50</span></div></div>
+    <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
+      <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">G&#220;NCELLEND&#304;</div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">23:29:07</span></div></div>
   </div>
 </div>
 
-<div class="sec">Sistem metrikleri <span class="sec-range" id="metrics-range"></span></div>
+<div class="sec">S&#304;STEM METR&#304;KLER&#304; <span class="sec-range" id="metrics-range"></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Yük ort. <span class="load-sub-inline">1 dk</span></span></div><span class="res-val" id="v-l1">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">1 dk</span></span></div><span class="res-val" id="v-l1">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l1"></span><canvas class="load-spark" id="sp-l1"></canvas></span>
-      <div class="res-meta" id="p-l1">%0 / 1 çekirdek</div>
+      <div class="res-meta" id="p-l1">%0 / 1 &#231;ekirdek</div>
   </div>
   <div class="load-card" id="lc-l5" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Yük ort. <span class="load-sub-inline">5 dk</span></span></div><span class="res-val" id="v-l5">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">5 dk</span></span></div><span class="res-val" id="v-l5">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l5"></span><canvas class="load-spark" id="sp-l5"></canvas></span>
-      <div class="res-meta" id="p-l5">%0 / 1 çekirdek</div>
+      <div class="res-meta" id="p-l5">%0 / 1 &#231;ekirdek</div>
   </div>
   <div class="load-card" id="lc-l15" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Yük ort. <span class="load-sub-inline">15 dk</span></span></div><span class="res-val" id="v-l15">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">15 dk</span></span></div><span class="res-val" id="v-l15">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l15"></span><canvas class="load-spark" id="sp-l15"></canvas></span>
-      <div class="res-meta" id="p-l15">%0 / 1 çekirdek</div>
+      <div class="res-meta" id="p-l15">%0 / 1 &#231;ekirdek</div>
   </div>
 </div>
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:var(--c-cpu);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-cpu res-icon"></i><span class="res-name">İşlemci</span></div>
+      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg><span class="res-name">&#304;&#351;lemci</span></div>
       <span class="res-val" id="rv-cpu">0%</span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-cpu"></span><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu">Yük: 0.00 / 0.00 / 0.00</div>
+    <div class="res-meta" id="rm-cpu">Y&#252;k: 0.00 / 0.00 / 0.00</div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:var(--c-ram);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-server res-icon"></i><span class="res-name">Bellek</span></div>
+      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M7 8l0 .01" /><path d="M7 16l0 .01" /></svg><span class="res-name">Bellek</span></div>
       <span class="res-val" id="rv-ram">0%</span>
     </div>
     <div class="res-middle">
@@ -420,117 +421,117 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:65%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:66%">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-database res-icon"></i><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk">65%</span>
+      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg><span class="res-name">Disk</span></div>
+      <span class="res-val" id="rv-disk">66%</span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">153 / 236 GB</div>
+    <div class="res-meta" id="rm-disk">155 / 236 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><i class="ti ti-activity res-icon"></i><span class="res-name">IO Bekleme</span></div>
+      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4" /></svg><span class="res-name">IO Bekleme</span></div>
       <span class="res-val" id="rv-iow">0%</span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-iow"></span><canvas class="res-spark" id="sp-iow"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-iow">Disk I/O baskısı</div>
+    <div class="res-meta" id="rm-iow">Disk I/O bask&#305;s&#305;</div>
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">Sistem bilgisi</div>
+<div class="sec" style="margin-top:12px">S&#304;STEM B&#304;LG&#304;S&#304;</div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-arrow-down"></i></span><span class="res-name">Ağ GİRİŞ</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)">0 B/s</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" /></svg></span><span class="res-name">A&#287; G&#304;R&#304;&#350;</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)">0 B/s</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-rx"></span><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub">gelen trafik</div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-arrow-up"></i></span><span class="res-name">Ağ ÇIKIŞ</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)">0 B/s</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" /></svg></span><span class="res-name">A&#287; &#199;IKI&#350;</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)">0 B/s</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-tx"></span><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub">giden trafik</div>
     </div>
   <div class="info-card has-fill" id="ic-wrk" style="--c:var(--muted);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-cpu"></i></span><span class="res-name">PHP İşçileri</span></div><span class="res-val" id="iv-lsphp" style="color:var(--muted)">—</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg></span><span class="res-name">PHP &#304;&#351;&#231;ileri</span></div><span class="res-val" id="iv-lsphp" style="color:var(--muted)">&#8212;</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-wrk"></span><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
-      <div class="res-meta" id="iv-lsphp-sub" title="Değer = aktif işçiler (R/D durumu); lsphp/hesap tablosu boştaki havuz dahil tüm süreçleri listeler">çalışan lsphp</div>
+      <div class="res-meta" id="iv-lsphp-sub" title="De&#287;er = aktif i&#351;&#231;iler (R/D durumu); lsphp/hesap tablosu bo&#351;taki havuz dahil t&#252;m s&#252;re&#231;leri listeler">&#231;al&#305;&#351;an lsphp</div>
     </div>
   <div class="info-card has-fill" id="ic-mq" style="--c:var(--muted);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-mail"></i></span><span class="res-name">Mail Kuyruğu</span></div><span class="res-val" id="iv-mailq" style="color:var(--muted)">—</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg></span><span class="res-name">Mail Kuyru&#287;u</span></div><span class="res-val" id="iv-mailq" style="color:var(--muted)">&#8212;</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-bolt"></i></span><span class="res-name">Web Yanıtı</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2031 ms</span></div>
-      <div class="res-meta">HTTP yanıt süresi</div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2010 ms</span></div>
+      <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-database"></i></span><span class="res-name">MySQL Yanıtı</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)">—</span></div>
-      <div class="res-meta">TCP yanıt süresi</div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)">&#8212;</span></div>
+      <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-users"></i></span><span class="res-name">Hesaplar</span></div><span class="res-val" id="iv-acct">—</span></div>
-      <div class="res-meta">cPanel hesabı</div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></svg></span><span class="res-name">Hesaplar</span></div><span class="res-val" id="iv-acct">&#8212;</span></div>
+      <div class="res-meta">cPanel hesab&#305;</div>
     </div>
   <div class="info-card" id="ic-ssl" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><i class="ti ti-lock"></i></span><span class="res-name">SSL &middot; <span lang="en">demo.ayzeta.net</span></span></div><span class="res-val" id="iv-ssl" style="color:var(--accent)">—</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg></span><span class="res-name">SSL &middot; <span lang="en">demo.ayzeta.net</span></span></div><span class="res-val" id="iv-ssl" style="color:var(--accent)">&#8212;</span></div>
       <div class="res-meta" id="iv-ssl-sub">yok</div>
     </div>
 </div>
 
-<div class="sec" style="margin-top:12px">Servisler</div>
+<div class="sec" style="margin-top:12px">SERV&#304;SLER</div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-bolt"></i></div>
-      <div class="svc-info"><div class="svc-name">Web sunucusu</div><div class="svc-count" id="sk-web">0/5 kontrol geçti</div></div>
-      <div class="badge badge-err" id="bd-web">Çevrimdışı</div>
+      <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></div>
+      <div class="svc-info"><div class="svc-name">Web sunucusu</div><div class="svc-count" id="sk-web">0/5 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-web">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
     <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">durdu</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-mail"></i></div>
-      <div class="svc-info"><div class="svc-name">Mail servisleri</div><div class="svc-count" id="sk-mail">0/9 kontrol geçti</div></div>
-      <div class="badge badge-err" id="bd-mail">Çevrimdışı</div>
+      <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg></div>
+      <div class="svc-info"><div class="svc-name">Mail servisleri</div><div class="svc-count" id="sk-mail">0/9 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-mail">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-mail"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP (25)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP Submit. (587)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTPS (465)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3 (110)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3S (995)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAP (143)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAPS (993)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail (2095)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail SSL (2096)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-mail"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP (25)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTP Submit. (587)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">SMTPS (465)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3 (110)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">POP3S (995)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAP (143)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">IMAPS (993)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail (2095)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Webmail SSL (2096)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-world"></i></div>
-      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns">0/2 kontrol geçti</div></div>
-      <div class="badge badge-err" id="bd-dns">Çevrimdışı</div>
+      <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M3.6 9h16.8" /><path d="M3.6 15h16.8" /><path d="M11.5 3a17 17 0 0 0 0 18" /><path d="M12.5 3a17 17 0 0 1 0 18" /></svg></div>
+      <div class="svc-info"><div class="svc-name">DNS</div><div class="svc-count" id="sk-dns">0/2 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-dns">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-dns"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS TCP (53)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS UDP (53)</span><span class="sub-note">algılanmadı</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-dns"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS TCP (53)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">DNS UDP (53)</span><span class="sub-note">alg&#305;lanmad&#305;</span><span class="sub-age"></span></div>
 </div>
   </div>
 </div>
 <div class="svcs-row2">
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-shield-check"></i></div>
-      <div class="svc-info"><div class="svc-name">Güvenlik</div><div class="svc-count" id="sk-sec">0/2 aktif doğrulandı</div></div>
-      <div class="badge badge-err" id="bd-sec">Çevrimdışı</div>
+      <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06" /><path d="M15 19l2 2l4 -4" /></svg></div>
+      <div class="svc-info"><div class="svc-name">G&#252;venlik</div><div class="svc-count" id="sk-sec">0/2 aktif do&#287;ruland&#305;</div></div>
+      <div class="badge badge-err" id="bd-sec">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
     <div class="svc-checks" id="ch-sec"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Imunify360</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">LFD</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
@@ -541,54 +542,53 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-database"></i></div>
-      <div class="svc-info"><div class="svc-name">Veritabanı</div><div class="svc-count" id="sk-db">0/2 kontrol geçti</div></div>
-      <div class="badge badge-err" id="bd-db">Çevrimdışı</div>
+      <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></div>
+      <div class="svc-info"><div class="svc-name">Veritaban&#305;</div><div class="svc-count" id="sk-db">0/2 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-db">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">bulunamadı</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">bulunamad&#305;</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-topology-star-ring"></i></div>
-      <div class="svc-info"><div class="svc-name">Önbellek</div><div class="svc-count" id="sk-cache">0/2 aktif</div></div>
-      <div class="badge badge-err" id="bd-cache">Çevrimdışı</div>
+      <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 4a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12h4" /><path d="M14 12h4" /><path d="M13.5 5.5l5 5" /><path d="M5.5 13.5l5 5" /><path d="M13.5 18.5l5 -5" /><path d="M10.5 5.5l-5 5" /><path d="M12 6v4" /><path d="M12 14v4" /></svg></div>
+      <div class="svc-info"><div class="svc-name">&#214;nbellek</div><div class="svc-count" id="sk-cache">0/2 aktif</div></div>
+      <div class="badge badge-err" id="bd-cache">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
     <div class="svc-top">
-      <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><i class="ti ti-file-arrow-right"></i></div>
-      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp">0/2 kontrol geçti</div></div>
-      <div class="badge badge-err" id="bd-ftp">Çevrimdışı</div>
+      <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 15h6" /><path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" /></svg></div>
+      <div class="svc-info"><div class="svc-name">FTP</div><div class="svc-count" id="sk-ftp">0/2 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-ftp">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-ftp"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">FTP service</span><span class="sub-note">yanıt yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Kernel state</span><span class="sub-note">bağlı değil</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-ftp"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">FTP service</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Kernel state</span><span class="sub-note">ba&#287;l&#305; de&#287;il</span><span class="sub-age"></span></div>
 </div>
   </div>
 </div>
 
 
-<div class="sec" style="margin-top:12px">Olay kaydı</div>
+<div class="sec" style="margin-top:12px">OLAY KAYDI</div>
 <div class="log-card">
   <div class="log-hdr">
-    <i class="ti ti-list" style="font-size:15px;color:var(--hint)"></i>
-    <span class="log-hdr-title">Son alarmlar ve durum değişiklikleri</span>
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="font-size:15px;color:var(--hint)"><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></svg>    <span class="log-hdr-title">Son alarmlar ve durum de&#287;i&#351;iklikleri</span>
     <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yanıt süresi yüksek: 2031ms</span><span class="log-ts">12:52</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anlık görüntüsü yok — cron kapalı mı?</span><span class="log-ts">12:52</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2010ms</span><span class="log-ts">23:29</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">23:29</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>30 saniyede bir yenilenir</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.3.0">v1.3.0</span> &middot; 2026-07-29 12:52:50</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.4.0">v1.4.0</span> &middot; 2026-07-29 23:29:07</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -604,8 +604,6 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
       if (!localStorage.getItem('az-theme')) {
         const t = e.matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', t);
-        const icon = document.getElementById('theme-icon');
-        if (icon) icon.className = t === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
       }
     });
   }
@@ -614,14 +612,10 @@ body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;font-size:13p
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('az-theme', theme);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.className = theme === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.className = cur === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
   document.getElementById('theme-btn').addEventListener('click', function() {
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
@@ -887,6 +881,10 @@ const TR={
 };
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
 function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
+// PHP upper() ile es: CSS'e guvenmeden buyuk harf.
+function UPPER(s){return LANG_UI==='tr'
+  ? String(s).replace(/[iışğüöç]/g,c=>({i:'İ','ı':'I','ş':'Ş','ğ':'Ğ','ü':'Ü','ö':'Ö','ç':'Ç'})[c]).toUpperCase()
+  : String(s).toUpperCase();}
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
@@ -905,7 +903,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:52:50'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'23:29:07'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -933,12 +931,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "12:52"
+        "ts": "23:29"
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2031ms",
-        "ts": "12:52"
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2010ms",
+        "ts": "23:29"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1484,7 +1482,7 @@ function applyMetrics(data){
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
-  document.getElementById('footer-time').textContent='v1.3.0 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  document.getElementById('footer-time').textContent='v1.4.0 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -1645,7 +1643,9 @@ renderLog();
 if(location.protocol==='file:'){
   // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
   document.body.classList.add('static-mode');
-  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent='Snapshot';
+  // 'Snapshot' eskiden SABIT Ingilizce yaziliydi (TR sayfada da 'Snapshot'
+  // gorunuyordu). t()'den geciyor ve PHP tarafiyla ayni sekilde buyutuluyor.
+  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Snapshot'));
   const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
          new Date().toTimeString().slice(0,8));
