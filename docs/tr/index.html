@@ -28,11 +28,22 @@
   --muted:       #64748b;
   --hint:        #94a3b8;
   --bar-track:   #edf2f9;
+  /* Kart yuksekligi. Kenarlik IKI temada da yerinde kalir; golge kutu
+     modelinde yer kaplamadigi icin tema gecisinde hicbir oge oynamaz. */
+  --elev: 0 1px 2px rgba(16,24,40,.05), 0 2px 6px rgba(16,24,40,.06);
   --log-item-bg: #f8fafc;
   --cmd-bg:      #f1f5f9;
   --logo-filter: none;
   --hdr-sub:     rgba(255,255,255,.5);
   --hdr-meta-lbl:rgba(255,255,255,.45);
+  /* Ikon kutusu zeminleri: kimlik renginin soluk tonu. Kart durumu (warn/err)
+     ikonu DEGISTIRMEZ &#8212; sari/kirmizi yalnizca uyari rengi olarak kalsin diye
+     kutu her zaman kimlik renginde durur, durumu deger + kenarlik tasir. */
+  --ic-neutral: rgba(100,116,139,.09);
+  --c-cpu-bg:  rgba(8,145,178,.10);
+  --c-ram-bg:  rgba(124,58,237,.10);
+  --c-disk-bg: rgba(13,148,136,.10);
+  --c-iow-bg:  rgba(2,132,199,.10);
   --c-cpu:  #0891b2;
   --c-ram:  #7c3aed;
   --c-disk: #0d9488;
@@ -59,11 +70,19 @@
   --muted:       #94a3b8;
   --hint:        #64748b;
   --bar-track:   rgba(255,255,255,.08);
+  /* Koyu temada dis golge okunmaz: derinlik UST KENAR isigiyla verilir
+     (ic golge &#8212; o da yer kaplamaz). */
+  --elev: inset 0 1px 0 rgba(255,255,255,.075);
   --log-item-bg: rgba(255,255,255,.04);
   --cmd-bg:      rgba(255,255,255,.06);
   --logo-filter: brightness(0) invert(1);
   --hdr-sub:     rgba(255,255,255,.4);
   --hdr-meta-lbl:rgba(255,255,255,.4);
+  --ic-neutral: rgba(255,255,255,.07);
+  --c-cpu-bg:  rgba(34,211,238,.13);
+  --c-ram-bg:  rgba(167,139,250,.14);
+  --c-disk-bg: rgba(45,212,191,.13);
+  --c-iow-bg:  rgba(56,189,248,.13);
   --c-cpu:  #22d3ee;
   --c-ram:  #a78bfa;
   --c-disk: #2dd4bf;
@@ -82,7 +101,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .meta-item{text-align:right;}
 .meta-lbl{font-size:10px;color:var(--hdr-meta-lbl);text-transform:uppercase;letter-spacing:.05em;}
 .meta-val{font-size:13px;font-weight:600;color:#fff;margin-top:2px;}
-.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
+/* Yukseklik SABIT 32px: tema/dil dugmeleri de 32px. Onceden yalnizca mobil
+   medya sorgusunda yukseklik vardi, masaustunde rozet 2-3px kacik duruyordu.
+   Zemin saydamligi da dugmelerle esitlendi (.10 -> .12). */
+.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;height:32px;
+  background:rgba(255,255,255,.12);border-radius:8px;padding:0 12px;}
 .hdr-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite;}
 .hdr-status-txt{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;flex-shrink:0;}
 .hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
@@ -97,20 +120,25 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .theme-btn:hover{background:rgba(255,255,255,.2);}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);}}
-.sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hint);margin:12px 0 7px 2px;}
+/* Bolum etiketi: yazi solda, ince cizgi arayi doldurur, aralik sagda.
+   Uzun sayfayi gozle bolumlere ayirir. */
+.sec{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--hint);margin:12px 0 7px 2px;}
+.sec-hair{flex:1;height:1px;background:var(--border);display:block;}
+.sec-range{margin-left:0;}
 .sec-range{font-weight:400;text-transform:none;letter-spacing:0;color:var(--hint);}
 
 .loads-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
 /* Uc kart tipi de AYNI kalip: ust satirda etiket+deger, altinda kenardan kenara
    grafik, en altta meta. Kartin alt kenari doluluk cubugu (ray + dolgu). */
-.load-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.load-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 .load-card::before{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--bar-track);}
 .load-card::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,100%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .load-sub-inline{font-weight:400;text-transform:none;letter-spacing:0;opacity:.7;}
 .load-spark{width:100%;height:88px;} /* yedek: sarmalayici icinde .spark-wrap kurali ezer */
 
 .resources-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.res-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.res-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 /* Kartin alt kenari CIFT is yapar: soluk ray tam genislik (::before), renkli
    dolgu ise metrigin yuzdesi kadar (::after). Boylece kaldirilan doluluk
    cubugunun bilgisi hic yer kaplamadan geri gelir, sparkline tam genislikte
@@ -130,8 +158,27 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .ic-sun{display:none;}
 [data-theme="dark"] .ic-sun{display:inline-block;}
 [data-theme="dark"] .ic-moon{display:none;}
-.res-icon{font-size:15px;color:var(--hint);}
+/* Ikon kutusu &#8212; servis kartlarindaki .svc-icon ile ayni dil, daha kucuk olcek.
+   Boyut/kenarlik iki temada BIREBIR ayni; tema degisince yalnizca renk
+   degisiyor, dolayisiyla hicbir oge yer degistirmiyor. */
+.res-icon{width:26px;height:26px;border-radius:8px;flex-shrink:0;font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--ic-bg,var(--ic-neutral));color:var(--ic-fg,var(--hint));
+  transition:background .3s,color .3s;}
+.ic-load{--ic-bg:var(--accent-bg);--ic-fg:var(--accent);}
+.ic-cpu {--ic-bg:var(--c-cpu-bg); --ic-fg:var(--c-cpu);}
+.ic-ram {--ic-bg:var(--c-ram-bg); --ic-fg:var(--c-ram);}
+.ic-disk{--ic-bg:var(--c-disk-bg);--ic-fg:var(--c-disk);}
+.ic-iow {--ic-bg:var(--c-iow-bg); --ic-fg:var(--c-iow);}
 .res-name{font-size:11px;font-weight:600;color:var(--muted);}
+/* Birim hiyerarsisi: goz sayiya oturur, birim destek rolunde kalir.
+   Onceden '21%' tamamen ayni boyut ve kalinliktaydi. */
+.res-val b{font-weight:inherit;}
+.res-val u{font-size:.58em;font-weight:600;text-decoration:none;opacity:.62;
+  margin-left:1px;letter-spacing:0;}
+/* Tek karakterli birim ('%') sayiya yapisik durur; kelime birimler
+   ('ms', 'days', 'KB/s') nefes alsin, yoksa '61days' tek kelime okunuyor. */
+.res-val u.w{margin-left:.26em;}
 .res-val{font-size:22px;font-weight:700;letter-spacing:-.04em;color:var(--c,var(--accent));transition:color .3s;}
 /* Info kartlarinda deger metinsel olabiliyor (235 KB/s, 2026-09-21) &#8212; bir tik kucuk. */
 .info-card .res-val{font-size:17px;}
@@ -142,7 +189,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .res-meta{font-size:10px;color:var(--hint);}
 
 .info-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 .info-card.has-fill::before{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--bar-track);}
 .info-card.has-fill::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,0%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .info-spark{width:100%;height:52px;position:relative;display:block;}
@@ -150,7 +197,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 
 .svcs-row1{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
 .svcs-row2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.svc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:background .3s,border-color .3s;}
+.svc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);overflow:hidden;display:flex;flex-direction:column;transition:background .3s,border-color .3s;}
 .svc-top{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;}
 .svc-icon{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .3s,color .3s;}
 .svc-info{flex:1;min-width:0;}
@@ -179,7 +226,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-cmd-inline{font-size:10px;color:var(--muted);background:var(--cmd-bg);padding:2px 6px;border-radius:5px;font-family:'SFMono-Regular',Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
 
 .proc-row{display:grid;grid-template-columns:2.2fr 1.5fr 1fr 1fr;gap:8px;}
-.proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
+.proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
 .proc-title{font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
 .proc-age{font-size:10px;color:var(--hint);font-weight:400;text-transform:none;letter-spacing:0;}
 .proc-age.stale{color:var(--warn);font-weight:600;}
@@ -213,7 +260,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
 .proc-row-sql{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px;}
 
-.log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:background .3s,border-color .3s;}
+.log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:14px 16px;transition:background .3s,border-color .3s;}
 .log-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
@@ -368,7 +415,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2027ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2027ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2021ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2021ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -378,24 +425,24 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">G&#220;NCELLEND&#304;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">00:35:34</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">11:21:57</span></div></div>
   </div>
 </div>
 
-<div class="sec">S&#304;STEM METR&#304;KLER&#304; <span class="sec-range" id="metrics-range"></span></div>
+<div class="sec"><span>S&#304;STEM METR&#304;KLER&#304;</span><i class="sec-hair"></i><span class="sec-range" id="metrics-range"></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">1 dk</span></span></div><span class="res-val" id="v-l1">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12V7"/></svg></span><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">1 dk</span></span></div><span class="res-val" id="v-l1">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l1"></span><canvas class="load-spark" id="sp-l1"></canvas></span>
       <div class="res-meta" id="p-l1">%0 / 1 &#231;ekirdek</div>
   </div>
   <div class="load-card" id="lc-l5" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">5 dk</span></span></div><span class="res-val" id="v-l5">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12l2.5 -4.3"/></svg></span><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">5 dk</span></span></div><span class="res-val" id="v-l5">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l5"></span><canvas class="load-spark" id="sp-l5"></canvas></span>
       <div class="res-meta" id="p-l5">%0 / 1 &#231;ekirdek</div>
   </div>
   <div class="load-card" id="lc-l15" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">15 dk</span></span></div><span class="res-val" id="v-l15">0.00</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12h5"/></svg></span><span class="res-name">Y&#252;k ort. <span class="load-sub-inline">15 dk</span></span></div><span class="res-val" id="v-l15">0.00</span></div>
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-l15"></span><canvas class="load-spark" id="sp-l15"></canvas></span>
       <div class="res-meta" id="p-l15">%0 / 1 &#231;ekirdek</div>
   </div>
@@ -403,8 +450,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:var(--c-cpu);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg><span class="res-name">&#304;&#351;lemci</span></div>
-      <span class="res-val" id="rv-cpu">0%</span>
+      <div class="res-left"><span class="res-icon ic-cpu"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg></span><span class="res-name">&#304;&#351;lemci</span></div>
+      <span class="res-val" id="rv-cpu"><b>0</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-cpu"></span><canvas class="res-spark" id="sp-cpu"></canvas></span>
@@ -413,8 +460,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-ram" style="--c:var(--c-ram);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M7 8l0 .01" /><path d="M7 16l0 .01" /></svg><span class="res-name">Bellek</span></div>
-      <span class="res-val" id="rv-ram">0%</span>
+      <div class="res-left"><span class="res-icon ic-ram"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" /><path d="M7 8l0 .01" /><path d="M7 16l0 .01" /></svg></span><span class="res-name">Bellek</span></div>
+      <span class="res-val" id="rv-ram"><b>0</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-ram"></span><canvas class="res-spark" id="sp-ram"></canvas></span>
@@ -423,8 +470,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:66%">
     <div class="res-top">
-      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk">66%</span>
+      <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
+      <span class="res-val" id="rv-disk"><b>66</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
@@ -433,8 +480,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><svg class="ic res-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4" /></svg><span class="res-name">IO Bekleme</span></div>
-      <span class="res-val" id="rv-iow">0%</span>
+      <div class="res-left"><span class="res-icon ic-iow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4" /></svg></span><span class="res-name">IO Bekleme</span></div>
+      <span class="res-val" id="rv-iow"><b>0</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-iow"></span><canvas class="res-spark" id="sp-iow"></canvas></span>
@@ -443,15 +490,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px">S&#304;STEM B&#304;LG&#304;S&#304;</div>
+<div class="sec" style="margin-top:12px"><span>S&#304;STEM B&#304;LG&#304;S&#304;</span><i class="sec-hair"></i></div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" /></svg></span><span class="res-name">A&#287; G&#304;R&#304;&#350;</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)">0 B/s</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" /></svg></span><span class="res-name">A&#287; G&#304;R&#304;&#350;</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-rx"></span><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub">gelen trafik</div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" /></svg></span><span class="res-name">A&#287; &#199;IKI&#350;</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)">0 B/s</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" /></svg></span><span class="res-name">A&#287; &#199;IKI&#350;</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-tx"></span><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub">giden trafik</div>
     </div>
@@ -466,7 +513,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2027 ms</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2021</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -483,7 +530,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
 </div>
 
-<div class="sec" style="margin-top:12px">SERV&#304;SLER</div>
+<div class="sec" style="margin-top:12px"><span>SERV&#304;SLER</span><i class="sec-hair"></i></div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
@@ -573,22 +620,22 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 
-<div class="sec" style="margin-top:12px">OLAY KAYDI</div>
+<div class="sec" style="margin-top:12px"><span>OLAY KAYDI</span><i class="sec-hair"></i></div>
 <div class="log-card">
   <div class="log-hdr">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="font-size:15px;color:var(--hint)"><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></svg>    <span class="log-hdr-title">Son alarmlar ve durum de&#287;i&#351;iklikleri</span>
     <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2027ms</span><span class="log-ts">00:35</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">00:35</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2021ms</span><span class="log-ts">11:21</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">11:21</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>30 saniyede bir yenilenir</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.4.1">v1.4.1</span> &middot; 2026-07-30 00:35:34</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-07-30 11:21:57</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -909,7 +956,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'00:35:34'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:21:57'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -937,12 +984,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "00:35"
+        "ts": "11:21"
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2027ms",
-        "ts": "00:35"
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2021ms",
+        "ts": "11:21"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1004,6 +1051,15 @@ function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d
 function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 
+// Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
+// alfa gerektigi icin var; getComputedStyle genelde rgb() dondurur ama hex de olabilir.
+function rgbaOf(c,a){
+  let m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(c).trim());
+  if(m)return 'rgba('+parseInt(m[1],16)+','+parseInt(m[2],16)+','+parseInt(m[3],16)+','+a+')';
+  m=/rgba?\(([^)]+)\)/.exec(String(c));
+  if(m){const p=m[1].split(',').map(x=>x.trim());return 'rgba('+p[0]+','+p[1]+','+p[2]+','+a+')';}
+  return c;
+}
 function spark(id,data,color,W,H,fix){
   const c=document.getElementById(id);if(!c)return;
   c._d=data.slice();
@@ -1027,7 +1083,13 @@ function spark(id,data,color,W,H,fix){
   // Alan dolgusu: kaldırılan yüzde çubuğunun "seviye" hissini üstlenir, trendi
   // bozmaz. globalAlpha ile — renk hex/rgb hangi biçimde gelirse gelsin çalışır.
   const fill=new Path2D(path);fill.lineTo(pts[pts.length-1].x,cH);fill.lineTo(pts[0].x,cH);fill.closePath();
-  ctx.globalAlpha=.13;ctx.fillStyle=col;ctx.fill(fill);ctx.globalAlpha=1;
+  // Dolgu DEGRADE: cizgide %26, tabanda %0. Duz saydam dolgu (eski hal) blok
+  // gibi duruyordu. globalAlpha yerine durak basina alfa kullaniliyor; 'transparent'
+  // ile interpolasyon bazi motorlarda gri kaymaya yol actigi icin renk rgba'ya
+  // cevrilip alfasi sifirlaniyor.
+  const g=ctx.createLinearGradient(0,0,0,cH);
+  g.addColorStop(0,rgbaOf(col,.26));g.addColorStop(1,rgbaOf(col,0));
+  ctx.fillStyle=g;ctx.fill(fill);
   ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke(path);
   const ss=document.getElementById('ssr-'+id.slice(3));if(ss)ss.remove();
   const l=pts[pts.length-1];ctx.beginPath();ctx.arc(l.x,l.y,2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
@@ -1088,6 +1150,12 @@ document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;});
 
 // Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla
 // (cardBorderCss) aynı davranış; sağlıklıyken kenarlık nötr kalır.
+// PHP vu()/vuSplit() ile es. Sayisal/bicimlenmis metin uretiyoruz, o yuzden
+// innerHTML guvenli; yine de birim tarafi kacisliyor.
+function vu(num,unit){if(!unit)return '<b>'+num+'</b>';
+  return '<b>'+num+'</b><u'+(String(unit).length>1?' class="w"':'')+'>'+esc(unit)+'</u>';}
+function vuSplit(s){s=String(s);const i=s.lastIndexOf(' ');
+  return i<0?vu(s,''):vu(s.slice(0,i),s.slice(i+1));}
 function isProblemCol(c){return c==='var(--danger)'||c==='var(--warn)';}
 // Info kartlarinin alt kenar doluluk cubugu: bu kartlarin grafigi OTOMATIK olcekli
 // (ag KB/s, isci, kuyruk — mutlak kapasitesi yok), dolayisiyla 'seviye' bilgisini
@@ -1117,7 +1185,7 @@ function setLoad(vid,cardId,sparkId,histKey,val,t){
 }
 
 function setRes(valId,cardId,sparkId,metaId,histKey,val,color,meta){
-  const ve=document.getElementById(valId);if(ve){ve.textContent=Math.round(val)+'%';ve.style.color=color;}
+  const ve=document.getElementById(valId);if(ve){ve.innerHTML=vu(Math.round(val),'%');ve.style.color=color;}
   const card=document.getElementById(cardId);if(card){card.style.setProperty('--c',color);card.style.setProperty('--fill',Math.min(val,100)+'%');card.style.borderColor=isProblemCol(color)?color:'';}
   // innerHTML: meta içeriği bizim ürettiğimiz sayısal metin (RAM metasındaki
   // shmem renk span'i için). Değerler sayı, kullanıcı girdisi yok — güvenli.
@@ -1521,7 +1589,7 @@ function applyMetrics(data){
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
-  document.getElementById('footer-time').textContent='v1.4.1 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  document.getElementById('footer-time').textContent='v1.5.0 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -1553,12 +1621,12 @@ function applyMetrics(data){
   setRes('rv-iow','rc-iow','sp-iow','rm-iow','iow',data.iowait,lastCardCol.iow,iowMeta(data));
   // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
   {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
-   if(e&&data.rxRate){e.textContent=data.rxRate;e.style.color=c;}
+   if(e&&data.rxRate){e.innerHTML=vuSplit(data.rxRate);e.style.color=c;}
    if(s)s.textContent=data.netRxSat!=null?tf('%s%% of link · peak %s',data.netRxSat,fmtKB(hist.rx.length?Math.max.apply(null,hist.rx):0)):t('incoming traffic');
    setFill('ic-rx',data.netRxSat,c);
    if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c);}}
   {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
-   if(e&&data.txRate){e.textContent=data.txRate;e.style.color=c;}
+   if(e&&data.txRate){e.innerHTML=vuSplit(data.txRate);e.style.color=c;}
    if(s)s.textContent=data.netTxSat!=null?tf('%s%% of link · peak %s',data.netTxSat,fmtKB(hist.tx.length?Math.max.apply(null,hist.tx):0)):t('outgoing traffic');
    setFill('ic-tx',data.netTxSat,c);
    if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c);}}
@@ -1576,10 +1644,10 @@ function render(data){
   applyMetrics(data); // başlık meta + load + kaynak kartları + Network IN/OUT (ortak)
   const ew=document.getElementById('iv-web');
   if(ew){const c=rtcol(data.webResponseTime,TH.webrt_warn,TH.webrt_crit);
-    ew.textContent=data.webResponseTime!=null?data.webResponseTime+' ms':'—';ew.style.color=c;setCardCol('ic-web',c);}
+    ew.innerHTML=data.webResponseTime!=null?vu(data.webResponseTime,'ms'):'—';ew.style.color=c;setCardCol('ic-web',c);}
   const em=document.getElementById('iv-mysql');
   if(em){const c=rtcol(data.mysqlResponseTime,TH.dbrt_warn,TH.dbrt_crit);
-    em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=c;setCardCol('ic-mysql',c);}
+    em.innerHTML=data.mysqlResponseTime!=null?vu(data.mysqlResponseTime,'ms'):'—';em.style.color=c;setCardCol('ic-mysql',c);}
   if(data.acctCount!=null){const e=document.getElementById('iv-acct');if(e)e.textContent=data.acctCount;}
   {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*TH.mailq_crit_x?'var(--danger)':q>=b*TH.mailq_warn_x?'var(--warn)':'var(--accent)';}}
   {const q=data.mqRaw;if(q!=null){const b=data.acctForMailq||50;
@@ -1598,7 +1666,7 @@ function render(data){
   if(data.sslDaysLeft!=null){
     const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
     const col=data.sslDaysLeft<=TH.ssl_crit?'var(--danger)':data.sslDaysLeft<=TH.ssl_warn?'var(--warn)':'var(--accent)';
-    if(e){e.textContent=data.sslDaysLeft+' '+t('days');e.style.color=col;}
+    if(e){e.innerHTML=vu(data.sslDaysLeft,t('days'));e.style.color=col;}
     setCardCol('ic-ssl',col);
     if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
   }

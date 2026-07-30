@@ -28,7 +28,7 @@ barred from other users' processes.)
 > as HTML entities, because sanitizing webmail clients (Roundcube among them) drop
 > the `<head>` and with it the `charset` declaration.
 
-**Version 1.4.1** · bilingual UI — English (default) / Türkçe, switched from the
+**Version 1.5.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.
 
 ## Screenshots

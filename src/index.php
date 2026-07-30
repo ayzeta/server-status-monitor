@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.4.1'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1105,7 +1105,13 @@ function hCol($lvl, $ok)      { return $lvl==='err' ? 'var(--danger)' : ($lvl===
 // o CDN'lere sizyordu. Simdi ek dosya tamamen kendi kendine yeter.
 // <symbol>+<use> deposu daha az bayt ederdi ama bazi mail istemcileri
 // <defs>/<use> etiketlerini temizlerken atiyor — her kullanimda tam SVG.
+// Load kartlarinin saat kadranlari: Tabler 'clock-hour-*' ile ayni dil
+// (daire + ibre). Ibre dakikayi gosterir: 1dk -> 12, 5dk -> 1, 15dk -> 3.
+// Ayni ikonu 3 kez tekrarlamak yerine uc kart birbirinden ayrisir.
 $ICONS = [
+    'clock-1'  => '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12V7"/>',
+    'clock-5'  => '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12l2.5 -4.3"/>',
+    'clock-15' => '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 12h5"/>',
     'activity' => '<path d="M3 12h4l3 8l4 -16l3 8h4" />',
     'arrow-down' => '<path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" />',
     'arrow-up' => '<path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" />',
@@ -1135,6 +1141,18 @@ function icon($n, $cls = '', $attr = '') {
     return '<svg class="ic' . ($cls !== '' ? ' ' . $cls : '') . '" viewBox="0 0 24 24" fill="none"'
          . ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
          . ' aria-hidden="true"' . ($attr !== '' ? ' ' . $attr : '') . '>' . $ICONS[$n] . '</svg>';
+}
+// Deger + birim: sayi <b>, birim <u> icinde. JS tarafinda vu()/vuSplit() ile es.
+function vu($num, $unit) {
+    if ($unit === '') return '<b>' . $num . '</b>';
+    $cls = strlen($unit) > 1 ? ' class="w"' : '';
+    return '<b>' . $num . '</b><u' . $cls . '>' . $unit . '</u>';
+}
+// Onceden bicimlenmis '99 KB/s' gibi dizeleri son bosluktan ayirir.
+function vuSplit($s) {
+    $s = (string)$s;
+    $i = strrpos($s, ' ');
+    return $i === false ? vu($s, '') : vu(substr($s, 0, $i), substr($s, $i + 1));
 }
 function cardBorderCss($col)  { return ($col==='var(--danger)' || $col==='var(--warn)') ? ';border-color:'.$col : ''; }
 
@@ -1563,6 +1581,7 @@ function svgSpark($data, $W, $H, $col, $ssrId, $fix = null) {
     $n = count($data);
     if ($n < 2) return '<span class="spark-ssr" id="' . $ssrId . '"></span>';
     $mn = $fix ? $fix[0] : min($data); $mx = $fix ? $fix[1] : max($data); $rng = ($mx - $mn) ?: 1;
+
     $pts = [];
     for ($i = 0; $i < $n; $i++) {
         $pts[] = [$i * ($W / ($n - 1)), $H - 2 - (($data[$i] - $mn) / $rng) * ($H - 4)];
@@ -1574,7 +1593,17 @@ function svgSpark($data, $W, $H, $col, $ssrId, $fix = null) {
         $d .= sprintf("\nC%.1f %.1f %.1f %.1f %.1f %.1f", $m, $pts[$i-1][1], $m, $pts[$i][1], $pts[$i][0], $pts[$i][1]);
     }
     $last = end($pts);
+    // ── Alan dolgusu ───────────────────────────────────────────────────────────
+    // SSR'de dolgu HIC YOKTU: tarayicida (kanvas) dolu, mail ekinde ciplak cizgi
+    // goruluyordu — parite acigi. Artik ikisinde de dolu.
+    //
+    // Kanvas DEGRADE kullanir, burada DUZ dolgu var; bu bilinen ve kasitli fark:
+    // SVG degradesi <defs> icinde yasar ve sanitize eden webmail istemcileri
+    // <defs>'i atabilir. O zaman fill="url(#...)" cozulmez, bazi cizicilerde
+    // SIYAH blok cikar — mail eki icin kabul edilemez. Duz dolgu her yerde guvenli.
+    $area = $d . sprintf("\nL%.1f %.1f L%.1f %.1f Z", $last[0], $H, $pts[0][0], $H);
     $svg  = '<svg class="spark-ssr" id="' . $ssrId . '" width="' . $W . '" height="' . $H . '" viewBox="0 0 ' . $W . ' ' . $H . '">'
+          . "\n" . '<path d="' . $area . '" fill="' . $col . '" fill-opacity=".13" stroke="none"/>'
           . "\n" . '<path d="' . $d . '" fill="none" stroke="' . $col . '" stroke-width="1.5"/>'
           . "\n" . '<circle cx="' . sprintf('%.1f', $last[0]) . '" cy="' . sprintf('%.1f', $last[1]) . '" r="2.5" fill="' . $col . '"/>';
     $mi = 0;
@@ -1782,11 +1811,22 @@ ob_start(function ($html) {
   --muted:       #64748b;
   --hint:        #94a3b8;
   --bar-track:   #edf2f9;
+  /* Kart yuksekligi. Kenarlik IKI temada da yerinde kalir; golge kutu
+     modelinde yer kaplamadigi icin tema gecisinde hicbir oge oynamaz. */
+  --elev: 0 1px 2px rgba(16,24,40,.05), 0 2px 6px rgba(16,24,40,.06);
   --log-item-bg: #f8fafc;
   --cmd-bg:      #f1f5f9;
   --logo-filter: none;
   --hdr-sub:     rgba(255,255,255,.5);
   --hdr-meta-lbl:rgba(255,255,255,.45);
+  /* Ikon kutusu zeminleri: kimlik renginin soluk tonu. Kart durumu (warn/err)
+     ikonu DEGISTIRMEZ — sari/kirmizi yalnizca uyari rengi olarak kalsin diye
+     kutu her zaman kimlik renginde durur, durumu deger + kenarlik tasir. */
+  --ic-neutral: rgba(100,116,139,.09);
+  --c-cpu-bg:  rgba(8,145,178,.10);
+  --c-ram-bg:  rgba(124,58,237,.10);
+  --c-disk-bg: rgba(13,148,136,.10);
+  --c-iow-bg:  rgba(2,132,199,.10);
   --c-cpu:  #0891b2;
   --c-ram:  #7c3aed;
   --c-disk: #0d9488;
@@ -1813,11 +1853,19 @@ ob_start(function ($html) {
   --muted:       #94a3b8;
   --hint:        #64748b;
   --bar-track:   rgba(255,255,255,.08);
+  /* Koyu temada dis golge okunmaz: derinlik UST KENAR isigiyla verilir
+     (ic golge — o da yer kaplamaz). */
+  --elev: inset 0 1px 0 rgba(255,255,255,.075);
   --log-item-bg: rgba(255,255,255,.04);
   --cmd-bg:      rgba(255,255,255,.06);
   --logo-filter: brightness(0) invert(1);
   --hdr-sub:     rgba(255,255,255,.4);
   --hdr-meta-lbl:rgba(255,255,255,.4);
+  --ic-neutral: rgba(255,255,255,.07);
+  --c-cpu-bg:  rgba(34,211,238,.13);
+  --c-ram-bg:  rgba(167,139,250,.14);
+  --c-disk-bg: rgba(45,212,191,.13);
+  --c-iow-bg:  rgba(56,189,248,.13);
   --c-cpu:  #22d3ee;
   --c-ram:  #a78bfa;
   --c-disk: #2dd4bf;
@@ -1836,7 +1884,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .meta-item{text-align:right;}
 .meta-lbl{font-size:10px;color:var(--hdr-meta-lbl);text-transform:uppercase;letter-spacing:.05em;}
 .meta-val{font-size:13px;font-weight:600;color:#fff;margin-top:2px;}
-.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;}
+/* Yukseklik SABIT 32px: tema/dil dugmeleri de 32px. Onceden yalnizca mobil
+   medya sorgusunda yukseklik vardi, masaustunde rozet 2-3px kacik duruyordu.
+   Zemin saydamligi da dugmelerle esitlendi (.10 -> .12). */
+.hdr-status{display:flex;align-items:center;gap:7px;min-width:0;height:32px;
+  background:rgba(255,255,255,.12);border-radius:8px;padding:0 12px;}
 .hdr-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse 2s infinite;}
 .hdr-status-txt{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;flex-shrink:0;}
 .hdr-status-short{font-size:11px;font-weight:600;color:#fff;display:none;} /* sadece mobilde */
@@ -1851,20 +1903,25 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .theme-btn:hover{background:rgba(255,255,255,.2);}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);}}
-.sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hint);margin:12px 0 7px 2px;}
+/* Bolum etiketi: yazi solda, ince cizgi arayi doldurur, aralik sagda.
+   Uzun sayfayi gozle bolumlere ayirir. */
+.sec{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--hint);margin:12px 0 7px 2px;}
+.sec-hair{flex:1;height:1px;background:var(--border);display:block;}
+.sec-range{margin-left:0;}
 .sec-range{font-weight:400;text-transform:none;letter-spacing:0;color:var(--hint);}
 
 .loads-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
 /* Uc kart tipi de AYNI kalip: ust satirda etiket+deger, altinda kenardan kenara
    grafik, en altta meta. Kartin alt kenari doluluk cubugu (ray + dolgu). */
-.load-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.load-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 .load-card::before{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--bar-track);}
 .load-card::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,100%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .load-sub-inline{font-weight:400;text-transform:none;letter-spacing:0;opacity:.7;}
 .load-spark{width:100%;height:88px;} /* yedek: sarmalayici icinde .spark-wrap kurali ezer */
 
 .resources-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.res-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.res-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 /* Kartin alt kenari CIFT is yapar: soluk ray tam genislik (::before), renkli
    dolgu ise metrigin yuzdesi kadar (::after). Boylece kaldirilan doluluk
    cubugunun bilgisi hic yer kaplamadan geri gelir, sparkline tam genislikte
@@ -1884,8 +1941,27 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .ic-sun{display:none;}
 [data-theme="dark"] .ic-sun{display:inline-block;}
 [data-theme="dark"] .ic-moon{display:none;}
-.res-icon{font-size:15px;color:var(--hint);}
+/* Ikon kutusu — servis kartlarindaki .svc-icon ile ayni dil, daha kucuk olcek.
+   Boyut/kenarlik iki temada BIREBIR ayni; tema degisince yalnizca renk
+   degisiyor, dolayisiyla hicbir oge yer degistirmiyor. */
+.res-icon{width:26px;height:26px;border-radius:8px;flex-shrink:0;font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--ic-bg,var(--ic-neutral));color:var(--ic-fg,var(--hint));
+  transition:background .3s,color .3s;}
+.ic-load{--ic-bg:var(--accent-bg);--ic-fg:var(--accent);}
+.ic-cpu {--ic-bg:var(--c-cpu-bg); --ic-fg:var(--c-cpu);}
+.ic-ram {--ic-bg:var(--c-ram-bg); --ic-fg:var(--c-ram);}
+.ic-disk{--ic-bg:var(--c-disk-bg);--ic-fg:var(--c-disk);}
+.ic-iow {--ic-bg:var(--c-iow-bg); --ic-fg:var(--c-iow);}
 .res-name{font-size:11px;font-weight:600;color:var(--muted);}
+/* Birim hiyerarsisi: goz sayiya oturur, birim destek rolunde kalir.
+   Onceden '21%' tamamen ayni boyut ve kalinliktaydi. */
+.res-val b{font-weight:inherit;}
+.res-val u{font-size:.58em;font-weight:600;text-decoration:none;opacity:.62;
+  margin-left:1px;letter-spacing:0;}
+/* Tek karakterli birim ('%') sayiya yapisik durur; kelime birimler
+   ('ms', 'days', 'KB/s') nefes alsin, yoksa '61days' tek kelime okunuyor. */
+.res-val u.w{margin-left:.26em;}
 .res-val{font-size:22px;font-weight:700;letter-spacing:-.04em;color:var(--c,var(--accent));transition:color .3s;}
 /* Info kartlarinda deger metinsel olabiliyor (235 KB/s, 2026-09-21) — bir tik kucuk. */
 .info-card .res-val{font-size:17px;}
@@ -1896,7 +1972,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .res-meta{font-size:10px;color:var(--hint);}
 
 .info-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:13px 14px;position:relative;overflow:hidden;transition:background .3s,border-color .3s;}
 .info-card.has-fill::before{content:"";position:absolute;bottom:0;left:0;right:0;height:2.5px;background:var(--bar-track);}
 .info-card.has-fill::after{content:"";position:absolute;bottom:0;left:0;width:var(--fill,0%);height:2.5px;background:var(--c,var(--accent));transition:width .6s ease,background .3s;}
 .info-spark{width:100%;height:52px;position:relative;display:block;}
@@ -1904,7 +1980,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 
 .svcs-row1{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px;}
 .svcs-row2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
-.svc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:background .3s,border-color .3s;}
+.svc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);overflow:hidden;display:flex;flex-direction:column;transition:background .3s,border-color .3s;}
 .svc-top{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;}
 .svc-icon{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .3s,color .3s;}
 .svc-info{flex:1;min-width:0;}
@@ -1933,7 +2009,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-cmd-inline{font-size:10px;color:var(--muted);background:var(--cmd-bg);padding:2px 6px;border-radius:5px;font-family:'SFMono-Regular',Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
 
 .proc-row{display:grid;grid-template-columns:2.2fr 1.5fr 1fr 1fr;gap:8px;}
-.proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
+.proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
 .proc-title{font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
 .proc-age{font-size:10px;color:var(--hint);font-weight:400;text-transform:none;letter-spacing:0;}
 .proc-age.stale{color:var(--warn);font-weight:600;}
@@ -1967,7 +2043,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
 .proc-row-sql{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px;}
 
-.log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:background .3s,border-color .3s;}
+.log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:14px 16px;transition:background .3s,border-color .3s;}
 .log-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
@@ -2151,20 +2227,22 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
 </div>
 
-<div class="sec"><?=upper(t('System metrics'))?> <span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?>&middot; <?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
+<?php /* Hairline: yazi solda, ince cizgi arayi doldurur, aralik sag kenarda.
+         Eskiden '&middot;' ile yaziya yapisiktik; uzun sayfada bolum ayrimi zayifti. */ ?>
+<div class="sec"><span><?=upper(t('System metrics'))?></span><i class="sec-hair"></i><span class="sec-range" id="metrics-range"><?php if (!empty($histSeed['t'])): ?><?=htmlspecialchars($histSeed['t'][0])?> &ndash; <?=date('H:i')?><?php endif; ?></span></div>
 <div class="loads-row">
   <div class="load-card" id="lc-l1" style="--c:<?=$lc1=lcolCss($load1, $coreCount)?>;--fill:<?=min(round($load1/max($coreCount,1)*100),100)?>%<?=cardBorderCss($lc1)?>">
-      <div class="res-top"><div class="res-left"><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('1 min')?></span></span></div><span class="res-val" id="v-l1"><?=number_format($load1,2)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><?=icon('clock-1')?></span><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('1 min')?></span></span></div><span class="res-val" id="v-l1"><?=number_format($load1,2)?></span></div>
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['l1'], 260, 88, lcolCss($load1, $coreCount), 'ssr-l1', [0, sparkTop($ssr['l1'], $coreCount)])?><canvas class="load-spark" id="sp-l1"></canvas></span>
       <div class="res-meta" id="p-l1"><?=tf('%s%% of %s cores', round($load1/$coreCount*100), $coreCount)?></div>
   </div>
   <div class="load-card" id="lc-l5" style="--c:<?=$lc5=lcolCss($load5, $coreCount)?>;--fill:<?=min(round($load5/max($coreCount,1)*100),100)?>%<?=cardBorderCss($lc5)?>">
-      <div class="res-top"><div class="res-left"><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('5 min')?></span></span></div><span class="res-val" id="v-l5"><?=number_format($load5,2)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><?=icon('clock-5')?></span><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('5 min')?></span></span></div><span class="res-val" id="v-l5"><?=number_format($load5,2)?></span></div>
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['l5'], 260, 88, lcolCss($load5, $coreCount), 'ssr-l5', [0, sparkTop($ssr['l5'], $coreCount)])?><canvas class="load-spark" id="sp-l5"></canvas></span>
       <div class="res-meta" id="p-l5"><?=tf('%s%% of %s cores', round($load5/$coreCount*100), $coreCount)?></div>
   </div>
   <div class="load-card" id="lc-l15" style="--c:<?=$lc15=lcolCss($load15, $coreCount)?>;--fill:<?=min(round($load15/max($coreCount,1)*100),100)?>%<?=cardBorderCss($lc15)?>">
-      <div class="res-top"><div class="res-left"><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('15 min')?></span></span></div><span class="res-val" id="v-l15"><?=number_format($load15,2)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon ic-load"><?=icon('clock-15')?></span><span class="res-name"><?=t('Load avg')?> <span class="load-sub-inline"><?=t('15 min')?></span></span></div><span class="res-val" id="v-l15"><?=number_format($load15,2)?></span></div>
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['l15'], 260, 88, lcolCss($load15, $coreCount), 'ssr-l15', [0, sparkTop($ssr['l15'], $coreCount)])?><canvas class="load-spark" id="sp-l15"></canvas></span>
       <div class="res-meta" id="p-l15"><?=tf('%s%% of %s cores', round($load15/$coreCount*100), $coreCount)?></div>
   </div>
@@ -2172,8 +2250,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="resources-row">
   <div class="res-card" id="rc-cpu" style="--c:<?=$cpuCardCol?>;--fill:<?=$cpuUsage?>%<?=cardBorderCss($cpuCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><?=icon('cpu','res-icon')?><span class="res-name"><?=t('CPU')?></span></div>
-      <span class="res-val" id="rv-cpu"><?=$cpuUsage?>%</span>
+      <div class="res-left"><span class="res-icon ic-cpu"><?=icon('cpu')?></span><span class="res-name"><?=t('CPU')?></span></div>
+      <span class="res-val" id="rv-cpu"><?=vu($cpuUsage, '%')?></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['cpu'], 260, 88, $cpuCardCol, 'ssr-cpu', [0, 100])?><canvas class="res-spark" id="sp-cpu"></canvas></span>
@@ -2182,8 +2260,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?>;--fill:<?=$memUsagePercent?>%<?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><?=icon('server','res-icon')?><span class="res-name"><?=t('RAM')?></span></div>
-      <span class="res-val" id="rv-ram"><?=$memUsagePercent?>%</span>
+      <div class="res-left"><span class="res-icon ic-ram"><?=icon('server')?></span><span class="res-name"><?=t('RAM')?></span></div>
+      <span class="res-val" id="rv-ram"><?=vu($memUsagePercent, '%')?></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['ram'], 260, 88, $ramCardCol, 'ssr-ram', [0, 100])?><canvas class="res-spark" id="sp-ram"></canvas></span>
@@ -2192,8 +2270,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-disk" style="--c:<?=$diskCardCol?>;--fill:<?=$diskUsagePercent?>%<?=cardBorderCss($diskCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><?=icon('database','res-icon')?><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><?=$diskUsagePercent?>%</span>
+      <div class="res-left"><span class="res-icon ic-disk"><?=icon('database')?></span><span class="res-name">Disk</span></div>
+      <span class="res-val" id="rv-disk"><?=vu($diskUsagePercent, '%')?></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['disk'], 260, 88, $diskCardCol, 'ssr-disk', [0, 100])?><canvas class="res-spark" id="sp-disk"></canvas></span>
@@ -2202,8 +2280,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-iow" style="--c:<?=$iowCardCol?>;--fill:<?=min($ioWait,100)?>%<?=cardBorderCss($iowCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><?=icon('activity','res-icon')?><span class="res-name"><?=t('IO Wait')?></span></div>
-      <span class="res-val" id="rv-iow"><?=$ioWait?>%</span>
+      <div class="res-left"><span class="res-icon ic-iow"><?=icon('activity')?></span><span class="res-name"><?=t('IO Wait')?></span></div>
+      <span class="res-val" id="rv-iow"><?=vu($ioWait, '%')?></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['iow'], 260, 88, $iowCardCol, 'ssr-iow', [0, 100])?><canvas class="res-spark" id="sp-iow"></canvas></span>
@@ -2219,15 +2297,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
 </div>
 
-<div class="sec" style="margin-top:12px"><?=upper(t('System info'))?></div>
+<div class="sec" style="margin-top:12px"><span><?=upper(t('System info'))?></span><i class="sec-hair"></i></div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:<?=$netRxCol?>;--fill:<?=$netRxSat !== null ? min((int)$netRxSat,100) : 0?>%<?=cardBorderCss($netRxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=fmtBytes($rxRate)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=vuSplit(fmtBytes($rxRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['rx'], 260, 52, $netRxCol, 'ssr-rx')?><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub"><?=$netRxSat !== null ? tf('%s%% of link · peak %s', $netRxSat, fmtBytes(($ssr['rx'] ? max($ssr['rx']) : 0) * 1024)) : t('incoming traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:<?=$netTxCol?>;--fill:<?=$netTxSat !== null ? min((int)$netTxSat,100) : 0?>%<?=cardBorderCss($netTxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=fmtBytes($txRate)?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=vuSplit(fmtBytes($txRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['tx'], 260, 52, $netTxCol, 'ssr-tx')?><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub"><?=$netTxSat !== null ? tf('%s%% of link · peak %s', $netTxSat, fmtBytes(($ssr['tx'] ? max($ssr['tx']) : 0) * 1024)) : t('outgoing traffic')?></div>
     </div>
@@ -2242,11 +2320,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta"><?=t('messages queued')?></div>
     </div>
   <div class="info-card" id="ic-web" style="--c:<?=$webRtCol = rtCol($webResponseTime, $TH['webrt_warn'], $TH['webrt_crit'])?><?=cardBorderCss($webRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? $webResponseTime . ' ms' : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? vu($webResponseTime, 'ms') : '—'?></span></div>
       <div class="res-meta"><?=t('HTTP response time')?></div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:<?=$dbRtCol = rtCol($mysqlResponseTime, $TH['dbrt_warn'], $TH['dbrt_crit'])?><?=cardBorderCss($dbRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('database')?></span><span class="res-name"><?=t('MySQL Response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? $mysqlResponseTime . ' ms' : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('database')?></span><span class="res-name"><?=t('MySQL Response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? vu($mysqlResponseTime, 'ms') : '—'?></span></div>
       <div class="res-meta"><?=t('TCP response time')?></div>
     </div>
   <div class="info-card">
@@ -2254,12 +2332,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta"><?=t('cPanel accounts')?></div>
     </div>
   <div class="info-card" id="ic-ssl" style="--c:<?=$sslColorCss?><?=cardBorderCss($sslColorCss)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('lock')?></span><span class="res-name">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></span></div><span class="res-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? $sslDaysLeft . ' ' . t('days') : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('lock')?></span><span class="res-name">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></span></div><span class="res-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? vu($sslDaysLeft, t('days')) : '—'?></span></div>
       <div class="res-meta" id="iv-ssl-sub"><?=$sslExpiry ?? t('unavailable')?></div>
     </div>
 </div>
 
-<div class="sec" style="margin-top:12px"><?=upper(t('Services'))?></div>
+<div class="sec" style="margin-top:12px"><span><?=upper(t('Services'))?></span><i class="sec-hair"></i></div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">
@@ -2322,15 +2400,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
-<div class="sec" style="margin-top:12px"><?=upper(t('Processes'))?>
-  <span class="proc-age<?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' stale' : ''?>" id="proc-age">&middot; <?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' — ' . t('STALE (cron?)') : ''?></span>
+<div class="sec" style="margin-top:12px"><span><?=upper(t('Processes'))?></span><i class="sec-hair"></i>
+  <span class="proc-age<?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' stale' : ''?>" id="proc-age"><?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' — ' . t('STALE (cron?)') : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
 <div class="proc-row" id="proc-row"><?=renderProcTables($procCpu, $procRam, $procPhp, $diskAcct)?></div>
 <div class="proc-row-sql"><?=renderSqlTable($procSql, $sqlMinSec, $mysqlThr, $mysqlThrCol)?></div>
 <?php endif; ?>
 
-<div class="sec" style="margin-top:12px"><?=upper(t('Event log'))?></div>
+<div class="sec" style="margin-top:12px"><span><?=upper(t('Event log'))?></span><i class="sec-hair"></i></div>
 <div class="log-card">
   <div class="log-hdr">
     <?=icon('list','','style="font-size:15px;color:var(--hint)"')?>
@@ -2492,6 +2570,15 @@ function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d
 function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 
+// Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
+// alfa gerektigi icin var; getComputedStyle genelde rgb() dondurur ama hex de olabilir.
+function rgbaOf(c,a){
+  let m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(c).trim());
+  if(m)return 'rgba('+parseInt(m[1],16)+','+parseInt(m[2],16)+','+parseInt(m[3],16)+','+a+')';
+  m=/rgba?\(([^)]+)\)/.exec(String(c));
+  if(m){const p=m[1].split(',').map(x=>x.trim());return 'rgba('+p[0]+','+p[1]+','+p[2]+','+a+')';}
+  return c;
+}
 function spark(id,data,color,W,H,fix){
   const c=document.getElementById(id);if(!c)return;
   c._d=data.slice();
@@ -2515,7 +2602,13 @@ function spark(id,data,color,W,H,fix){
   // Alan dolgusu: kaldırılan yüzde çubuğunun "seviye" hissini üstlenir, trendi
   // bozmaz. globalAlpha ile — renk hex/rgb hangi biçimde gelirse gelsin çalışır.
   const fill=new Path2D(path);fill.lineTo(pts[pts.length-1].x,cH);fill.lineTo(pts[0].x,cH);fill.closePath();
-  ctx.globalAlpha=.13;ctx.fillStyle=col;ctx.fill(fill);ctx.globalAlpha=1;
+  // Dolgu DEGRADE: cizgide %26, tabanda %0. Duz saydam dolgu (eski hal) blok
+  // gibi duruyordu. globalAlpha yerine durak basina alfa kullaniliyor; 'transparent'
+  // ile interpolasyon bazi motorlarda gri kaymaya yol actigi icin renk rgba'ya
+  // cevrilip alfasi sifirlaniyor.
+  const g=ctx.createLinearGradient(0,0,0,cH);
+  g.addColorStop(0,rgbaOf(col,.26));g.addColorStop(1,rgbaOf(col,0));
+  ctx.fillStyle=g;ctx.fill(fill);
   ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke(path);
   const ss=document.getElementById('ssr-'+id.slice(3));if(ss)ss.remove();
   const l=pts[pts.length-1];ctx.beginPath();ctx.arc(l.x,l.y,2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
@@ -2576,6 +2669,12 @@ document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;});
 
 // Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla
 // (cardBorderCss) aynı davranış; sağlıklıyken kenarlık nötr kalır.
+// PHP vu()/vuSplit() ile es. Sayisal/bicimlenmis metin uretiyoruz, o yuzden
+// innerHTML guvenli; yine de birim tarafi kacisliyor.
+function vu(num,unit){if(!unit)return '<b>'+num+'</b>';
+  return '<b>'+num+'</b><u'+(String(unit).length>1?' class="w"':'')+'>'+esc(unit)+'</u>';}
+function vuSplit(s){s=String(s);const i=s.lastIndexOf(' ');
+  return i<0?vu(s,''):vu(s.slice(0,i),s.slice(i+1));}
 function isProblemCol(c){return c==='var(--danger)'||c==='var(--warn)';}
 // Info kartlarinin alt kenar doluluk cubugu: bu kartlarin grafigi OTOMATIK olcekli
 // (ag KB/s, isci, kuyruk — mutlak kapasitesi yok), dolayisiyla 'seviye' bilgisini
@@ -2605,7 +2704,7 @@ function setLoad(vid,cardId,sparkId,histKey,val,t){
 }
 
 function setRes(valId,cardId,sparkId,metaId,histKey,val,color,meta){
-  const ve=document.getElementById(valId);if(ve){ve.textContent=Math.round(val)+'%';ve.style.color=color;}
+  const ve=document.getElementById(valId);if(ve){ve.innerHTML=vu(Math.round(val),'%');ve.style.color=color;}
   const card=document.getElementById(cardId);if(card){card.style.setProperty('--c',color);card.style.setProperty('--fill',Math.min(val,100)+'%');card.style.borderColor=isProblemCol(color)?color:'';}
   // innerHTML: meta içeriği bizim ürettiğimiz sayısal metin (RAM metasındaki
   // shmem renk span'i için). Değerler sayı, kullanıcı girdisi yok — güvenli.
@@ -3041,12 +3140,12 @@ function applyMetrics(data){
   setRes('rv-iow','rc-iow','sp-iow','rm-iow','iow',data.iowait,lastCardCol.iow,iowMeta(data));
   // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
   {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
-   if(e&&data.rxRate){e.textContent=data.rxRate;e.style.color=c;}
+   if(e&&data.rxRate){e.innerHTML=vuSplit(data.rxRate);e.style.color=c;}
    if(s)s.textContent=data.netRxSat!=null?tf('%s%% of link · peak %s',data.netRxSat,fmtKB(hist.rx.length?Math.max.apply(null,hist.rx):0)):t('incoming traffic');
    setFill('ic-rx',data.netRxSat,c);
    if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c);}}
   {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
-   if(e&&data.txRate){e.textContent=data.txRate;e.style.color=c;}
+   if(e&&data.txRate){e.innerHTML=vuSplit(data.txRate);e.style.color=c;}
    if(s)s.textContent=data.netTxSat!=null?tf('%s%% of link · peak %s',data.netTxSat,fmtKB(hist.tx.length?Math.max.apply(null,hist.tx):0)):t('outgoing traffic');
    setFill('ic-tx',data.netTxSat,c);
    if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c);}}
@@ -3064,10 +3163,10 @@ function render(data){
   applyMetrics(data); // başlık meta + load + kaynak kartları + Network IN/OUT (ortak)
   const ew=document.getElementById('iv-web');
   if(ew){const c=rtcol(data.webResponseTime,TH.webrt_warn,TH.webrt_crit);
-    ew.textContent=data.webResponseTime!=null?data.webResponseTime+' ms':'—';ew.style.color=c;setCardCol('ic-web',c);}
+    ew.innerHTML=data.webResponseTime!=null?vu(data.webResponseTime,'ms'):'—';ew.style.color=c;setCardCol('ic-web',c);}
   const em=document.getElementById('iv-mysql');
   if(em){const c=rtcol(data.mysqlResponseTime,TH.dbrt_warn,TH.dbrt_crit);
-    em.textContent=data.mysqlResponseTime!=null?data.mysqlResponseTime+' ms':'—';em.style.color=c;setCardCol('ic-mysql',c);}
+    em.innerHTML=data.mysqlResponseTime!=null?vu(data.mysqlResponseTime,'ms'):'—';em.style.color=c;setCardCol('ic-mysql',c);}
   if(data.acctCount!=null){const e=document.getElementById('iv-acct');if(e)e.textContent=data.acctCount;}
   {const e=document.getElementById('iv-mailq');if(e){const q=data.mailQ,b=data.acctForMailq||50;e.textContent=q!=null?q:'—';e.style.color=q==null?'var(--muted)':q>=b*TH.mailq_crit_x?'var(--danger)':q>=b*TH.mailq_warn_x?'var(--warn)':'var(--accent)';}}
   {const q=data.mqRaw;if(q!=null){const b=data.acctForMailq||50;
@@ -3086,7 +3185,7 @@ function render(data){
   if(data.sslDaysLeft!=null){
     const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
     const col=data.sslDaysLeft<=TH.ssl_crit?'var(--danger)':data.sslDaysLeft<=TH.ssl_warn?'var(--warn)':'var(--accent)';
-    if(e){e.textContent=data.sslDaysLeft+' '+t('days');e.style.color=col;}
+    if(e){e.innerHTML=vu(data.sslDaysLeft,t('days'));e.style.color=col;}
     setCardCol('ic-ssl',col);
     if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
   }
