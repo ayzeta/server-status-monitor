@@ -326,7 +326,11 @@ MQ=$(exim -bpc 2>/dev/null || echo 0)
 # 13. kolon: o dakikanin en cok CPU yiyen sureci ("comm:cpu"). Dashboard bunu
 # yuk uyarilarina iliştirir ("High load ... — top: pigz 72%"); ayni satirda
 # yazildigi icin metrikle zaman uyumu birebir. Bosluk/iki-nokta alt cizgiye cevrilir.
-TOPP=$(ps axo pcpu,comm --sort=-pcpu --no-headers | head -1 | awk '{n=$2; for(i=3;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); printf "%s:%d", n, $1}')
+# TOPP: "ad:cpu:kullanici" — kullanici alani 1.4.1'de eklendi. cPanel'de bir
+# lsphp surecinin kullanicisi ZATEN hesap adidir; "top: lsphp 76%" neredeyse
+# bilgi vermezken "top: lsphp . enesoto 76%" dogrudan eyleme donusur. Eski
+# satirlar iki alanli kalir, PHP tarafi ucuncuyu yoksa atlar.
+TOPP=$(ps axo pcpu,user:32,comm --sort=-pcpu --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, $1, u}')
 echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--}" >> "$HIST"
 tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"

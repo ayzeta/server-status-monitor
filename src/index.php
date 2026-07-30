@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.4.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.4.1'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -134,7 +134,7 @@ $TR = [
     // ── Event-log mesaj şablonları (%s=değer, %%=literal %) — PHP+JS ortak ──
     'High load: %s (1m)%s' => 'Yüksek yük: %s (1dk)%s', 'Load elevated: %s (1m)%s' => 'Yük yükseldi: %s (1dk)%s', 'Load back to normal: %s' => 'Yük normale döndü: %s',
     'CPU critical: %s%%%s' => 'CPU kritik: %s%%%s', 'CPU high: %s%%%s' => 'CPU yüksek: %s%%%s', 'CPU back to normal: %s%%' => 'CPU normale döndü: %s%%',
-    'RAM critical: %s%%' => 'RAM kritik: %s%%', 'RAM high: %s%%' => 'RAM yüksek: %s%%', 'RAM back to normal: %s%%' => 'RAM normale döndü: %s%%',
+    'RAM critical: %s%%' => 'RAM kritik: %s%%', 'RAM critical: %s%%%s' => 'RAM kritik: %s%%%s', 'RAM high: %s%%' => 'RAM yüksek: %s%%', 'RAM high: %s%%%s' => 'RAM yüksek: %s%%%s', 'RAM back to normal: %s%%' => 'RAM normale döndü: %s%%',
     'IO Wait critical: %s%%%s' => 'IO Bekleme kritik: %s%%%s', 'IO Wait high: %s%%%s' => 'IO Bekleme yüksek: %s%%%s', 'IO Wait back to normal: %s%%' => 'IO Bekleme normale döndü: %s%%',
     'Swap heavily in use: %s GB (%s%%)' => 'Swap yoğun kullanımda: %s GB (%%%s)', 'Swap in use: %s GB (%s%%)' => 'Swap kullanımda: %s GB (%%%s)', 'Swap cleared' => 'Swap temizlendi',
     'Shared memory very high: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek çok yüksek: %s GB (RAM %%%s)', 'Shared memory elevated: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek yükseldi: %s GB (RAM %%%s)', 'Shared memory back to normal' => 'Paylaşımlı bellek normale döndü',
@@ -143,8 +143,10 @@ $TR = [
     'RAID mismatch count: %s — data inconsistency found in last scrub' => 'RAID uyumsuzluk sayısı: %s — son taramada veri tutarsızlığı bulundu', 'RAID mismatch cleared' => 'RAID uyumsuzluğu temizlendi',
     'Disk pre-failure — %s; plan replacement' => 'Disk ön-arıza — %s; değişim planla', 'SMART pre-failure cleared' => 'SMART ön-arıza temizlendi',
     'Network link saturated: %s%% of line rate' => 'Ağ hattı doygun: hat oranı %%%s', 'Network link busy: %s%% of line rate' => 'Ağ hattı yoğun: hat oranı %%%s', 'Network load back to normal' => 'Ağ yükü normale döndü',
-    'MySQL threads_running very high: %s (query pileup)' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)', 'MySQL threads_running elevated: %s' => 'MySQL threads_running yükseldi: %s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
-    'PHP workers very high: %s' => 'PHP işçileri çok yüksek: %s', 'PHP workers elevated: %s' => 'PHP işçileri yükseldi: %s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
+    'MySQL threads_running very high: %s (query pileup)' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)',
+    'MySQL threads_running very high: %s (query pileup)%s' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)%s', 'MySQL threads_running elevated: %s' => 'MySQL threads_running yükseldi: %s',
+    'MySQL threads_running elevated: %s%s' => 'MySQL threads_running yükseldi: %s%s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
+    'PHP workers very high: %s' => 'PHP işçileri çok yüksek: %s', 'PHP workers very high: %s%s' => 'PHP işçileri çok yüksek: %s%s', 'PHP workers elevated: %s' => 'PHP işçileri yükseldi: %s', 'PHP workers elevated: %s%s' => 'PHP işçileri yükseldi: %s%s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
     'Disk critically full: %s%%' => 'Disk kritik doldu: %s%%', 'Disk usage high: %s%%' => 'Disk kullanımı yüksek: %s%%', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
     'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
@@ -1263,9 +1265,16 @@ if (!empty($histSeed['t'])) {
         // (top-CPU süreci RAM spike'ının faili olmayabilir, yanıltır).
         $sfx = '';
         if (($histSeed['top'][$i] ?? '') !== '' && strpos($histSeed['top'][$i], ':') !== false) {
-            [$tn, $tc] = explode(':', $histSeed['top'][$i], 2);
-            $tn  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tn);
-            if ($tn !== '') $sfx = ' — ' . t('top:') . ' ' . str_replace('_', ' ', $tn) . ' ' . (int)$tc . '%';
+            // "ad:cpu" (eski) veya "ad:cpu:kullanici" (1.4.1+). Ucuncu alan yoksa
+            // sadece ad gosterilir — eski history satirlari kirilmaz.
+            $tp  = explode(':', $histSeed['top'][$i], 3);
+            $tn  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[0]);
+            $tc  = (int)($tp[1] ?? 0);
+            $tu  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
+            if ($tn !== '') {
+                $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' &middot; ' . $tu : '');
+                $sfx = ' — ' . t('top:') . ' ' . $who . ' ' . $tc . '%';
+            }
         }
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
@@ -2869,11 +2878,36 @@ function checkAlerts(data){
   // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
+  // Ikili adi: 'lsphp:/home/x/public_html/index.php' -> 'lsphp'.
+  const pname=c=>String(c||'').split(' ')[0].split(':')[0].split('/').pop();
+  // Calisan BETIK yolu — ayri tutulur, cunku hangi dosyanin (dolayisiyla hangi
+  // URL'in) yuklendigi gercek bir ipucu: bir saldiri/bot trafigi genelde tek bir
+  // betikte toplanir. Hesap adi ayrica gosterildigi icin '/home/<hesap>/' oneki
+  // gereksiz, kirpilir: 'public_html/index.php' kalir.
+  const pscript=c=>{const a=String(c||'').split(' ')[0].split(':');
+    if(a.length<2||!a[1])return '';
+    return a[1].replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
+  // Fail eki. Anlik goruntu tazeyse eklenir ve yas etiketi tasir (alarm canli
+  // olcumden, fail listesi 60-90sn geride olabilen cron goruntusunden gelir).
+  const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;
+  const suffix=txt=>snapFresh&&txt?' — '+t('top:')+' '+txt+tf(' (snap %ss)',data.procAge):'';
+  // Kullanici cPanel'de hesap adidir. Betik varsa o da eklenir:
+  // 'lsphp · kayserik · public_html/index.php 76.0%'
+  const rowTop=(row,val)=>{const n=pname(row[5]);if(!n)return '';
+    const u=row[1]?' · '+row[1]:'',sc=pscript(row[5]);
+    return n+u+(sc?' · '+sc:'')+' '+val;};
   let top='';
-  if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=TH.snap_stale){
-    const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
-    if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
-  }
+  if(data.procCpu&&data.procCpu.length) top=suffix(rowTop(data.procCpu[0],data.procCpu[0][2]+'%'));
+  // RAM'in faili top-CPU sureci DEGIL, top-RAM surecidir — liste zaten payloadda.
+  let topRam='';
+  if(data.procRam&&data.procRam.length) topRam=suffix(rowTop(data.procRam[0],data.procRam[0][4]));
+  // Isci alarminda en cok isci acan hesap: procPhp = [hesap, adet], azalan sirali.
+  let topWrk='';
+  if(data.procPhp&&data.procPhp.length) topWrk=suffix(data.procPhp[0][0]+' '+data.procPhp[0][1]);
+  // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
+  let topSql='';
+  if(data.procSql&&data.procSql.length){const q=data.procSql[0];
+    topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
@@ -2881,7 +2915,7 @@ function checkAlerts(data){
   transLog('cpu',data.cpu,TH.cpu_crit,TH.cpu_warn,
     tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);
   transLog('ram',data.ram,TH.ram_crit,TH.ram_warn,
-    tf('RAM critical: %s%%',data.ram),tf('RAM high: %s%%',data.ram),tf('RAM back to normal: %s%%',data.ram),now);
+    tf('RAM critical: %s%%%s',data.ram,topRam),tf('RAM high: %s%%%s',data.ram,topRam),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
     tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
   if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
@@ -2905,10 +2939,10 @@ function checkAlerts(data){
   if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
     transLog('net',ns,TH.net_crit,TH.net_warn,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
   if(data.mysqlThr!=null){const cc=data.coreCount||1;
-    transLog('mysqlthr',data.mysqlThr,cc*TH.mysqlthr_crit_x,cc*TH.mysqlthr_warn_x,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
+    transLog('mysqlthr',data.mysqlThr,cc*TH.mysqlthr_crit_x,cc*TH.mysqlthr_warn_x,tf('MySQL threads_running very high: %s (query pileup)%s',data.mysqlThr,topSql),tf('MySQL threads_running elevated: %s%s',data.mysqlThr,topSql),t('MySQL threads_running back to normal'),now);}
   // PHP workers (aktif lsphp) — header birleşik sağlığıyla aynı eşik (warn ≥ çekirdek / err ≥ 2×); event log'a da düşsün.
   if(data.lsphpTotal!=null){const cc=data.coreCount||1;
-    transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s',data.lsphpTotal),tf('PHP workers elevated: %s',data.lsphpTotal),t('PHP workers back to normal'),now);}
+    transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s%s',data.lsphpTotal,topWrk),tf('PHP workers elevated: %s%s',data.lsphpTotal,topWrk),t('PHP workers back to normal'),now);}
   // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
   if(data.disk!=null)transLog('disk',data.disk,TH.disk_crit,TH.disk_warn,
     tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);

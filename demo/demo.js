@@ -293,15 +293,15 @@
       mlvl.raid='warn'; mlvl.smart='err';   // checkAlerts custom raid/smart'ı tekrar eklemesin (manuel seed var)
       seedHistory('ramp');
       logs.length=0;
-      [['err','MySQL threads_running very high: 26 (query pileup)','15:07:41'],
-       ['err','PHP workers very high: 60','15:07:26'],
+      [['err','MySQL threads_running very high: 26 (query pileup) — top: delta7 · delta7_wp3 82s (snap 32s)','15:07:41'],
+       ['err','PHP workers very high: 60 — top: eczashop 6 (snap 32s)','15:07:26'],
        ['err','Mail queue very high: 1180 messages','15:07:18'],
        ['warn','Inode usage high: 82%','15:07:12'],
        ['warn','RAID1 rebuilding 46% — array rebuilding','15:06:55'],
        ['err','SMART: /dev/sda 4 reallocated sectors','15:06:40'],
-       ['err','CPU critical: 91%','15:06:20'],
-       ['err','High load: 25.80 (1m)','15:06:02'],
-       ['warn','RAM high: 84%','15:05:48'],
+       ['err','CPU critical: 91% — top: lsphp · boranoto · public_html/index.php 97.0% (snap 32s)','15:06:20'],
+       ['err','High load: 25.80 (1m) — top: lsphp · boranoto · public_html/wp-cron.php 97.0% (snap 32s)','15:06:02'],
+       ['warn','RAM high: 84% — top: mariadbd · mysql 11.1 GB (snap 32s)','15:05:48'],
        ['ok','backup started','15:04:10']].forEach(function(l){logs.push({type:l[0],msg:l[1],ts:l[2]});});
     } else if(kind==='recovery'){
       // "Toparlanıyor" anı: header yeşil (threads 11 < çekirdek, gri) ama sorgular

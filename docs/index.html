@@ -368,7 +368,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2025ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2025ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2023ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -378,7 +378,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">UPDATED</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">23:28:44</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">00:01:30</span></div></div>
   </div>
 </div>
 
@@ -466,7 +466,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2025 ms</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2023 ms</span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -580,15 +580,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2025ms</span><span class="log-ts">23:28</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">23:28</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2023ms</span><span class="log-ts">00:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">00:01</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.4.0">v1.4.0</span> &middot; 2026-07-29 23:28:44</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.4.1">v1.4.1</span> &middot; 2026-07-30 00:01:30</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -695,7 +695,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'23:28:44'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'00:01:30'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -723,12 +723,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "23:28"
+        "ts": "00:01"
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2025ms",
-        "ts": "23:28"
+        "msg": "Web response time high: 2023ms",
+        "ts": "00:01"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1179,11 +1179,36 @@ function checkAlerts(data){
   // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
+  // Ikili adi: 'lsphp:/home/x/public_html/index.php' -> 'lsphp'.
+  const pname=c=>String(c||'').split(' ')[0].split(':')[0].split('/').pop();
+  // Calisan BETIK yolu — ayri tutulur, cunku hangi dosyanin (dolayisiyla hangi
+  // URL'in) yuklendigi gercek bir ipucu: bir saldiri/bot trafigi genelde tek bir
+  // betikte toplanir. Hesap adi ayrica gosterildigi icin '/home/<hesap>/' oneki
+  // gereksiz, kirpilir: 'public_html/index.php' kalir.
+  const pscript=c=>{const a=String(c||'').split(' ')[0].split(':');
+    if(a.length<2||!a[1])return '';
+    return a[1].replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
+  // Fail eki. Anlik goruntu tazeyse eklenir ve yas etiketi tasir (alarm canli
+  // olcumden, fail listesi 60-90sn geride olabilen cron goruntusunden gelir).
+  const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;
+  const suffix=txt=>snapFresh&&txt?' — '+t('top:')+' '+txt+tf(' (snap %ss)',data.procAge):'';
+  // Kullanici cPanel'de hesap adidir. Betik varsa o da eklenir:
+  // 'lsphp · kayserik · public_html/index.php 76.0%'
+  const rowTop=(row,val)=>{const n=pname(row[5]);if(!n)return '';
+    const u=row[1]?' · '+row[1]:'',sc=pscript(row[5]);
+    return n+u+(sc?' · '+sc:'')+' '+val;};
   let top='';
-  if(data.procCpu&&data.procCpu.length&&data.procAge!=null&&data.procAge<=TH.snap_stale){
-    const p=data.procCpu[0],n=String(p[5]||'').split(' ')[0].split('/').pop(); // renderLog tek yerde escape eder
-    if(n)top=' — '+t('top:')+' '+n+' '+p[2]+'%'+tf(' (snap %ss)',data.procAge);
-  }
+  if(data.procCpu&&data.procCpu.length) top=suffix(rowTop(data.procCpu[0],data.procCpu[0][2]+'%'));
+  // RAM'in faili top-CPU sureci DEGIL, top-RAM surecidir — liste zaten payloadda.
+  let topRam='';
+  if(data.procRam&&data.procRam.length) topRam=suffix(rowTop(data.procRam[0],data.procRam[0][4]));
+  // Isci alarminda en cok isci acan hesap: procPhp = [hesap, adet], azalan sirali.
+  let topWrk='';
+  if(data.procPhp&&data.procPhp.length) topWrk=suffix(data.procPhp[0][0]+' '+data.procPhp[0][1]);
+  // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
+  let topSql='';
+  if(data.procSql&&data.procSql.length){const q=data.procSql[0];
+    topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
@@ -1191,7 +1216,7 @@ function checkAlerts(data){
   transLog('cpu',data.cpu,TH.cpu_crit,TH.cpu_warn,
     tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);
   transLog('ram',data.ram,TH.ram_crit,TH.ram_warn,
-    tf('RAM critical: %s%%',data.ram),tf('RAM high: %s%%',data.ram),tf('RAM back to normal: %s%%',data.ram),now);
+    tf('RAM critical: %s%%%s',data.ram,topRam),tf('RAM high: %s%%%s',data.ram,topRam),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
     tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
   if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
@@ -1215,10 +1240,10 @@ function checkAlerts(data){
   if(data.netRxSat!=null||data.netTxSat!=null){const ns=Math.max(data.netRxSat||0,data.netTxSat||0);
     transLog('net',ns,TH.net_crit,TH.net_warn,tf('Network link saturated: %s%% of line rate',ns),tf('Network link busy: %s%% of line rate',ns),t('Network load back to normal'),now);}
   if(data.mysqlThr!=null){const cc=data.coreCount||1;
-    transLog('mysqlthr',data.mysqlThr,cc*TH.mysqlthr_crit_x,cc*TH.mysqlthr_warn_x,tf('MySQL threads_running very high: %s (query pileup)',data.mysqlThr),tf('MySQL threads_running elevated: %s',data.mysqlThr),t('MySQL threads_running back to normal'),now);}
+    transLog('mysqlthr',data.mysqlThr,cc*TH.mysqlthr_crit_x,cc*TH.mysqlthr_warn_x,tf('MySQL threads_running very high: %s (query pileup)%s',data.mysqlThr,topSql),tf('MySQL threads_running elevated: %s%s',data.mysqlThr,topSql),t('MySQL threads_running back to normal'),now);}
   // PHP workers (aktif lsphp) — header birleşik sağlığıyla aynı eşik (warn ≥ çekirdek / err ≥ 2×); event log'a da düşsün.
   if(data.lsphpTotal!=null){const cc=data.coreCount||1;
-    transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s',data.lsphpTotal),tf('PHP workers elevated: %s',data.lsphpTotal),t('PHP workers back to normal'),now);}
+    transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s%s',data.lsphpTotal,topWrk),tf('PHP workers elevated: %s%s',data.lsphpTotal,topWrk),t('PHP workers back to normal'),now);}
   // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
   if(data.disk!=null)transLog('disk',data.disk,TH.disk_crit,TH.disk_warn,
     tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);
@@ -1274,7 +1299,7 @@ function applyMetrics(data){
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
-  document.getElementById('footer-time').textContent='v1.4.0 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  document.getElementById('footer-time').textContent='v1.4.1 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
