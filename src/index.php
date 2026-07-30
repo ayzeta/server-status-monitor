@@ -1602,7 +1602,13 @@ function svgSpark($data, $W, $H, $col, $ssrId, $fix = null) {
     // <defs>'i atabilir. O zaman fill="url(#...)" cozulmez, bazi cizicilerde
     // SIYAH blok cikar — mail eki icin kabul edilemez. Duz dolgu her yerde guvenli.
     $area = $d . sprintf("\nL%.1f %.1f L%.1f %.1f Z", $last[0], $H, $pts[0][0], $H);
-    $svg  = '<svg class="spark-ssr" id="' . $ssrId . '" width="' . $W . '" height="' . $H . '" viewBox="0 0 ' . $W . ' ' . $H . '">'
+    // preserveAspectRatio="none" ZORUNLU: varsayilan 'xMidYMid meet' cizimi kendi
+    // 260px genisliginde tutup kutunun ORTASINA yerlestiriyor. Kanvas gercek
+    // genislikte yeniden cizdigi icin tarayicida fark edilmiyordu; JS'siz mail
+    // ekinde ise grafik kartin yarisi kadar kalip ortada duruyordu (1100px alti
+    // tablet duzeninde kartlar genisledigi icin cok belirgin).
+    $svg  = '<svg class="spark-ssr" id="' . $ssrId . '" width="' . $W . '" height="' . $H
+          . '" viewBox="0 0 ' . $W . ' ' . $H . '" preserveAspectRatio="none">'
           . "\n" . '<path d="' . $area . '" fill="' . $col . '" fill-opacity=".13" stroke="none"/>'
           . "\n" . '<path d="' . $d . '" fill="none" stroke="' . $col . '" stroke-width="1.5"/>'
           . "\n" . '<circle cx="' . sprintf('%.1f', $last[0]) . '" cy="' . sprintf('%.1f', $last[1]) . '" r="2.5" fill="' . $col . '"/>';
@@ -2188,7 +2194,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 }
 </style>
 </head>
-<body>
+<?php /* static-mode BASLANGIC durumudur, JS calisirsa kaldirilir. Etiket polaritesi
+         icin bkz. sayfa sonundaki 'Etiket polaritesi' notu. */ ?>
+<body class="static-mode">
 <?php
 /* lang BURADA da tekrar ediliyor (<html lang> zaten var). Sebebi: sanitize eden
    webmail istemcileri (Roundcube) <html> ve <head>'i atip icerigi KENDI sayfasina
@@ -2235,7 +2243,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="meta-val" id="threads"><?=$coreCount?></div></div>
     <div class="meta-item"><div class="meta-lbl"><?=upper(t('Uptime'))?></div>
       <div class="meta-val" id="uptime"><?=$uptimeFormatted?></div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl"><?=upper(t('Updated'))?></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl"><?=upper(t('Snapshot'))?></div>
       <div class="meta-val"><span class="dot"></span><span id="time-val"><?=date('H:i:s')?></span></div></div>
   </div>
 </div>
@@ -2438,7 +2446,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="footer">
-  <div id="footer-mode"><span class="dot"></span><?=t('Auto-refresh every 30 seconds')?></div>
+<?php /* Metin AYRI span'de: JS eskiden #footer-mode'un textContent'ini eziyordu ve
+         yanindaki .dot'u da siliyordu. Artik yalniz #footer-mode-txt yazilir. */ ?>
+  <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt"><?=t('Static snapshot (mail attachment)')?></span></div>
 <?php if ($CREDIT_TEXT): ?>
   <div class="footer-credit"><?php if ($CREDIT_URL): ?><a href="<?=htmlspecialchars($CREDIT_URL, ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noopener"><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?></a><?php else: ?><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?><?php endif; ?></div>
 <?php endif; ?>
@@ -3279,16 +3289,27 @@ renderLog();
   spark('sp-mq',hist.mq,'var(--accent)',0,0,[0,Math.max(liveMqBase*TH.mailq_warn_x,Math.max.apply(null,hist.mq))]);
 })();
 
+// ── Etiket polaritesi ────────────────────────────────────────────────────────
+// PHP 'SNAPSHOT' yazar; JS calisiyorsa 'UPDATED'e YUKSELTIR. Eskiden tersiydi
+// (PHP 'UPDATED' yazar, JS yalnizca location.protocol==='file:' gorunce
+// 'SNAPSHOT'a dusururdu) ve bu, en cok onemsedigimiz yerde yaniltiyordu:
+// webmail mail ekini HTTPS uzerinden servis eder VE scriptleri siler, yani
+// 'file:' dali hic calismaz — donmus kare canliymis gibi 'UPDATED' gorunurdu.
+// Yeni polaritede dort durumun hepsi dogru:
+//   canli sayfa        -> script parse aninda UPDATED (fetch beklenmez, titreme yok)
+//   webmail eki        -> script silinmis, SNAPSHOT kalir
+//   indirilen dosya    -> file:, SNAPSHOT kalir
+//   canli ama JS olu   -> SNAPSHOT kalir (durust)
 if(location.protocol==='file:'){
-  // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
-  document.body.classList.add('static-mode');
-  // 'Snapshot' eskiden SABIT Ingilizce yaziliydi (TR sayfada da 'Snapshot'
-  // gorunuyordu). t()'den geciyor ve PHP tarafiyla ayni sekilde buyutuluyor.
-  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Snapshot'));
-  const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
+  // CSF mail eki dosya olarak açıldı — canlı yenileme yapılamaz
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
          new Date().toTimeString().slice(0,8));
 }else{
+  document.body.classList.remove('static-mode');
+  // 'Updated'/'Snapshot' t()'den gecer ve PHP'nin upper()'i ile ayni buyutulur.
+  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Updated'));
+  // Yalniz metin span'i — kardesi .dot korunur (bkz. #footer-mode-txt notu).
+  const fm=document.getElementById('footer-mode-txt');if(fm)fm.textContent=t('Auto-refresh every 30 seconds');
   tick();
   setInterval(tick,30000);
   // Mobil/arka plan dayanıklılığı: tarayıcı arka plandaki sekmenin canvas'ını

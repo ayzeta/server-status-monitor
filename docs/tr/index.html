@@ -406,7 +406,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </style>
 <script>(function(){var f=window.fetch;window.fetch=function(u){try{if(typeof u==="string"&&(""+u).indexOf("json=1")>-1)return new Promise(function(){});}catch(e){}return f.apply(this,arguments);};})();</script>
 </head>
-<body>
+<body class="static-mode">
 <div class="wrap" lang="tr">
 
 <div class="hdr">
@@ -428,7 +428,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2050ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2050ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -437,8 +437,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="meta-val" id="threads">1</div></div>
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
-    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">G&#220;NCELLEND&#304;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">11:46:57</span></div></div>
+    <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:30:42</span></div></div>
   </div>
 </div>
 
@@ -526,7 +526,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2050</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2028</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -640,15 +640,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2050ms</span><span class="log-ts">11:46</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">11:46</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2028ms</span><span class="log-ts">12:30</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">12:30</span></div>
   </div>
 </div>
 
 <div class="footer">
-  <div id="footer-mode"><span class="dot"></span>30 saniyede bir yenilenir</div>
+  <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-07-30 11:46:57</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-07-30 12:30:42</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -969,7 +969,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:46:57'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:30:42'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -997,12 +997,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "11:46"
+        "ts": "12:30"
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2050ms",
-        "ts": "11:46"
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2028ms",
+        "ts": "12:30"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1760,16 +1760,27 @@ renderLog();
   spark('sp-mq',hist.mq,'var(--accent)',0,0,[0,Math.max(liveMqBase*TH.mailq_warn_x,Math.max.apply(null,hist.mq))]);
 })();
 
+// ── Etiket polaritesi ────────────────────────────────────────────────────────
+// PHP 'SNAPSHOT' yazar; JS calisiyorsa 'UPDATED'e YUKSELTIR. Eskiden tersiydi
+// (PHP 'UPDATED' yazar, JS yalnizca location.protocol==='file:' gorunce
+// 'SNAPSHOT'a dusururdu) ve bu, en cok onemsedigimiz yerde yaniltiyordu:
+// webmail mail ekini HTTPS uzerinden servis eder VE scriptleri siler, yani
+// 'file:' dali hic calismaz — donmus kare canliymis gibi 'UPDATED' gorunurdu.
+// Yeni polaritede dort durumun hepsi dogru:
+//   canli sayfa        -> script parse aninda UPDATED (fetch beklenmez, titreme yok)
+//   webmail eki        -> script silinmis, SNAPSHOT kalir
+//   indirilen dosya    -> file:, SNAPSHOT kalir
+//   canli ama JS olu   -> SNAPSHOT kalir (durust)
 if(location.protocol==='file:'){
-  // CSF mail eki olarak açıldı — canlı yenileme yapılamaz, statik görüntü
-  document.body.classList.add('static-mode');
-  // 'Snapshot' eskiden SABIT Ingilizce yaziliydi (TR sayfada da 'Snapshot'
-  // gorunuyordu). t()'den geciyor ve PHP tarafiyla ayni sekilde buyutuluyor.
-  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Snapshot'));
-  const fm=document.getElementById('footer-mode');if(fm)fm.textContent=t('Static snapshot (mail attachment)');
+  // CSF mail eki dosya olarak açıldı — canlı yenileme yapılamaz
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
          new Date().toTimeString().slice(0,8));
 }else{
+  document.body.classList.remove('static-mode');
+  // 'Updated'/'Snapshot' t()'den gecer ve PHP'nin upper()'i ile ayni buyutulur.
+  const ul=document.getElementById('updated-lbl');if(ul)ul.textContent=UPPER(t('Updated'));
+  // Yalniz metin span'i — kardesi .dot korunur (bkz. #footer-mode-txt notu).
+  const fm=document.getElementById('footer-mode-txt');if(fm)fm.textContent=t('Auto-refresh every 30 seconds');
   tick();
   setInterval(tick,30000);
   // Mobil/arka plan dayanıklılığı: tarayıcı arka plandaki sekmenin canvas'ını
