@@ -320,6 +320,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .loads-row{grid-template-columns:1fr;}
   .res-left{min-width:0;}
   .res-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL Response'
+     ve 'Hosted Accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
+     Gizlemek yerine kucultmek &#8212; kutu korunuyor, metin siginiyor. */
+  .res-icon{width:21px;height:21px;border-radius:6px;font-size:13px;}
   .res-val{font-size:19px;}
   .info-card .res-val{font-size:15px;}
   .metric-spark{height:64px;}
@@ -381,6 +385,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
      SORGU kalan&#305; al&#305;r, di&#287;erleri i&#231;eri&#287;ine g&#246;re boyutlan&#305;r &#8212; mobilde ekstra
      sabit oran / table-layout:fixed gerekmez (masa&#252;st&#252;yle ayn&#305; yakla&#351;&#305;m). */
 }
+/* Cok dar ekran (<=344px): ikon kutulari kaldirilir. Olculdu &#8212; kutu + bosluk
+   (34px) yuzunden 320px'te 'Network IN', 'Web Response', 'Hosted Accounts'
+   dahil 5 baslik kirpiliyordu. 360/375px'te kutular sigiyor, o yuzden esik
+   379 degil 344: yaygin telefon genisliklerinde kutular korunur. */
+/* Ikon kutusu iki kademeli (hepsi olculdu):
+   <=680px  -> 21px  (26px'te 375px ekranda 2 baslik kirpiliyordu)
+   <=344px  -> gizli (320px'te 21px bile 5 baslik kirpiyor; o genislikte
+                      alan dekorasyondan degerli, metrik basligiyla taniniyor) */
+@media(max-width:344px){ .res-icon{display:none;} }
 @media(max-width:379px){
   /* &#199;ok dar ekran: ba&#351;l&#305;k sat&#305;r&#305; yatay ta&#351;ma yapmas&#305;n. Fontlar k&#252;&#231;&#252;l&#252;r
      (320px'te ba&#351;l&#305;k+rozet h&#226;l&#226; tek sat&#305;r); daha da darsa nowrap kalkar,
@@ -415,7 +428,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2025ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2025ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2049ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2049ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -425,7 +438,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">UPDATED</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">11:21:34</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">11:46:32</span></div></div>
   </div>
 </div>
 
@@ -513,7 +526,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2025</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2049</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -627,15 +640,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2025ms</span><span class="log-ts">11:21</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">11:21</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2049ms</span><span class="log-ts">11:46</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">11:46</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-07-30 11:21:34</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-07-30 11:46:32</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -742,7 +755,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:21:34'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:46:32'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -770,12 +783,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "11:21"
+        "ts": "11:46"
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2025ms",
-        "ts": "11:21"
+        "msg": "Web response time high: 2049ms",
+        "ts": "11:46"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda

@@ -2103,6 +2103,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .loads-row{grid-template-columns:1fr;}
   .res-left{min-width:0;}
   .res-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL Response'
+     ve 'Hosted Accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
+     Gizlemek yerine kucultmek — kutu korunuyor, metin siginiyor. */
+  .res-icon{width:21px;height:21px;border-radius:6px;font-size:13px;}
   .res-val{font-size:19px;}
   .info-card .res-val{font-size:15px;}
   .metric-spark{height:64px;}
@@ -2164,6 +2168,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
      SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
      sabit oran / table-layout:fixed gerekmez (masaüstüyle aynı yaklaşım). */
 }
+/* Cok dar ekran (<=344px): ikon kutulari kaldirilir. Olculdu — kutu + bosluk
+   (34px) yuzunden 320px'te 'Network IN', 'Web Response', 'Hosted Accounts'
+   dahil 5 baslik kirpiliyordu. 360/375px'te kutular sigiyor, o yuzden esik
+   379 degil 344: yaygin telefon genisliklerinde kutular korunur. */
+/* Ikon kutusu iki kademeli (hepsi olculdu):
+   <=680px  -> 21px  (26px'te 375px ekranda 2 baslik kirpiliyordu)
+   <=344px  -> gizli (320px'te 21px bile 5 baslik kirpiyor; o genislikte
+                      alan dekorasyondan degerli, metrik basligiyla taniniyor) */
+@media(max-width:344px){ .res-icon{display:none;} }
 @media(max-width:379px){
   /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
      (320px'te başlık+rozet hâlâ tek satır); daha da darsa nowrap kalkar,
