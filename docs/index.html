@@ -368,7 +368,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2023ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2038ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2038ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -378,7 +378,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">UPDATED</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">00:01:30</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">00:35:11</span></div></div>
   </div>
 </div>
 
@@ -466,7 +466,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2023 ms</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)">2038 ms</span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -580,15 +580,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2023ms</span><span class="log-ts">00:01</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">00:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2038ms</span><span class="log-ts">00:35</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">00:35</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span>Auto-refresh every 30 seconds</div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.4.1">v1.4.1</span> &middot; 2026-07-30 00:01:30</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.4.1">v1.4.1</span> &middot; 2026-07-30 00:35:11</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -695,7 +695,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'00:01:30'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:66,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'00:35:11'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -723,12 +723,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "00:01"
+        "ts": "00:35"
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2023ms",
-        "ts": "00:01"
+        "msg": "Web response time high: 2038ms",
+        "ts": "00:35"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1179,15 +1179,23 @@ function checkAlerts(data){
   // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
-  // Ikili adi: 'lsphp:/home/x/public_html/index.php' -> 'lsphp'.
-  const pname=c=>String(c||'').split(' ')[0].split(':')[0].split('/').pop();
+  // Ilk kelimeyi ':/' kalibinda bol — LiteSpeed 'lsphp:/home/x/y.php' bicimini
+  // kullanir. Bu kalip yoksa ad OLDUGU GIBI kalir; yalnizca mutlak yolsa son
+  // parca alinir. Cekirdek surec adlari ('kworker/2:1H-kblockd') hem '/' hem ':'
+  // icerir ve parcalanirsa anlamsizlasir ('2' gibi) — o yuzden dokunulmaz.
+  const ptok=c=>String(c||'').split(' ')[0];
+  const pname=c=>{const t=ptok(c),i=t.indexOf(':/');
+    if(i>0)return t.slice(0,i);
+    return t[0]==='/'?t.split('/').pop():t;};
   // Calisan BETIK yolu — ayri tutulur, cunku hangi dosyanin (dolayisiyla hangi
   // URL'in) yuklendigi gercek bir ipucu: bir saldiri/bot trafigi genelde tek bir
   // betikte toplanir. Hesap adi ayrica gosterildigi icin '/home/<hesap>/' oneki
   // gereksiz, kirpilir: 'public_html/index.php' kalir.
-  const pscript=c=>{const a=String(c||'').split(' ')[0].split(':');
-    if(a.length<2||!a[1])return '';
-    return a[1].replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
+  // Betik yolu yalnizca ':/' kalibinda vardir. Hesap adi ayrica gosterildigi icin
+  // '/home/<hesap>/' oneki kirpilir: 'public_html/index.php' kalir.
+  const pscript=c=>{const t=ptok(c),i=t.indexOf(':/');
+    if(i<0)return '';
+    return t.slice(i+1).replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
   // Fail eki. Anlik goruntu tazeyse eklenir ve yas etiketi tasir (alarm canli
   // olcumden, fail listesi 60-90sn geride olabilen cron goruntusunden gelir).
   const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;

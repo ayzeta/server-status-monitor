@@ -1272,7 +1272,10 @@ if (!empty($histSeed['t'])) {
             $tc  = (int)($tp[1] ?? 0);
             $tu  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
             if ($tn !== '') {
-                $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' &middot; ' . $tu : '');
+                // Ayirici DUZ karakter olmali: olay kaydi metni ayrica kacisliyor,
+                // '&middot;' yazilirsa '&amp;middot;' olup harfi harfine gorunuyordu.
+                // Cikti tamponu ASCII disi karakterleri zaten entity'e ceviriyor.
+                $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' · ' . $tu : '');
                 $sfx = ' — ' . t('top:') . ' ' . $who . ' ' . $tc . '%';
             }
         }
@@ -2878,15 +2881,23 @@ function checkAlerts(data){
   // Şüpheli iliştirme (canlı): snapshot'ın top-CPU süreci. Alarm anı ile snapshot
   // anı 60-90sn ayrışabilir — yanıltmamak için sadece tazeyken eklenir ve
   // "(snap Xs)" yaş etiketi taşır. RAM'e eklenmez (top-CPU faili olmayabilir).
-  // Ikili adi: 'lsphp:/home/x/public_html/index.php' -> 'lsphp'.
-  const pname=c=>String(c||'').split(' ')[0].split(':')[0].split('/').pop();
+  // Ilk kelimeyi ':/' kalibinda bol — LiteSpeed 'lsphp:/home/x/y.php' bicimini
+  // kullanir. Bu kalip yoksa ad OLDUGU GIBI kalir; yalnizca mutlak yolsa son
+  // parca alinir. Cekirdek surec adlari ('kworker/2:1H-kblockd') hem '/' hem ':'
+  // icerir ve parcalanirsa anlamsizlasir ('2' gibi) — o yuzden dokunulmaz.
+  const ptok=c=>String(c||'').split(' ')[0];
+  const pname=c=>{const t=ptok(c),i=t.indexOf(':/');
+    if(i>0)return t.slice(0,i);
+    return t[0]==='/'?t.split('/').pop():t;};
   // Calisan BETIK yolu — ayri tutulur, cunku hangi dosyanin (dolayisiyla hangi
   // URL'in) yuklendigi gercek bir ipucu: bir saldiri/bot trafigi genelde tek bir
   // betikte toplanir. Hesap adi ayrica gosterildigi icin '/home/<hesap>/' oneki
   // gereksiz, kirpilir: 'public_html/index.php' kalir.
-  const pscript=c=>{const a=String(c||'').split(' ')[0].split(':');
-    if(a.length<2||!a[1])return '';
-    return a[1].replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
+  // Betik yolu yalnizca ':/' kalibinda vardir. Hesap adi ayrica gosterildigi icin
+  // '/home/<hesap>/' oneki kirpilir: 'public_html/index.php' kalir.
+  const pscript=c=>{const t=ptok(c),i=t.indexOf(':/');
+    if(i<0)return '';
+    return t.slice(i+1).replace(/^\/home\/[^/]+\//,'').replace(/^\//,'');};
   // Fail eki. Anlik goruntu tazeyse eklenir ve yas etiketi tasir (alarm canli
   // olcumden, fail listesi 60-90sn geride olabilen cron goruntusunden gelir).
   const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;
