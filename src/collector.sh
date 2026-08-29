@@ -85,33 +85,42 @@ chmod 600 "$NET_STATE" 2>/dev/null
 # yukseltir. Boylece hangi isin hangi surec topolojisiyle calistigini onceden bilmek
 # gerekmez; cPanel tetikleyiciyi degistirse bile dogru olan otomatik kazanir.
 #
-# Kampanya kimligi = eslesen en eski surecin PPID'si. Degisirse yeni kampanya sayilir,
-# art arda iki tur birbirine karismaz. (Ebeveynin YASINI kullanmak yanlis olurdu:
-# kimligi tetikleyiciye gore degisir — gozlemde gather_update_log_stats cikti, gece
-# cron'unda kalici bir kuyruk servisi olur ve "8 gundur tarama" derdi.)
+# Kampanya SINIRI yalnizca kabul penceresiyle belirlenir. PPID'yi kampanya kimligi
+# olarak kullanmayi denedik, CALISMIYOR: uzun omurlu wp-toolkit yurutuculeri (%0 CPU)
+# pcpu esigine takilip elenir, eslesen tek surec o anki kisa gorev olur ve ONUN
+# ebeveyni her gorevde degisir (olculdu: 2826046 -> 2826040 -> 2793733). Sonucta
+# kampanya her turda sifirlanirdi. Ebeveynin YASI da kullanilamaz: kimligi
+# tetikleyiciye gore degisir (wappspector'da gather_update_log_stats, gece cron'unda
+# kalici bir kuyruk servisi -> "8 gundur tarama").
 #
 # Kabul penceresi: ornekleme dakikada bir, hesaplar arasi boslukta hic surec
 # gorunmeyebilir. O aralikta cip SONMEZ — hem yas kesilmez hem de cipin sonup
 # yanmasi Event log'unu spam'lemez (eskiden bu yuzden uc cip "sessiz" isaretliydi).
+# Bedeli: birbirinden 3 dk'dan yakin iki ayri tur tek kampanya sayilir. "Ne kadardir
+# suruyor" sorusu icin bu zaten dogru cevap.
 ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=180
 ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
 # ( A=$(act_age ...) ) fonksiyon alt kabukta calisir ve $ACT_NEXT birikimi ana
 # kabuga donmezdi — durum dosyasi hep bos kalir, her tur "yeni kampanya" sayilirdi.
-act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kampanya kimligi
-  local k="$1" et="$2" cid="${3:--}" pc pf pl age
+act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)
+  local k="$1" et="$2" pf pl age
   ACT_AGE=""
-  read pc pf pl < <(awk -v k="$k" '$1==k{print $2, $3, $4; exit}' "$ACT_STATE" 2>/dev/null)
+  read pf pl < <(awk -v k="$k" '$1==k{print $2, $3; exit}' "$ACT_STATE" 2>/dev/null)
+  # Saglik kontrolu: bozuk/eski bicimli kayit (30 gunden yasli "baslangic") atilir.
+  # Onceki surumun durum dosyasi 'anahtar ppid ilk son' bicimindeydi; alan kaymasi
+  # PPID'yi baslangic epoch'u sanmaya ve 50+ yillik yas gostermeye yol acardi.
+  case "$pf" in ''|*[!0-9]*) pf=""; pl="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; };; esac
   if [ -n "$et" ]; then
-    if [ -z "$pf" ] || [ "$pc" != "$cid" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
-      pf=$ACT_NOW; pc=$cid          # yeni kampanya
+    if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
+      pf=$ACT_NOW                   # yeni kampanya
     fi
     pl=$ACT_NOW
   else
     [ -z "$pf" ] && return 0                                        # hic gorulmedi
     [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ] && return 0      # bitti, kaydi dus
   fi
-  ACT_NEXT="$ACT_NEXT$k $pc $pf $pl"$'\n'
+  ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'
   age=$(( ACT_NOW - pf ))
   [ -n "$et" ] && [ "$et" -gt "$age" ] && age=$et
   ACT_AGE=$age
@@ -220,21 +229,21 @@ OUT="$HOME_DIR/.proc_snapshot"
   # her hesapta yeniden dogar, "10 saatlik yedek" 1m gorunurdu). Koseli parantez
   # hilesi ([p]kgacct) awk'in kendi komut satirini eslemesini onler.
   # backup: gorev-omurlu surecler, dogrudan gozlem (esik gerekmez).
-  A_ET=""; A_PP=""; read A_ET A_PP < <(ps axo etimes=,ppid=,args= | awk '/[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/{if($1>m){m=$1;p=$2}} END{if(m)print m, p}')
-  act_age act_backup "$A_ET" "$A_PP"; [ -n "$ACT_AGE" ] && echo "act_backup $ACT_AGE"
+  A=$(ps axo etimes=,pcpu=,args= | awk '/[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/{if($1>m)m=$1} END{if(m)print m}')
+  act_age act_backup "$A"; [ -n "$ACT_AGE" ] && echo "act_backup $ACT_AGE"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
-  A_ET=""; A_PP=""; read A_ET A_PP < <(ps axo etimes=,ppid=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m){m=$1;p=$2}} END{if(m)print m, p}')
-  act_age act_update "$A_ET" "$A_PP"; [ -n "$ACT_AGE" ] && echo "act_update $ACT_AGE"
+  A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
+  act_age act_update "$A"; [ -n "$ACT_AGE" ] && echo "act_update $ACT_AGE"
   # wpt: gorev kuyrugunu listeleyen belgelenmis CLI yok — CPU esikli (pcpu>=15)
   # surec sezgiseli kalir. Kalici sw-engine-fpm havuzu bosta %0'da gezdigi icin
   # esik onu eler; WPT gorevleri kisa omurlu oldugundan pcpu ortalamasi guvenilir.
-  A_ET=""; A_PP=""; read A_ET A_PP < <(ps axo etimes=,ppid=,pcpu=,args= | awk '$3>=15 && /[w]p-toolkit|[w]ordpress-toolkit/{if($1>m){m=$1;p=$2}} END{if(m)print m, p}')
-  act_age act_wpt "$A_ET" "$A_PP"; [ -n "$ACT_AGE" ] && echo "act_wpt $ACT_AGE"
+  A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/{if($1>m)m=$1} END{if(m)print m}')
+  act_age act_wpt "$A"; [ -n "$ACT_AGE" ] && echo "act_wpt $ACT_AGE"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
-  A_ET=""; A_PP=""; read A_ET A_PP < <(ps axo etimes=,ppid=,pcpu=,args= | awk '$3>=15 && /[w]appspector/{if($1>m){m=$1;p=$2}} END{if(m)print m, p}')
-  act_age act_appdisc "$A_ET" "$A_PP"; [ -n "$ACT_AGE" ] && echo "act_appdisc $ACT_AGE"
+  A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]appspector/{if($1>m)m=$1} END{if(m)print m}')
+  act_age act_appdisc "$A"; [ -n "$ACT_AGE" ] && echo "act_appdisc $ACT_AGE"
   # imunify: OTORITER kaynak — ajanin kendi kayitlari (running durumundaki en eski
   # taramanin yasi). Surec sezgiseli burada calismaz: tarama kalici rustbolit
   # --resident icinde kosar, ps pcpu'su omur-boyu ortalama oldugundan iki yonde
@@ -276,12 +285,10 @@ except Exception:
   fi
   # Yas ajanin kendi kaydindan gelir — TEK tarama icin kesin. Ama sweep hesap hesap
   # ayri kayitlar uretiyorsa her hesapta sifirlanir; act_age tabandan yukseltir.
-  # Kampanya kimligi SABIT ("-"): hesap adi kullanilsaydi her hesapta yeni kampanya
-  # sayilir ve duzeltme hicbir ise yaramazdi.
   A=$(cat "$IMC" 2>/dev/null)
   IM_AGE=""; IM_N=""; IM_P=""
   [ -n "$A" ] && read IM_AGE IM_N IM_P <<< "$A"
-  act_age act_imunify "$IM_AGE" "-"; IM_AGE=$ACT_AGE
+  act_age act_imunify "$IM_AGE"; IM_AGE=$ACT_AGE
   [ -n "$IM_AGE" ] && { echo "act_imunify $IM_AGE"; echo "act_imunify_n $IM_N"; echo "act_imunify_p $IM_P"; }
   # Threads_running: o an sorgu isleyen thread — "kisa ama cok sorgu" senaryosunu gosterir
   THR=$(timeout 3 mysqladmin extended-status 2>/dev/null | awk '$2=="Threads_running"{print $4}')
