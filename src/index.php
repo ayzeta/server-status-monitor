@@ -863,7 +863,8 @@ $actDefs = [
     ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15, null],
     ['imunify scan',    'act_imunify', '/im360\.run|aibolit|rustbolit/i',               15, 'act_imunify_n'],
     // wappspector: cPanel'in uygulama-keşif taraması (WP Toolkit envanterini besler).
-    // Hesap hesap kısa turlarla döner — çip JS tarafında SESSİZ (event log'a yazmaz).
+    // Hesap hesap kısa turlarla döner: süreç etimes'i kampanya yaşını VERMEZ, o yüzden
+    // collector kampanya durumu tutar (bkz. collector.sh act_age).
     ['app discovery',   'act_appdisc', '/wappspector/i',                                15, null],
 ];
 $actChips = []; $acts = []; $actImunifyN = null;
@@ -2917,10 +2918,12 @@ function renderProcs(data){
     // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
     // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
     // [etiket, desen, minCpu, sessiz] — sessiz=true: çip görünür ama started/finished
-    // Event log'a YAZILMAZ. Hesap-hesap kısa turlarla dönen tarama işleri
-    // (wp-toolkit, imunify hesap taramaları, wappspector) log'u spam'liyordu;
-    // yalnız uzun/seyrek işler (backup, system update) loglanır.
-    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,true],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,true],['app discovery',/wappspector/i,15,true]];
+    // Event log'a YAZILMAZ. Eskiden wp-toolkit/imunify/wappspector sessizdi: hesap
+    // hesap kısa süreçler doğurdukları için çip her hesap arasında sönüp yanıyor ve
+    // log'u spam'liyordu. Kök sebep collector'da çözüldü (kampanya durumu + kabul
+    // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
+    // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
+    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false]];
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(i===3&&data.actImunifyP==='incremental')return null;
