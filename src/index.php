@@ -2592,6 +2592,17 @@ function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
 function pmcls(v){v=parseFloat(v)||0;return v>=15?'hot':v>=5?'warm':'';}
 function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);return m?(+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]):null;}
 function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
+// Sunucu saatinden N saniye geri git ("YYYY-MM-DD HH:MM:SS" -> "HH:MM:SS").
+// Aktivite "started" kaydi icin: cip yasi zaten isin kac saniyedir surdugunu
+// soyluyor, damgayi ondan turetiriz. Aksi halde damga, isin basladigi ani degil
+// TARAYICININ fark ettigi ani gosterir — sekme arka planda uyurken 30 sn'lik tick
+// donar, uyanip gecisi 8 dakika gec yakalar ve "31 dakikadir suruyor" yazan cipin
+// yanina "az once basladi" satiri duserdi (canlida gorulen tutarsizlik).
+function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
+  if(m.length!==3)return p;
+  var s=(+m[0])*3600+(+m[1])*60+(+m[2])-(sec|0); s=((s%86400)+86400)%86400;
+  var z=function(n){return(n<10?'0':'')+n;};
+  return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 
 // Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
@@ -2924,12 +2935,14 @@ function renderProcs(data){
     // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
     // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
     const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false]];
+    const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(i===3&&data.actImunifyP==='incremental')return null;
       let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
       if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
       if(mx==null)return null;
+      ages[i]=mx;
       let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
       if(i===3){ // imunify: hesap adı + varsa dosya sayısı
         if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
@@ -2944,7 +2957,13 @@ function renderProcs(data){
     else if(st!==actWas){
       defs.forEach(([lbl,,,silent],i)=>{
         if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
-        if(st[i]!==actWas[i])addLog('ok',t(lbl.replace(' running',''))+' '+t(st[i]==='1'?'started':'finished'),data.time.split(' ')[1]);});
+        if(st[i]===actWas[i])return;
+        const basladi=st[i]==='1';
+        // "started": damga isin GERCEK baslangici (sunucu saati - cip yasi).
+        // "finished": bitis ani bilinmiyor (kabul penceresi icinde bir yerde),
+        // en iyi tahmin fark edilen an — oldugu gibi birakilir.
+        addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished'),
+               (basladi&&ages[i]!=null)?timeMinus(data.time,ages[i]):data.time.split(' ')[1]);});
       actWas=st;
     }
   }
