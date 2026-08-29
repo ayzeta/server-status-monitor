@@ -97,14 +97,18 @@ chmod 600 "$NET_STATE" 2>/dev/null
 # gorunmeyebilir. O aralikta cip SONMEZ — hem yas kesilmez hem de cipin sonup
 # yanmasi Event log'unu spam'lemez (eskiden bu yuzden uc cip "sessiz" isaretliydi).
 #
-# 300 sn: 180 ile canlida olculdu ve cogu boslugu koprulyordu (cip 5 dk kesintisiz
-# ayakta kaldi), ama WP Toolkit partisi (execute-background-task.php, 20-30 dk surer)
-# sirasinda bir kez sondu: 05:32:57 bitti / 05:33:57 basladi — yani gorulme araligi
-# 180'i az asmis, 240'in altinda kalmis. Parti mantiksal olarak TEK kampanya, o
-# sonme sahte bir "basladi/bitti" cifti uretti.
-# 300 o boslugu payla koprulyor. 600 denendi ama fazla: biten bir isi 10 dakika
-# "suruyor" gostermek, arka plan gostergesi icin bile gereksiz uzun bir yanilma.
-ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=300
+# 600 sn. Canlida 180 ile iki kez olculdu, ikisi de parti ORTASINDA sondu ve sahte
+# "basladi/bitti" cifti uretti (05:32:57 ve 05:40:58). Ikinci sonmede gorulme araligi
+# 228 sn olarak olculdu. Once 300 secildi ama bu son olcume gore ayar yapmakti:
+# bir sonraki bosluk 310 olsa ayni sorun geri gelirdi.
+#
+# Pencere, WP Toolkit partisinin (execute-background-task.php, 20-30 dk) icindeki
+# gorulme bosluklarini kapsamali — parti mantiksal olarak TEK kampanya. 600 sn o
+# bosluk sinifini payla kapsar.
+# Bedeli: gercekten biten bir is cipte 10 dk'ya kadar kalir. Arka plan gostergesi
+# icin kabul edilebilir: 10 dakika bayat "calisiyor" demek, dogru isi parcalayip
+# Event log'u sahte ciftlerle doldurmaktan iyi.
+ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=600
 ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
 # ( A=$(act_age ...) ) fonksiyon alt kabukta calisir ve $ACT_NEXT birikimi ana
