@@ -96,9 +96,15 @@ chmod 600 "$NET_STATE" 2>/dev/null
 # Kabul penceresi: ornekleme dakikada bir, hesaplar arasi boslukta hic surec
 # gorunmeyebilir. O aralikta cip SONMEZ — hem yas kesilmez hem de cipin sonup
 # yanmasi Event log'unu spam'lemez (eskiden bu yuzden uc cip "sessiz" isaretliydi).
-# Bedeli: birbirinden 3 dk'dan yakin iki ayri tur tek kampanya sayilir. "Ne kadardir
-# suruyor" sorusu icin bu zaten dogru cevap.
-ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=180
+#
+# 300 sn: 180 ile canlida olculdu ve cogu boslugu koprulyordu (cip 5 dk kesintisiz
+# ayakta kaldi), ama WP Toolkit partisi (execute-background-task.php, 20-30 dk surer)
+# sirasinda bir kez sondu: 05:32:57 bitti / 05:33:57 basladi — yani gorulme araligi
+# 180'i az asmis, 240'in altinda kalmis. Parti mantiksal olarak TEK kampanya, o
+# sonme sahte bir "basladi/bitti" cifti uretti.
+# 300 o boslugu payla koprulyor. 600 denendi ama fazla: biten bir isi 10 dakika
+# "suruyor" gostermek, arka plan gostergesi icin bile gereksiz uzun bir yanilma.
+ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=300
 ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
 # ( A=$(act_age ...) ) fonksiyon alt kabukta calisir ve $ACT_NEXT birikimi ana
