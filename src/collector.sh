@@ -97,17 +97,16 @@ chmod 600 "$NET_STATE" 2>/dev/null
 # gorunmeyebilir. O aralikta cip SONMEZ — hem yas kesilmez hem de cipin sonup
 # yanmasi Event log'unu spam'lemez (eskiden bu yuzden uc cip "sessiz" isaretliydi).
 #
-# 600 sn. Canlida 180 ile iki kez olculdu, ikisi de parti ORTASINDA sondu ve sahte
-# "basladi/bitti" cifti uretti (05:32:57 ve 05:40:58). Ikinci sonmede gorulme araligi
-# 228 sn olarak olculdu. Once 300 secildi ama bu son olcume gore ayar yapmakti:
-# bir sonraki bosluk 310 olsa ayni sorun geri gelirdi.
-#
-# Pencere, WP Toolkit partisinin (execute-background-task.php, 20-30 dk) icindeki
-# gorulme bosluklarini kapsamali — parti mantiksal olarak TEK kampanya. 600 sn o
-# bosluk sinifini payla kapsar.
-# Bedeli: gercekten biten bir is cipte 10 dk'ya kadar kalir. Arka plan gostergesi
-# icin kabul edilebilir: 10 dakika bayat "calisiyor" demek, dogru isi parcalayip
-# Event log'u sahte ciftlerle doldurmaktan iyi.
+# 600 sn. Pencere artik yalnizca kampanya-omurlu bir sureci OLMAYAN isler icin
+# gerekli: wappspector ve pkgacct hesap hesap kisa surecler doguruyor, dakikalik
+# ornekleme cogunu kaciriyor. (wp-toolkit artik pencereye muhtac degil — partinin
+# kendi sureci izleniyor, bkz. act_wpt.)
+# Deger canlida wp-toolkit uzerinde olculdu: 180 sn iki kez yetmedi (05:32:57 ve
+# 05:40:58'de parti ortasinda sonup sahte "basladi/bitti" cifti uretti), olculen
+# gorulme araligi 228 sn'ydi. 300 denendi ama o son olcume gore ayar yapmakti;
+# bir sonraki bosluk 310 olsa ayni sorun donerdi. 600 bosluk SINIFINI kapsar.
+# Bedeli: gercekten biten bir is cipte 10 dk'ya kadar kalir — arka plan gostergesi
+# icin kabul edilebilir, dogru isi parcalayip log'u sahte ciftlerle doldurmaktan iyi.
 ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=600
 ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
@@ -245,10 +244,16 @@ OUT="$HOME_DIR/.proc_snapshot"
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
   A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
   act_age act_update "$A"; [ -n "$ACT_AGE" ] && echo "act_update $ACT_AGE"
-  # wpt: gorev kuyrugunu listeleyen belgelenmis CLI yok — CPU esikli (pcpu>=15)
-  # surec sezgiseli kalir. Kalici sw-engine-fpm havuzu bosta %0'da gezdigi icin
-  # esik onu eler; WPT gorevleri kisa omurlu oldugundan pcpu ortalamasi guvenilir.
-  A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/{if($1>m)m=$1} END{if(m)print m}')
+  # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
+  # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
+  # ihtiyac duymaz. Canlida olculdu: parti 930 sn kosuyordu, eski esik+grace yontemi
+  # 780 sn buluyordu ve kisa gorevlerin CPU sicramalarini yakalamaya calistigi icin
+  # arada sonup yaniyordu.
+  # Kalici yurutuculer bu desene UYMAZ (scheduled-tasks-executor / background-tasks-
+  # executor, 3.8 gunluk) — "execute-background-task" ikisinin de alt dizesi degil.
+  # Ikinci sart parti disindaki WPT etkinligi icin eski sezgiseli korur: kalici
+  # sw-engine-fpm havuzu bosta %0'da gezdigi icin CPU esigi onu eler.
+  A=$(ps axo etimes=,pcpu=,args= | awk '/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){if($1>m)m=$1} END{if(m)print m}')
   act_age act_wpt "$A"; [ -n "$ACT_AGE" ] && echo "act_wpt $ACT_AGE"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
