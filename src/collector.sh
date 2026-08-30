@@ -112,27 +112,58 @@ ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
 # ( A=$(act_age ...) ) fonksiyon alt kabukta calisir ve $ACT_NEXT birikimi ana
 # kabuga donmezdi — durum dosyasi hep bos kalir, her tur "yeni kampanya" sayilirdi.
-act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)
-  local k="$1" et="$2" pf pl age
-  ACT_AGE=""
+# BITIS de kaydedilir. Kampanya penceresi dolunca kaydi atmak yerine bitis anini
+# saklariz: bitis = SON GORULME (pl), yani pencerenin basladigi an — pencerenin
+# doldugu an degil. Boylece "bitti" satiri gercek zamani gosterir, 10 dakika geç
+# degil. Bitmis kayit ACT_RETAIN boyunca saklanir ki pano ne zaman acilirsa acilsin
+# yakin gecmisteki bitisi gorebilsin (eskiden bu satiri yalnizca o an ACIK olan
+# tarayici yazabiliyordu).
+# Kampanya yeniden basladiginda eski bitis kaydi dusurulur: ayni etkinlik icin
+# ayni anda hem "basladi" hem "bitti" gostermek kafa karistirir.
+ACT_RETAIN=3600
+act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor) -> $ACT_AGE / $ACT_END
+  local k="$1" et="$2" pf pl age pe
+  ACT_AGE=""; ACT_END=""
   read pf pl < <(awk -v k="$k" '$1==k{print $2, $3; exit}' "$ACT_STATE" 2>/dev/null)
   # Saglik kontrolu: bozuk/eski bicimli kayit (30 gunden yasli "baslangic") atilir.
   # Onceki surumun durum dosyasi 'anahtar ppid ilk son' bicimindeydi; alan kaymasi
   # PPID'yi baslangic epoch'u sanmaya ve 50+ yillik yas gostermeye yol acardi.
   case "$pf" in ''|*[!0-9]*) pf=""; pl="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; };; esac
-  if [ -n "$et" ]; then
+
+  if [ -n "$et" ]; then                                   # surec goruldu
     if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
-      pf=$ACT_NOW                   # yeni kampanya
+      pf=$ACT_NOW                                         # yeni kampanya
     fi
     pl=$ACT_NOW
-  else
-    [ -z "$pf" ] && return 0                                        # hic gorulmedi
-    [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ] && return 0      # bitti, kaydi dus
+    ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'
+    age=$(( ACT_NOW - pf )); [ "$et" -gt "$age" ] && age=$et
+    ACT_AGE=$age
+    return 0                                              # aktif: eski bitis dusurulur
   fi
-  ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'
-  age=$(( ACT_NOW - pf ))
-  [ -n "$et" ] && [ "$et" -gt "$age" ] && age=$et
-  ACT_AGE=$age
+
+  if [ -n "$pf" ] && [ $(( ACT_NOW - ${pl:-0} )) -le "$ACT_GRACE" ]; then
+    ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'                   # pencere icinde: suruyor say
+    ACT_AGE=$(( ACT_NOW - pf ))
+    return 0
+  fi
+
+  # Kampanya bitti (ya da hic yoktu): bitis anini kaydet/tasi
+  if [ -n "$pl" ]; then
+    pe=$pl                                                # bu turda bitti
+  else
+    pe=$(awk -v k="END:$k" '$1==k{print $2; exit}' "$ACT_STATE" 2>/dev/null)
+  fi
+  case "$pe" in ''|*[!0-9]*) return 0;; esac
+  [ $(( ACT_NOW - pe )) -gt "$ACT_RETAIN" ] && return 0   # saklama suresi doldu
+  ACT_NEXT="$ACT_NEXT""END:$k $pe"$'\n'
+  ACT_END=$pe
+}
+# Cikti yardimcisi: yas ve/veya bitis satirini yazar.
+act_emit() {  # $1=anahtar  $2=etimes
+  act_age "$1" "$2"
+  [ -n "$ACT_AGE" ] && echo "$1 $ACT_AGE"
+  [ -n "$ACT_END" ] && echo "${1}_end $ACT_END"
+  return 0
 }
 
 OUT="$HOME_DIR/.proc_snapshot"
@@ -239,11 +270,11 @@ OUT="$HOME_DIR/.proc_snapshot"
   # hilesi ([p]kgacct) awk'in kendi komut satirini eslemesini onler.
   # backup: gorev-omurlu surecler, dogrudan gozlem (esik gerekmez).
   A=$(ps axo etimes=,pcpu=,args= | awk '/[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/{if($1>m)m=$1} END{if(m)print m}')
-  act_age act_backup "$A"; [ -n "$ACT_AGE" ] && echo "act_backup $ACT_AGE"
+  act_emit act_backup "$A"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
   A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
-  act_age act_update "$A"; [ -n "$ACT_AGE" ] && echo "act_update $ACT_AGE"
+  act_emit act_update "$A"
   # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
   # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
   # ihtiyac duymaz. Canlida olculdu: parti 930 sn kosuyordu, eski esik+grace yontemi
@@ -254,11 +285,11 @@ OUT="$HOME_DIR/.proc_snapshot"
   # Ikinci sart parti disindaki WPT etkinligi icin eski sezgiseli korur: kalici
   # sw-engine-fpm havuzu bosta %0'da gezdigi icin CPU esigi onu eler.
   A=$(ps axo etimes=,pcpu=,args= | awk '/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){if($1>m)m=$1} END{if(m)print m}')
-  act_age act_wpt "$A"; [ -n "$ACT_AGE" ] && echo "act_wpt $ACT_AGE"
+  act_emit act_wpt "$A"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
   A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]appspector/{if($1>m)m=$1} END{if(m)print m}')
-  act_age act_appdisc "$A"; [ -n "$ACT_AGE" ] && echo "act_appdisc $ACT_AGE"
+  act_emit act_appdisc "$A"
   # imunify: OTORITER kaynak — ajanin kendi kayitlari (running durumundaki en eski
   # taramanin yasi). Surec sezgiseli burada calismaz: tarama kalici rustbolit
   # --resident icinde kosar, ps pcpu'su omur-boyu ortalama oldugundan iki yonde
@@ -305,6 +336,7 @@ except Exception:
   [ -n "$A" ] && read IM_AGE IM_N IM_P <<< "$A"
   act_age act_imunify "$IM_AGE"; IM_AGE=$ACT_AGE
   [ -n "$IM_AGE" ] && { echo "act_imunify $IM_AGE"; echo "act_imunify_n $IM_N"; echo "act_imunify_p $IM_P"; }
+  [ -n "$ACT_END" ] && echo "act_imunify_end $ACT_END"
   # Threads_running: o an sorgu isleyen thread — "kisa ama cok sorgu" senaryosunu gosterir
   THR=$(timeout 3 mysqladmin extended-status 2>/dev/null | awk '$2=="Threads_running"{print $4}')
   [ -n "$THR" ] && echo "mysql_thr $THR"

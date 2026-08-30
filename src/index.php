@@ -1329,6 +1329,31 @@ if (!empty($histSeed['t'])) {
     $seedLvl  = $lvl;
 }
 
+// Aktivite "başladı" satırları — SUNUCU tarafında tohumlanır.
+// Eskiden bu satırları yalnızca JS yazardı ve yalnızca sayfa AÇIKKEN yakalanan
+// yok→var geçişinde. Sonuç: pano kapalıyken (ya da sekme uykudayken) başlayan bir
+// iş kayda hiç düşmüyordu — üstte "16 dakikadır sürüyor" çipi dururken olay kaydı
+// "Henüz olay yok" diyordu. Yaş collector'dan geldiği için başlangıç anı sunucuda
+// bilinir; damga oradan hesaplanır ve sayfanın ne zaman açıldığından etkilenmez.
+// JS ilk gözlemde kayıt yazmadığı (actWas'ı sessizce kurduğu) için çift satır olmaz.
+// "bitti" de aynı şekilde: collector kampanya bitince SON GÖRÜLME anını kaydediyor
+// (act_<key>_end) ve bir saat saklıyor. Damga gerçek bitiş anı — çipin söndüğü an
+// değil; kabul penceresi 10 dakika olduğu için ikisi arasında o kadar fark olabilir.
+$actEnds = [];
+foreach ($actDefs as $ai => $ad) {
+    $aAge    = $acts[$ai] ?? null;
+    $aEndRaw = $rootFresh ? ($procSec[$ad[1] . '_end'] ?? null) : null;
+    $actEnds[$ai] = is_numeric($aEndRaw) ? date('H:i:s', (int)$aEndRaw) : null;
+    $lbl = t(str_replace(' running', '', $ad[0]));
+    if ($aAge !== null) {
+        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started'),
+                       'ts'   => date('H:i:s', time() - (int)$aAge)];
+    } elseif ($actEnds[$ai] !== null) {
+        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished'),
+                       'ts'   => $actEnds[$ai]];
+    }
+}
+
 // Snapshot tazeliği — sistemin kendi kendini izlemesi: cron ölürse
 // bu da Event log'a düşer (mail ekinde de görünür), köşedeki STALE
 // etiketiyle sınırlı kalmaz.
@@ -1497,7 +1522,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
         'webResponseTime'   => $webResponseTime,
@@ -2959,11 +2984,14 @@ function renderProcs(data){
         if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]===actWas[i])return;
         const basladi=st[i]==='1';
-        // "started": damga isin GERCEK baslangici (sunucu saati - cip yasi).
-        // "finished": bitis ani bilinmiyor (kabul penceresi icinde bir yerde),
-        // en iyi tahmin fark edilen an — oldugu gibi birakilir.
-        addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished'),
-               (basladi&&ages[i]!=null)?timeMinus(data.time,ages[i]):data.time.split(' ')[1]);});
+        // Damga her iki yonde de GERCEK an: baslangic = sunucu saati - cip yasi,
+        // bitis = collector'in kaydettigi son gorulme (data.actEnds). Ikisi de
+        // fark edildigi ana degil olayin kendi anina bagli — sekme uyusa da,
+        // pencere 10 dk gec sonse de damga dogru kalir.
+        const ts=basladi
+          ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
+          : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
+        addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished'),ts);});
       actWas=st;
     }
   }
