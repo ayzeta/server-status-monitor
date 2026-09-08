@@ -2086,9 +2086,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-clear:hover{background:var(--card2);}
 .log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;transition:max-height .18s ease;}
 /* Genişletilmiş kayıt: olay örgüsünü sürekli kaydırmadan izleyebilmek için.
-   vh cinsinden çünkü küçük ekranda 500px kartı ekrandan taşırır, büyük ekranda
-   ise gereksiz dar kalır. */
-.log-list.expanded{max-height:62vh;}
+   PİKSEL, vh DEĞİL: vh viewport'u olmayan/sıfır olan bağlamlarda (webmail iframe'i,
+   bazı gömülü görünümler) 0'a çözülüp listeyi tamamen kapatabiliyor — ölçümde
+   innerHeight=0 dönen bir bağlamla karşılaşıldı. 600px ~16 satır gösterir; kayıt
+   zaten en fazla 30 satır tuttuğu için gerisi kaydırmayla rahat gezilir. */
+.log-list.expanded{max-height:600px;}
 /* Mail ekinde JS yok: iki düğme de tıklansa hiçbir şey yapmaz, kaldırılır.
    Kayıt da tamamı görünsün — statik bir ekte iç kaydırma alanı kullanışsız. */
 .static-mode .log-clear{display:none;}
@@ -2099,8 +2101,16 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    tema geçişinde hiçbir kutuyu oynatmaz, sadece renk değişir.
    3px şeffaf kenarlık + content-box: tutamak 4px görünür ama tıklama alanı 10px
    kalır — ince dursun ama tutması zor olmasın. */
-.log-list{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+/* DİKKAT: standart scrollbar-width/scrollbar-color tanımlıysa Chrome ::-webkit-*
+   sözde-elemanlarını TAMAMEN yok sayar ve platformun kendi çubuğunu çizer — Windows'ta
+   iki ucunda ok düğmeleriyle birlikte, ki onlar CSS ile kaldırılamıyor. Bu yüzden
+   standart özellikler yalnızca ::-webkit-scrollbar'ı DESTEKLEMEYEN tarayıcıya
+   (Firefox) verilir; WebKit/Blink tarafında kontrol sözde-elemanlarda kalır. */
+@supports not selector(::-webkit-scrollbar){
+  .log-list{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+}
 .log-list::-webkit-scrollbar{width:10px;}
+.log-list::-webkit-scrollbar-button{display:none;width:0;height:0;}
 .log-list::-webkit-scrollbar-track{background:transparent;}
 .log-list::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:99px;
   border:3px solid transparent;background-clip:content-box;transition:background .2s;}

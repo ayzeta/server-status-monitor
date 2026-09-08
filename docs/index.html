@@ -271,9 +271,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-clear:hover{background:var(--card2);}
 .log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;transition:max-height .18s ease;}
 /* Geni&#351;letilmi&#351; kay&#305;t: olay &#246;rg&#252;s&#252;n&#252; s&#252;rekli kayd&#305;rmadan izleyebilmek i&#231;in.
-   vh cinsinden &#231;&#252;nk&#252; k&#252;&#231;&#252;k ekranda 500px kart&#305; ekrandan ta&#351;&#305;r&#305;r, b&#252;y&#252;k ekranda
-   ise gereksiz dar kal&#305;r. */
-.log-list.expanded{max-height:62vh;}
+   P&#304;KSEL, vh DE&#286;&#304;L: vh viewport'u olmayan/s&#305;f&#305;r olan ba&#287;lamlarda (webmail iframe'i,
+   baz&#305; g&#246;m&#252;l&#252; g&#246;r&#252;n&#252;mler) 0'a &#231;&#246;z&#252;l&#252;p listeyi tamamen kapatabiliyor &#8212; &#246;l&#231;&#252;mde
+   innerHeight=0 d&#246;nen bir ba&#287;lamla kar&#351;&#305;la&#351;&#305;ld&#305;. 600px ~16 sat&#305;r g&#246;sterir; kay&#305;t
+   zaten en fazla 30 sat&#305;r tuttu&#287;u i&#231;in gerisi kayd&#305;rmayla rahat gezilir. */
+.log-list.expanded{max-height:600px;}
 /* Mail ekinde JS yok: iki d&#252;&#287;me de t&#305;klansa hi&#231;bir &#351;ey yapmaz, kald&#305;r&#305;l&#305;r.
    Kay&#305;t da tamam&#305; g&#246;r&#252;ns&#252;n &#8212; statik bir ekte i&#231; kayd&#305;rma alan&#305; kullan&#305;&#351;s&#305;z. */
 .static-mode .log-clear{display:none;}
@@ -284,8 +286,16 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    tema ge&#231;i&#351;inde hi&#231;bir kutuyu oynatmaz, sadece renk de&#287;i&#351;ir.
    3px &#351;effaf kenarl&#305;k + content-box: tutamak 4px g&#246;r&#252;n&#252;r ama t&#305;klama alan&#305; 10px
    kal&#305;r &#8212; ince dursun ama tutmas&#305; zor olmas&#305;n. */
-.log-list{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+/* D&#304;KKAT: standart scrollbar-width/scrollbar-color tan&#305;ml&#305;ysa Chrome ::-webkit-*
+   s&#246;zde-elemanlar&#305;n&#305; TAMAMEN yok sayar ve platformun kendi &#231;ubu&#287;unu &#231;izer &#8212; Windows'ta
+   iki ucunda ok d&#252;&#287;meleriyle birlikte, ki onlar CSS ile kald&#305;r&#305;lam&#305;yor. Bu y&#252;zden
+   standart &#246;zellikler yaln&#305;zca ::-webkit-scrollbar'&#305; DESTEKLEMEYEN taray&#305;c&#305;ya
+   (Firefox) verilir; WebKit/Blink taraf&#305;nda kontrol s&#246;zde-elemanlarda kal&#305;r. */
+@supports not selector(::-webkit-scrollbar){
+  .log-list{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+}
 .log-list::-webkit-scrollbar{width:10px;}
+.log-list::-webkit-scrollbar-button{display:none;width:0;height:0;}
 .log-list::-webkit-scrollbar-track{background:transparent;}
 .log-list::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:99px;
   border:3px solid transparent;background-clip:content-box;transition:background .2s;}
@@ -453,7 +463,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2042ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2042ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2014ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4">Web 2014ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Security Offline &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -463,7 +473,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">15:52:36</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">16:05:15</span></div></div>
   </div>
 </div>
 
@@ -551,7 +561,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2042</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2014</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -666,15 +676,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <button class="log-clear" id="log-clear-btn">Clear</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2042ms</span><span class="log-ts">15:52</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">15:52</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web response time high: 2014ms</span><span class="log-ts">16:05</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">16:05</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 15:52:36</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 16:05:15</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -781,7 +791,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'15:52:36'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:05:15'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -809,12 +819,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "15:52"
+        "ts": "16:05"
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2042ms",
-        "ts": "15:52"
+        "msg": "Web response time high: 2014ms",
+        "ts": "16:05"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
