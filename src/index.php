@@ -126,7 +126,7 @@ $TR = [
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
-    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.',
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.', 'Expand' => 'Genişlet', 'Collapse' => 'Daralt',
     // Footer
     'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
     'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
@@ -1839,6 +1839,8 @@ ob_start(function ($html) {
   --card:        #ffffff;
   --card2:       #f8fafc;
   --border:      rgba(0,0,0,.07);
+  --scroll:      rgba(0,0,0,.17);
+  --scroll-hov:  rgba(0,0,0,.30);
   --text:        #0d1520;
   --muted:       #64748b;
   --hint:        #94a3b8;
@@ -1881,6 +1883,8 @@ ob_start(function ($html) {
   --card:        #1a1830;
   --card2:       #211f38;
   --border:      rgba(255,255,255,.07);
+  --scroll:      rgba(255,255,255,.15);
+  --scroll-hov:  rgba(255,255,255,.28);
   --text:        #e2e8f0;
   --muted:       #94a3b8;
   --hint:        #64748b;
@@ -2080,7 +2084,28 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
 .log-clear:hover{background:var(--card2);}
-.log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;}
+.log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;transition:max-height .18s ease;}
+/* Genişletilmiş kayıt: olay örgüsünü sürekli kaydırmadan izleyebilmek için.
+   vh cinsinden çünkü küçük ekranda 500px kartı ekrandan taşırır, büyük ekranda
+   ise gereksiz dar kalır. */
+.log-list.expanded{max-height:62vh;}
+/* Mail ekinde JS yok: iki düğme de tıklansa hiçbir şey yapmaz, kaldırılır.
+   Kayıt da tamamı görünsün — statik bir ekte iç kaydırma alanı kullanışsız. */
+.static-mode .log-clear{display:none;}
+.static-mode .log-list{max-height:none;}
+/* Kaydırma çubuğu: varsayılan tarayıcı çubuğu panonun geri kalanının yanında kaba
+   duruyordu. Ray görünmez, tutamak yuvarlak ve ince. Renk kenarlıkla AYNI aileden
+   (rgba siyah/beyaz) türetildiği için iki temada da kendiliğinden uyumlu — ayrıca
+   tema geçişinde hiçbir kutuyu oynatmaz, sadece renk değişir.
+   3px şeffaf kenarlık + content-box: tutamak 4px görünür ama tıklama alanı 10px
+   kalır — ince dursun ama tutması zor olmasın. */
+.log-list{scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
+.log-list::-webkit-scrollbar{width:10px;}
+.log-list::-webkit-scrollbar-track{background:transparent;}
+.log-list::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:99px;
+  border:3px solid transparent;background-clip:content-box;transition:background .2s;}
+.log-list::-webkit-scrollbar-thumb:hover{background:var(--scroll-hov);
+  border:3px solid transparent;background-clip:content-box;}
 .log-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;background:var(--log-item-bg);}
 .log-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .log-dot.ok  {background:var(--ok);}
@@ -2460,7 +2485,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="log-hdr">
     <?=icon('list','','style="font-size:15px;color:var(--hint)"')?>
     <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
-    <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
+    <button class="log-clear" id="log-expand-btn"><?=t('Expand')?></button>
+<button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
@@ -3317,6 +3343,26 @@ async function tick(){
 }
 
 document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+// Olay kaydını genişlet/daralt. Tercih SEKME oturumunda saklanır (log'un kendisi
+// gibi): olay örgüsünü inceleyen biri her yenilemede yeniden açmak zorunda kalmasın.
+// Düğme her zaman görünür — az kayıt varken gizlemek "işe yarar/yaramaz" diye
+// yanıp sönerdi, sabit durması daha az rahatsız.
+(function(){
+  const btn=document.getElementById('log-expand-btn'),list=document.getElementById('log-list');
+  if(!btn||!list)return;
+  const KEY='az-logexp';
+  const uygula=function(acik){
+    list.classList.toggle('expanded',acik);
+    btn.textContent=acik?t('Collapse'):t('Expand');
+    btn.setAttribute('aria-expanded',acik?'true':'false');
+  };
+  let acik=false; try{acik=sessionStorage.getItem(KEY)==='1';}catch(e){}
+  uygula(acik);
+  btn.addEventListener('click',function(){
+    acik=!acik; uygula(acik);
+    try{sessionStorage.setItem(KEY,acik?'1':'0');}catch(e){}
+  });
+})();
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz
