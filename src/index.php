@@ -126,7 +126,7 @@ $TR = [
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
-    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.',
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.', 'Drag to resize' => 'Sürükleyerek boyutlandır',
     // Footer
     'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
     'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
@@ -2088,11 +2088,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    pencerede kaydırıp durmak yorucu. resize'ın çalışması için overflow'un visible
    olmaması gerekiyor, zaten auto. min-height listeyi hiçe indirmeyi engeller. */
 .log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
-  overflow-y:auto;resize:vertical;}
+  overflow-y:auto;overflow-x:hidden;}
+/* Boyutlandırma tutamağı KENDİ tutamağımız, tarayıcının resize'ı değil. Sebep iki:
+   (1) yerel tutamak ::-webkit-resizer ile boyanmıyor, koyu temada beyaz bir kare
+   olarak sırıtıyordu; (2) yerel resize sırasında sayfa kaydırılamadığı için kutu
+   büyüdükçe tutamak ekranın altına kaçıyor, tek seferde uzatmak mümkün olmuyordu.
+   Tam genişlikte olması da köşedeki 16px'lik hedeften çok daha kolay yakalanır. */
+.log-grip{height:14px;margin-top:2px;cursor:ns-resize;display:flex;align-items:center;
+  justify-content:center;touch-action:none;}
+.log-grip::before{content:'';width:40px;height:3px;border-radius:99px;
+  background:var(--scroll);transition:background .2s,width .2s;}
+.log-grip:hover::before{background:var(--scroll-hov);width:56px;}
 /* Mail ekinde JS yok: Temizle düğmesi tıklansa bir şey yapmaz, kaldırılır. Kayıt da
    tamamı görünsün — statik bir ekte iç kaydırma alanı da sürükleme de kullanışsız. */
-.static-mode .log-clear{display:none;}
-.static-mode .log-list{height:auto;resize:none;}
+.static-mode .log-clear,.static-mode .log-grip{display:none;}
+.static-mode .log-list{height:auto;}
 /* Kaydırma çubuğu: varsayılan tarayıcı çubuğu panonun geri kalanının yanında kaba
    duruyordu. Ray görünmez, tutamak yuvarlak ve ince. Renk kenarlıkla AYNI aileden
    (rgba siyah/beyaz) türetildiği için iki temada da kendiliğinden uyumlu — ayrıca
@@ -2497,11 +2507,13 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
-    <div class="log-item"><div class="log-dot <?=htmlspecialchars($L['type'])?>"></div><span class="log-txt"><?=htmlspecialchars($L['msg'])?></span><span class="log-ts"><?=htmlspecialchars($L['ts'])?></span></div>
+    <div class="log-item"><div class="log-dot <?=htmlspecialchars($L['type'])?>"></div>
+<span class="log-txt"><?=htmlspecialchars($L['msg'])?></span><span class="log-ts"><?=htmlspecialchars($L['ts'])?></span></div>
 <?php endforeach; else: ?>
     <div style="font-size:11px;color:var(--hint);padding:6px 8px;"><?=t('No events yet.')?></div>
 <?php endif; ?>
   </div>
+  <div class="log-grip" id="log-grip" title="<?=t('Drag to resize')?>"></div>
 </div>
 
 <div class="footer">
@@ -3350,6 +3362,36 @@ async function tick(){
 }
 
 document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+// Olay kaydı boyutlandırma tutamağı. Kenar otomatik kaydırma: imleç viewport'un
+// altına yaklaşınca sayfa kaydırılır ve referans aynı miktarda yukarı alınır —
+// böylece kutu büyürken tutamak imlecin altında kalır ve TEK sürüklemede istenen
+// kadar uzatılır. Yerel resize'da bu mümkün değildi, 6-7 kez tutup bırakmak
+// gerekiyordu. Kaydırmadan sonra uygula() yeniden çağrılır, yoksa yükseklik
+// yalnızca fare hareket ettikçe artardı.
+(function(){
+  const list=document.getElementById('log-list'),grip=document.getElementById('log-grip');
+  if(!list||!grip)return;
+  const MIN=56;
+  let y0=0,h0=0,sonY=0,aktif=false,zaman=null;
+  const uygula=function(){list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  grip.addEventListener('pointerdown',function(e){
+    aktif=true;y0=sonY=e.clientY;h0=list.offsetHeight;
+    try{grip.setPointerCapture(e.pointerId);}catch(_){}
+    e.preventDefault();
+    zaman=setInterval(function(){
+      if(!aktif)return;
+      if(sonY>window.innerHeight-40){window.scrollBy(0,14);y0-=14;uygula();}
+    },16);
+  });
+  grip.addEventListener('pointermove',function(e){if(aktif){sonY=e.clientY;uygula();}});
+  const bitir=function(e){
+    if(!aktif)return;
+    aktif=false;clearInterval(zaman);zaman=null;
+    try{grip.releasePointerCapture(e.pointerId);}catch(_){}
+  };
+  grip.addEventListener('pointerup',bitir);
+  grip.addEventListener('pointercancel',bitir);
+})();
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz

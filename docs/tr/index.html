@@ -273,11 +273,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    pencerede kayd&#305;r&#305;p durmak yorucu. resize'&#305;n &#231;al&#305;&#351;mas&#305; i&#231;in overflow'un visible
    olmamas&#305; gerekiyor, zaten auto. min-height listeyi hi&#231;e indirmeyi engeller. */
 .log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
-  overflow-y:auto;resize:vertical;}
+  overflow-y:auto;overflow-x:hidden;}
+/* Boyutland&#305;rma tutama&#287;&#305; KEND&#304; tutama&#287;&#305;m&#305;z, taray&#305;c&#305;n&#305;n resize'&#305; de&#287;il. Sebep iki:
+   (1) yerel tutamak ::-webkit-resizer ile boyanm&#305;yor, koyu temada beyaz bir kare
+   olarak s&#305;r&#305;t&#305;yordu; (2) yerel resize s&#305;ras&#305;nda sayfa kayd&#305;r&#305;lamad&#305;&#287;&#305; i&#231;in kutu
+   b&#252;y&#252;d&#252;k&#231;e tutamak ekran&#305;n alt&#305;na ka&#231;&#305;yor, tek seferde uzatmak m&#252;mk&#252;n olmuyordu.
+   Tam geni&#351;likte olmas&#305; da k&#246;&#351;edeki 16px'lik hedeften &#231;ok daha kolay yakalan&#305;r. */
+.log-grip{height:14px;margin-top:2px;cursor:ns-resize;display:flex;align-items:center;
+  justify-content:center;touch-action:none;}
+.log-grip::before{content:'';width:40px;height:3px;border-radius:99px;
+  background:var(--scroll);transition:background .2s,width .2s;}
+.log-grip:hover::before{background:var(--scroll-hov);width:56px;}
 /* Mail ekinde JS yok: Temizle d&#252;&#287;mesi t&#305;klansa bir &#351;ey yapmaz, kald&#305;r&#305;l&#305;r. Kay&#305;t da
    tamam&#305; g&#246;r&#252;ns&#252;n &#8212; statik bir ekte i&#231; kayd&#305;rma alan&#305; da s&#252;r&#252;kleme de kullan&#305;&#351;s&#305;z. */
-.static-mode .log-clear{display:none;}
-.static-mode .log-list{height:auto;resize:none;}
+.static-mode .log-clear,.static-mode .log-grip{display:none;}
+.static-mode .log-list{height:auto;}
 /* Kayd&#305;rma &#231;ubu&#287;u: varsay&#305;lan taray&#305;c&#305; &#231;ubu&#287;u panonun geri kalan&#305;n&#305;n yan&#305;nda kaba
    duruyordu. Ray g&#246;r&#252;nmez, tutamak yuvarlak ve ince. Renk kenarl&#305;kla AYNI aileden
    (rgba siyah/beyaz) t&#252;retildi&#287;i i&#231;in iki temada da kendili&#287;inden uyumlu &#8212; ayr&#305;ca
@@ -461,7 +471,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2025ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2025ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -471,7 +481,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">16:16:34</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">16:51:00</span></div></div>
   </div>
 </div>
 
@@ -559,7 +569,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2023</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2025</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -673,15 +683,18 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2023ms</span><span class="log-ts">16:16</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">16:16</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2025ms</span><span class="log-ts">16:51</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">16:51</span></div>
   </div>
+  <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r"></div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 16:16:34</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 16:51:00</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -891,6 +904,7 @@ const TR={
     "Recent alerts & status changes": "Son alarmlar ve durum değişiklikleri",
     "Clear": "Temizle",
     "No events yet.": "Henüz olay yok.",
+    "Drag to resize": "Sürükleyerek boyutlandır",
     "Auto-refresh every 30 seconds": "30 saniyede bir yenilenir",
     "Static snapshot (mail attachment)": "Statik anlık görüntü (mail eki)",
     "Static snapshot (mail attachment) — live refresh disabled": "Statik anlık görüntü (mail eki) — canlı yenileme kapalı",
@@ -1002,7 +1016,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:16:34'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:51:00'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -1030,12 +1044,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "16:16"
+        "ts": "16:51"
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2023ms",
-        "ts": "16:16"
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2025ms",
+        "ts": "16:51"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1795,6 +1809,36 @@ async function tick(){
 }
 
 document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+// Olay kaydı boyutlandırma tutamağı. Kenar otomatik kaydırma: imleç viewport'un
+// altına yaklaşınca sayfa kaydırılır ve referans aynı miktarda yukarı alınır —
+// böylece kutu büyürken tutamak imlecin altında kalır ve TEK sürüklemede istenen
+// kadar uzatılır. Yerel resize'da bu mümkün değildi, 6-7 kez tutup bırakmak
+// gerekiyordu. Kaydırmadan sonra uygula() yeniden çağrılır, yoksa yükseklik
+// yalnızca fare hareket ettikçe artardı.
+(function(){
+  const list=document.getElementById('log-list'),grip=document.getElementById('log-grip');
+  if(!list||!grip)return;
+  const MIN=56;
+  let y0=0,h0=0,sonY=0,aktif=false,zaman=null;
+  const uygula=function(){list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  grip.addEventListener('pointerdown',function(e){
+    aktif=true;y0=sonY=e.clientY;h0=list.offsetHeight;
+    try{grip.setPointerCapture(e.pointerId);}catch(_){}
+    e.preventDefault();
+    zaman=setInterval(function(){
+      if(!aktif)return;
+      if(sonY>window.innerHeight-40){window.scrollBy(0,14);y0-=14;uygula();}
+    },16);
+  });
+  grip.addEventListener('pointermove',function(e){if(aktif){sonY=e.clientY;uygula();}});
+  const bitir=function(e){
+    if(!aktif)return;
+    aktif=false;clearInterval(zaman);zaman=null;
+    try{grip.releasePointerCapture(e.pointerId);}catch(_){}
+  };
+  grip.addEventListener('pointerup',bitir);
+  grip.addEventListener('pointercancel',bitir);
+})();
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz
