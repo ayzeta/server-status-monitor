@@ -269,17 +269,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
 .log-clear:hover{background:var(--card2);}
-.log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;transition:max-height .18s ease;}
-/* Geni&#351;letilmi&#351; kay&#305;t: olay &#246;rg&#252;s&#252;n&#252; s&#252;rekli kayd&#305;rmadan izleyebilmek i&#231;in.
-   P&#304;KSEL, vh DE&#286;&#304;L: vh viewport'u olmayan/s&#305;f&#305;r olan ba&#287;lamlarda (webmail iframe'i,
-   baz&#305; g&#246;m&#252;l&#252; g&#246;r&#252;n&#252;mler) 0'a &#231;&#246;z&#252;l&#252;p listeyi tamamen kapatabiliyor &#8212; &#246;l&#231;&#252;mde
-   innerHeight=0 d&#246;nen bir ba&#287;lamla kar&#351;&#305;la&#351;&#305;ld&#305;. 600px ~16 sat&#305;r g&#246;sterir; kay&#305;t
-   zaten en fazla 30 sat&#305;r tuttu&#287;u i&#231;in gerisi kayd&#305;rmayla rahat gezilir. */
-.log-list.expanded{max-height:600px;}
-/* Mail ekinde JS yok: iki d&#252;&#287;me de t&#305;klansa hi&#231;bir &#351;ey yapmaz, kald&#305;r&#305;l&#305;r.
-   Kay&#305;t da tamam&#305; g&#246;r&#252;ns&#252;n &#8212; statik bir ekte i&#231; kayd&#305;rma alan&#305; kullan&#305;&#351;s&#305;z. */
+/* Y&#252;kseklik s&#252;r&#252;kleyerek ayarlan&#305;r (textarea gibi): olay &#246;rg&#252;s&#252;n&#252; izlerken 140px
+   pencerede kayd&#305;r&#305;p durmak yorucu. resize'&#305;n &#231;al&#305;&#351;mas&#305; i&#231;in overflow'un visible
+   olmamas&#305; gerekiyor, zaten auto. min-height listeyi hi&#231;e indirmeyi engeller. */
+.log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
+  overflow-y:auto;resize:vertical;}
+/* Mail ekinde JS yok: Temizle d&#252;&#287;mesi t&#305;klansa bir &#351;ey yapmaz, kald&#305;r&#305;l&#305;r. Kay&#305;t da
+   tamam&#305; g&#246;r&#252;ns&#252;n &#8212; statik bir ekte i&#231; kayd&#305;rma alan&#305; da s&#252;r&#252;kleme de kullan&#305;&#351;s&#305;z. */
 .static-mode .log-clear{display:none;}
-.static-mode .log-list{max-height:none;}
+.static-mode .log-list{height:auto;resize:none;}
 /* Kayd&#305;rma &#231;ubu&#287;u: varsay&#305;lan taray&#305;c&#305; &#231;ubu&#287;u panonun geri kalan&#305;n&#305;n yan&#305;nda kaba
    duruyordu. Ray g&#246;r&#252;nmez, tutamak yuvarlak ve ince. Renk kenarl&#305;kla AYNI aileden
    (rgba siyah/beyaz) t&#252;retildi&#287;i i&#231;in iki temada da kendili&#287;inden uyumlu &#8212; ayr&#305;ca
@@ -463,7 +461,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2026ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2026ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; G&#252;venlik &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -473,7 +471,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">16:05:38</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">16:16:34</span></div></div>
   </div>
 </div>
 
@@ -561,7 +559,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2026</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2023</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -672,19 +670,18 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="log-card">
   <div class="log-hdr">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="font-size:15px;color:var(--hint)"><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></svg>    <span class="log-hdr-title">Son alarmlar ve durum de&#287;i&#351;iklikleri</span>
-    <button class="log-clear" id="log-expand-btn">Geni&#351;let</button>
-<button class="log-clear" id="log-clear-btn">Temizle</button>
+    <button class="log-clear" id="log-clear-btn">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2026ms</span><span class="log-ts">16:05</span></div>
-    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">16:05</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2023ms</span><span class="log-ts">16:16</span></div>
+    <div class="log-item"><div class="log-dot err"></div><span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">16:16</span></div>
   </div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 16:05:38</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.0">v1.5.0</span> &middot; 2026-09-08 16:16:34</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -894,8 +891,6 @@ const TR={
     "Recent alerts & status changes": "Son alarmlar ve durum değişiklikleri",
     "Clear": "Temizle",
     "No events yet.": "Henüz olay yok.",
-    "Expand": "Genişlet",
-    "Collapse": "Daralt",
     "Auto-refresh every 30 seconds": "30 saniyede bir yenilenir",
     "Static snapshot (mail attachment)": "Statik anlık görüntü (mail eki)",
     "Static snapshot (mail attachment) — live refresh disabled": "Statik anlık görüntü (mail eki) — canlı yenileme kapalı",
@@ -1007,7 +1002,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:05:38'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:65,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:16:34'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -1035,12 +1030,12 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "16:05"
+        "ts": "16:16"
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2026ms",
-        "ts": "16:05"
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2023ms",
+        "ts": "16:16"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
@@ -1800,26 +1795,6 @@ async function tick(){
 }
 
 document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
-// Olay kaydını genişlet/daralt. Tercih SEKME oturumunda saklanır (log'un kendisi
-// gibi): olay örgüsünü inceleyen biri her yenilemede yeniden açmak zorunda kalmasın.
-// Düğme her zaman görünür — az kayıt varken gizlemek "işe yarar/yaramaz" diye
-// yanıp sönerdi, sabit durması daha az rahatsız.
-(function(){
-  const btn=document.getElementById('log-expand-btn'),list=document.getElementById('log-list');
-  if(!btn||!list)return;
-  const KEY='az-logexp';
-  const uygula=function(acik){
-    list.classList.toggle('expanded',acik);
-    btn.textContent=acik?t('Collapse'):t('Expand');
-    btn.setAttribute('aria-expanded',acik?'true':'false');
-  };
-  let acik=false; try{acik=sessionStorage.getItem(KEY)==='1';}catch(e){}
-  uygula(acik);
-  btn.addEventListener('click',function(){
-    acik=!acik; uygula(acik);
-    try{sessionStorage.setItem(KEY,acik?'1':'0');}catch(e){}
-  });
-})();
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz

@@ -126,7 +126,7 @@ $TR = [
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
-    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.', 'Expand' => 'Genişlet', 'Collapse' => 'Daralt',
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.',
     // Footer
     'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
     'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
@@ -2084,17 +2084,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
 .log-clear:hover{background:var(--card2);}
-.log-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;transition:max-height .18s ease;}
-/* Genişletilmiş kayıt: olay örgüsünü sürekli kaydırmadan izleyebilmek için.
-   PİKSEL, vh DEĞİL: vh viewport'u olmayan/sıfır olan bağlamlarda (webmail iframe'i,
-   bazı gömülü görünümler) 0'a çözülüp listeyi tamamen kapatabiliyor — ölçümde
-   innerHeight=0 dönen bir bağlamla karşılaşıldı. 600px ~16 satır gösterir; kayıt
-   zaten en fazla 30 satır tuttuğu için gerisi kaydırmayla rahat gezilir. */
-.log-list.expanded{max-height:600px;}
-/* Mail ekinde JS yok: iki düğme de tıklansa hiçbir şey yapmaz, kaldırılır.
-   Kayıt da tamamı görünsün — statik bir ekte iç kaydırma alanı kullanışsız. */
+/* Yükseklik sürükleyerek ayarlanır (textarea gibi): olay örgüsünü izlerken 140px
+   pencerede kaydırıp durmak yorucu. resize'ın çalışması için overflow'un visible
+   olmaması gerekiyor, zaten auto. min-height listeyi hiçe indirmeyi engeller. */
+.log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
+  overflow-y:auto;resize:vertical;}
+/* Mail ekinde JS yok: Temizle düğmesi tıklansa bir şey yapmaz, kaldırılır. Kayıt da
+   tamamı görünsün — statik bir ekte iç kaydırma alanı da sürükleme de kullanışsız. */
 .static-mode .log-clear{display:none;}
-.static-mode .log-list{max-height:none;}
+.static-mode .log-list{height:auto;resize:none;}
 /* Kaydırma çubuğu: varsayılan tarayıcı çubuğu panonun geri kalanının yanında kaba
    duruyordu. Ray görünmez, tutamak yuvarlak ve ince. Renk kenarlıkla AYNI aileden
    (rgba siyah/beyaz) türetildiği için iki temada da kendiliğinden uyumlu — ayrıca
@@ -2495,8 +2493,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="log-hdr">
     <?=icon('list','','style="font-size:15px;color:var(--hint)"')?>
     <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
-    <button class="log-clear" id="log-expand-btn"><?=t('Expand')?></button>
-<button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
+    <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
@@ -3353,26 +3350,6 @@ async function tick(){
 }
 
 document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
-// Olay kaydını genişlet/daralt. Tercih SEKME oturumunda saklanır (log'un kendisi
-// gibi): olay örgüsünü inceleyen biri her yenilemede yeniden açmak zorunda kalmasın.
-// Düğme her zaman görünür — az kayıt varken gizlemek "işe yarar/yaramaz" diye
-// yanıp sönerdi, sabit durması daha az rahatsız.
-(function(){
-  const btn=document.getElementById('log-expand-btn'),list=document.getElementById('log-list');
-  if(!btn||!list)return;
-  const KEY='az-logexp';
-  const uygula=function(acik){
-    list.classList.toggle('expanded',acik);
-    btn.textContent=acik?t('Collapse'):t('Expand');
-    btn.setAttribute('aria-expanded',acik?'true':'false');
-  };
-  let acik=false; try{acik=sessionStorage.getItem(KEY)==='1';}catch(e){}
-  uygula(acik);
-  btn.addEventListener('click',function(){
-    acik=!acik; uygula(acik);
-    try{sessionStorage.setItem(KEY,acik?'1':'0');}catch(e){}
-  });
-})();
 renderLog();
 
 // İlk açılışta sparkline'ları cron geçmişi + anlık değerle çiz
