@@ -159,7 +159,7 @@ $TR = [
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'imunify scan' => 'imunify tarama', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
 ];
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
@@ -861,7 +861,7 @@ $actDefs = [
     ['backup running',  'act_backup',  '/pkgacct|cpbackup/i',                            0,  null],
     ['system update',   'act_update',  '/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i', 0, null],
     ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15, null],
-    ['imunify scan',    'act_imunify', '/im360\.run|aibolit|rustbolit/i',               15, 'act_imunify_n'],
+    ['Imunify on-demand','act_imunify', '/im360\.run|aibolit|rustbolit/i',               15, 'act_imunify_n'],
     // wappspector: cPanel'in uygulama-keşif taraması (WP Toolkit envanterini besler).
     // Hesap hesap kısa turlarla döner: süreç etimes'i kampanya yaşını VERMEZ, o yüzden
     // collector kampanya durumu tutar (bkz. collector.sh act_age).
@@ -3004,7 +3004,7 @@ function renderProcs(data){
     // log'u spam'liyordu. Kök sebep collector'da çözüldü (kampanya durumu + kabul
     // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
     // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
-    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['imunify scan',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false]];
+    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false]];
     const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)

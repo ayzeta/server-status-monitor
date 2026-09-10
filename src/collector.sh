@@ -122,34 +122,54 @@ ACT_NOW=$(date +%s); ACT_NEXT=""
 # ayni anda hem "basladi" hem "bitti" gostermek kafa karistirir.
 ACT_RETAIN=3600
 act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor) -> $ACT_AGE / $ACT_END
-  local k="$1" et="$2" pf pl age pe
+  local k="$1" et="$2" pf pl pc age pe
   ACT_AGE=""; ACT_END=""
-  read pf pl < <(awk -v k="$k" '$1==k{print $2, $3; exit}' "$ACT_STATE" 2>/dev/null)
+  read pf pl pc < <(awk -v k="$k" '$1==k{print $2, $3, $4; exit}' "$ACT_STATE" 2>/dev/null)
   # Saglik kontrolu: bozuk/eski bicimli kayit (30 gunden yasli "baslangic") atilir.
   # Onceki surumun durum dosyasi 'anahtar ppid ilk son' bicimindeydi; alan kaymasi
   # PPID'yi baslangic epoch'u sanmaya ve 50+ yillik yas gostermeye yol acardi.
-  case "$pf" in ''|*[!0-9]*) pf=""; pl="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; };; esac
+  case "$pf" in ''|*[!0-9]*) pf=""; pl=""; pc="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; pc=""; };; esac
+  case "$pc" in ''|*[!0-9]*) pc=$pl;; esac                 # 3 alanli eski kayit
+
+  # "?" = SONDA OKUYAMADI. "Is yok" ile ayni sey DEGIL ve hicbir sey cope atilmaz.
+  # pl ILERLER: kampanya ayakta kalir, yoksa kor gecen sure paya sayilir ve suren bir
+  # is sonda dondugunde yeni kampanya sanilip yasi sifirlanirdi (eski "1DK" hatasi).
+  # pc'ye DOKUNULMAZ: is gercekten bitmisse "bitti" satiri son dogrulanmis ani
+  # gosterir, kor gecen sureyi degil. Gecis YAZILMAZ — kor sure ne baslatir ne bitirir.
+  if [ "$et" = "?" ]; then
+    if [ -n "$pf" ]; then
+      ACT_NEXT="$ACT_NEXT$k $pf $ACT_NOW $pc"$'\n'
+      ACT_AGE=$(( ACT_NOW - pf ))
+      return 0
+    fi
+    pe=$(awk -v k="END:$k" '$1==k{print $2; exit}' "$ACT_STATE" 2>/dev/null)
+    case "$pe" in ''|*[!0-9]*) return 0;; esac
+    [ $(( ACT_NOW - pe )) -gt "$ACT_RETAIN" ] && return 0
+    ACT_NEXT="$ACT_NEXT""END:$k $pe"$'\n'
+    ACT_END=$pe
+    return 0
+  fi
 
   if [ -n "$et" ]; then                                   # surec goruldu
     if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
       pf=$ACT_NOW                                         # yeni kampanya
     fi
-    pl=$ACT_NOW
-    ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'
+    pl=$ACT_NOW; pc=$ACT_NOW
+    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc"$'\n'
     age=$(( ACT_NOW - pf )); [ "$et" -gt "$age" ] && age=$et
     ACT_AGE=$age
     return 0                                              # aktif: eski bitis dusurulur
   fi
 
   if [ -n "$pf" ] && [ $(( ACT_NOW - ${pl:-0} )) -le "$ACT_GRACE" ]; then
-    ACT_NEXT="$ACT_NEXT$k $pf $pl"$'\n'                   # pencere icinde: suruyor say
+    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc"$'\n'               # pencere icinde: suruyor say
     ACT_AGE=$(( ACT_NOW - pf ))
     return 0
   fi
 
   # Kampanya bitti (ya da hic yoktu): bitis anini kaydet/tasi
-  if [ -n "$pl" ]; then
-    pe=$pl                                                # bu turda bitti
+  if [ -n "$pc" ]; then
+    pe=$pc                                                # bitis = son DOGRULANMIS an
   else
     pe=$(awk -v k="END:$k" '$1==k{print $2; exit}' "$ACT_STATE" 2>/dev/null)
   fi
@@ -307,7 +327,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # 5 dk bayat veri sorun degil. Cache "yas dosya tip" satiri tutar (bos olabilir).
   IMC=$DATA_DIR/.imunify_cache
   if [ ! -f "$IMC" ] || [ $(( $(date +%s) - $(stat -c %Y "$IMC" 2>/dev/null || echo 0) )) -gt 300 ]; then
-    timeout 10 imunify360-agent malware on-demand list --json 2>/dev/null | python3 -c '
+    if timeout 10 imunify360-agent malware on-demand list --json 2>/dev/null | python3 -c '
 import sys, json, time
 try:
     d = json.load(sys.stdin)
@@ -326,14 +346,37 @@ try:
         else:
             p = "incremental"
         print("%d %d %s" % (age, n, p), end="")
+    else:
+        print("none", end="")           # sorgu BASARILI, kosan tarama yok
 except Exception:
-    pass' > "$IMC.tmp" 2>/dev/null && mv "$IMC.tmp" "$IMC"
+    sys.exit(1)                         # sorgu BASARISIZ — ikisi ayni sey degil
+' > "$IMC.tmp" 2>/dev/null; then
+      mv "$IMC.tmp" "$IMC"
+    else
+      # Sondaya guvenilemez: eski cache'e DOKUNMA. mtime eski kaldigi icin hem
+      # bir sonraki dakikada tekrar denenir, hem de "tazelenemedi" sinyali olur.
+      rm -f "$IMC.tmp"
+    fi
   fi
   # Yas ajanin kendi kaydindan gelir — TEK tarama icin kesin. Ama sweep hesap hesap
   # ayri kayitlar uretiyorsa her hesapta sifirlanir; act_age tabandan yukseltir.
+  # BASARILI sorgu cache'i HER ZAMAN yeniden yazar; dolayisiyla cache'in hala eski
+  # olmasi "tazelenemedi"nin ta kendisidir. Bayat icerigi guncelmis gibi okumak yerine
+  # act_age'e "?" verip onceki durumu tasiyoruz (hesap adi/dosya sayisi korunur).
+  # IM_BLIND_MAX: korlugu sonsuza kadar surdurup "hep tarama var" demeyelim diye ust
+  # sinir. Asilirsa bilinmeyen birakmayiz — son DOGRULANMIS goruntuye gore kesin
+  # sonuclandiririz (act_age normal yoluyla bitisi pl anina yazar). Bu sinir sondanin
+  # kac dakikadir okuyamadigiyla ilgilidir; ISIN suresiyle degil — sonda calistigi
+  # surece 40 saatlik bir tarama da sorunsuz izlenir.
+  IM_BLIND_MAX=3600
+  IMT=$(stat -c %Y "$IMC" 2>/dev/null || echo 0)
+  IMC_AGE=$(( ACT_NOW - IMT ))
   A=$(cat "$IMC" 2>/dev/null)
   IM_AGE=""; IM_N=""; IM_P=""
-  [ -n "$A" ] && read IM_AGE IM_N IM_P <<< "$A"
+  case "$A" in none|'') ;; *) read IM_AGE IM_N IM_P <<< "$A" ;; esac
+  if [ "$IMT" -eq 0 ] || [ "$IMC_AGE" -gt 300 ]; then
+    if [ "$IMC_AGE" -le "$IM_BLIND_MAX" ]; then IM_AGE="?"; else IM_AGE=""; fi
+  fi
   act_age act_imunify "$IM_AGE"; IM_AGE=$ACT_AGE
   [ -n "$IM_AGE" ] && { echo "act_imunify $IM_AGE"; echo "act_imunify_n $IM_N"; echo "act_imunify_p $IM_P"; }
   [ -n "$ACT_END" ] && echo "act_imunify_end $ACT_END"
