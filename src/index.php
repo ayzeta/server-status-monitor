@@ -157,6 +157,7 @@ $TR = [
     'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
+    'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
     'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
@@ -1460,7 +1461,7 @@ if ($mysqlResponseTime !== null && $mysqlResponseTime >= $TH['dbrt_crit']) {
     $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL response time high: %sms', $mysqlResponseTime), 'ts' => date('H:i')];
 } elseif ($mysqlResponseTime !== null && $mysqlResponseTime >= $TH['dbrt_warn']) {
     $seedLvl['dbrt'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL response time high: %sms', $mysqlResponseTime), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL response time elevated: %sms', $mysqlResponseTime), 'ts' => date('H:i')];
 }
 $seedLvl['webrt'] = 'ok';
 if ($webResponseTime !== null && $webResponseTime >= $TH['webrt_crit']) {
@@ -1468,7 +1469,7 @@ if ($webResponseTime !== null && $webResponseTime >= $TH['webrt_crit']) {
     $seedLogs[] = ['type' => 'err', 'msg' => tf('Web response time high: %sms', $webResponseTime), 'ts' => date('H:i')];
 } elseif ($webResponseTime !== null && $webResponseTime >= $TH['webrt_warn']) {
     $seedLvl['webrt'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Web response time high: %sms', $webResponseTime), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Web response time elevated: %sms', $webResponseTime), 'ts' => date('H:i')];
 }
 $seedLvl['ssl'] = 'ok';
 if ($sslDaysLeft !== null && $sslDaysLeft <= $TH['ssl_crit']) {
@@ -1486,6 +1487,28 @@ if ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_crit_x']) {
 } elseif ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_warn_x']) {
     $seedLvl['mailq'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Mail queue elevated: %s messages', $mailQ), 'ts' => date('H:i')];
+}
+
+// Servis grupları — metrikler seed ediliyordu ama gruplar edilmiyordu: sorun aktifken
+// sayfa açıldığında olay kaydında hiçbir iz kalmıyor, yalnızca yukarıdaki kart kırmızı
+// oluyordu. Biçim JS'teki svcBad() ile aynı: en fazla iki kontrol adı, kalan sayı olarak.
+$svcSeed = [
+    'Web server'    => [$webStatus,   $webChecks],
+    'Mail services' => [$mailStatus,  $mailChecks],
+    'DNS'           => [$dnsStatus,   $dnsChecks],
+    'Security'      => [$secStatus,   $secChecks],
+    'Database'      => [$dbStatus,    $dbChecks],
+    'Cache'         => [$cacheStatus, $cacheChecks],
+    'FTP'           => [$ftpStatus,   $ftpChecks],
+];
+foreach ($svcSeed as $sName => $sInf) {
+    if ($sInf[0] === 'operational') continue;
+    $sBad = [];
+    foreach ($sInf[1] as $sChk) if (empty($sChk['ok'])) $sBad[] = $sChk['label'];
+    $sMsg = tf($sInf[0] === 'offline' ? '%s went offline' : '%s degraded', t($sName));
+    if ($sBad) $sMsg .= ' · ' . implode(', ', array_slice($sBad, 0, 2))
+                      . (count($sBad) > 2 ? ' +' . (count($sBad) - 2) : '');
+    $seedLogs[] = ['type' => $sInf[0] === 'offline' ? 'err' : 'warn', 'msg' => $sMsg, 'ts' => date('H:i')];
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3086,6 +3109,15 @@ function renderProcs(data){
 }
 
 function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();saveLogs();}
+// Grup satirina dusen kontrolleri ekler. "Mail servisleri sorunlu" tek basina neyin
+// bozuldugunu soylemiyordu. En fazla iki etiket yazilir, kalan sayi olarak eklenir.
+// PHP tarafindaki seed ile ayni bicim.
+function svcBad(g){
+  if(!g||!g.checks)return'';
+  const b=g.checks.filter(c=>!c.ok).map(c=>c.label);
+  if(!b.length)return'';
+  return' · '+b.slice(0,2).join(', ')+(b.length>2?' +'+(b.length-2):'');
+}
 function renderLog(){
   const el=document.getElementById('log-list');if(!el)return;
   if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
@@ -3194,10 +3226,12 @@ function checkAlerts(data){
      else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
   if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.webrt_crit,TH.webrt_warn,
-    tf('Web response time high: %sms',data.webResponseTime),'',
+    tf('Web response time high: %sms',data.webResponseTime),
+    tf('Web response time elevated: %sms',data.webResponseTime),
     tf('Web response time normal: %sms',data.webResponseTime),now);
   if(data.mysqlResponseTime!=null)transLog('dbrt',data.mysqlResponseTime,TH.dbrt_crit,TH.dbrt_warn,
-    tf('MySQL response time high: %sms',data.mysqlResponseTime),'',
+    tf('MySQL response time high: %sms',data.mysqlResponseTime),
+    tf('MySQL response time elevated: %sms',data.mysqlResponseTime),
     tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
   if(data.sslDaysLeft!=null){
     const sl=data.sslDaysLeft<=TH.ssl_crit?'err':(data.sslDaysLeft<=TH.ssl_warn?'warn':'ok');
@@ -3207,12 +3241,20 @@ function checkAlerts(data){
       mlvl.ssl=sl;
     }
   }
-  const names={web:'Web server',mail:'Mail',dns:'DNS',sec:'Security',db:'Database',cache:'Cache',ftp:'FTP'};
+  // Kart basliklariyla ayni adlar: olay kaydinda "Mail servisleri sorunlu" yaziyorsa
+  // kullanici yukarida hangi karta bakacagini bilir.
+  const names={web:'Web server',mail:'Mail services',dns:'DNS',sec:'Security',db:'Database',cache:'Cache',ftp:'FTP'};
+  // TEK gecis tablosu. Eskiden uc ayri kosul vardi ve iki kusuru vardi: offline->degraded
+  // "geri geldi" diye YESIL yaziliyordu (oysa hala sorunlu), degraded->operational ise
+  // HIC yazilmiyordu — sorun goruntup cozumu gorunmuyordu. Artik her durum degisimi
+  // varilan duruma gore yazilir.
   ['web','mail','dns','sec','db','cache','ftp'].forEach(k=>{
-    const cs=data[k]?data[k].status:null;if(!cs)return;
-    if(prev[k]&&prev[k]!=='offline'&&cs==='offline')   addLog('err',tf('%s went offline',t(names[k])),now);
-    if(prev[k]==='offline'&&cs!=='offline')             addLog('ok', tf('%s restored',t(names[k])),now);
-    if(prev[k]==='operational'&&cs==='degraded')        addLog('warn',tf('%s degraded',t(names[k])),now);
+    const g=data[k],cs=g?g.status:null;if(!cs)return;
+    if(prev[k]&&prev[k]!==cs){
+      if(cs==='offline')      addLog('err', tf('%s went offline',t(names[k]))+svcBad(g),now);
+      else if(cs==='degraded')addLog('warn',tf('%s degraded',t(names[k]))+svcBad(g),now);
+      else                    addLog('ok',  tf('%s restored',t(names[k])),now);
+    }
     prev[k]=cs;
   });
 }
