@@ -155,6 +155,8 @@ $TR = [
     'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
     '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
     'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
+    'Access forbidden (403) — IP blocked?' => 'Erişim yasak (403) — IP engellenmiş olabilir', 'Authentication required (401)' => 'Kimlik doğrulaması gerekiyor (401)',
+    'Server responded with error (%s)' => 'Sunucu hata döndürdü (%s)', 'Connection restored' => 'Bağlantı geri geldi',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
     'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
@@ -3355,14 +3357,24 @@ function render(data){
   checkAlerts(data);
 }
 
-let whmWasDown=false;
+// '' saglikli | 'conn' hic yanit yok | '403' | '401' | 'http' diger HTTP hatasi | 'feed'
+// besleme yok. Eskiden tek bir bayrakti; bu yuzden IP engeli "ulasilamiyor" diye
+// yaziliyor, ikisinden donuste de "servis beslemesi geri geldi" cikiyordu.
+let downKind='';
+// null: hic yanit alinamadi (ag/DNS/servis kapali). Sayi: sunucu yanit verdi ama
+// HTTP durumu ok degil — 403 tipik olarak IP degisiminden sonra CSF/guvenlik duvari.
+let lastHttpStatus=null;
 
 async function fetchWithRetry(url, retries=2, delay=2000){
+  lastHttpStatus=null;
   for(let i=0; i<=retries; i++){
     try{
       const r=await fetch(url);
+      lastHttpStatus=r.status;
       if(r.ok) return await r.json();
-    }catch(e){}
+      // Yetki reddi tekrar denemekle duzelmez; bekleyip ugrasmadan cik.
+      if(r.status===401||r.status===403) return null;
+    }catch(e){ lastHttpStatus=null; }
     if(i<retries) await new Promise(res=>setTimeout(res,delay));
   }
   return null;
@@ -3374,10 +3386,16 @@ async function tick(){
   const data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now());
 
   if(!data){
-    // Fetch tamamen başarısız — ağ sorunu
-    if(!whmWasDown){
-      whmWasDown=true;
-      addLog('err',t('Server unreachable'),new Date().toTimeString().slice(0,8));
+    // Sunucu yanıt verdi ama içeri almadı mı, yoksa hiç yanıt vermedi mi — ayrı yazılır.
+    const s=lastHttpStatus;
+    const k=(s===403)?'403':(s===401)?'401':(s!=null)?'http':'conn';
+    if(downKind!==k){
+      downKind=k;
+      addLog('err', k==='403' ? t('Access forbidden (403) — IP blocked?')
+                  : k==='401' ? t('Authentication required (401)')
+                  : k==='http'? tf('Server responded with error (%s)',s)
+                  :             t('Server unreachable'),
+             new Date().toTimeString().slice(0,8));
     }
     return;
   }
@@ -3385,20 +3403,27 @@ async function tick(){
   const now=data.time.split(' ')[1];
   checkSnap(data,now);
 
+  // Bağlantı geri geldi — beslemeden AYRI mesaj. Eskiden ağ/403 dönüşünde de
+  // "servis beslemesi geri geldi" yazılıyordu, oysa besleme hiç kesilmemişti.
+  if(downKind&&downKind!=='feed'){
+    addLog('ok',t('Connection restored'),now);
+    downKind='';
+  }
+
   if(!data.whmApiOk){
     // Sayfa geldi ama servis beslemesi yok (taze snapshot da API de yok)
     renderMetrics(data);
-    if(!whmWasDown){
-      whmWasDown=true;
+    if(downKind!=='feed'){
+      downKind='feed';
       addLog('warn',t('Service feed unavailable (root snapshot stale?)'),now);
     }
     return;
   }
 
   // Her şey normal
-  if(whmWasDown){
+  if(downKind==='feed'){
     addLog('ok',t('Service feed restored'),now);
-    whmWasDown=false;
+    downKind='';
   }
   render(data);
 }
