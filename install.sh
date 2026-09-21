@@ -116,39 +116,65 @@ chmod 644 "$WEB_DIR/index.php"
 # (marker yoksa) DOKUNMAZ. Loopback + sunucunun kendi IP'si daima izinli kalır —
 # CSF'nin PT_APACHESTATUS çekmesi sunucunun kendisinden gelir.
 HTFILE="$WEB_DIR/.htaccess"; HTMARK="server-status-monitor access control"
-if [ -n "${ALLOW_IPS:-}" ]; then
-  if [ -f "$HTFILE" ] && ! grep -q "$HTMARK" "$HTFILE"; then
-    echo "NOTE: $HTFILE exists and isn't managed by this installer — left untouched."
-    echo "      Add your own 'Require ip' rules there manually."
-  else
-    SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+# Dosya HER ZAMAN yazılır (allowlist verilmese de): içindeki yeniden yazma kuralı
+# erişim değil İŞLEVSELLİK meselesi — CSF'nin eki onsuz boş geliyor. Allowlist
+# temizlendiğinde eskiden dosya silinirdi; artık yalnızca Deny/Allow satırları
+# düşer, kural kalır.
+# Blok yalnızca MARKER'lar ARASINA yazılır, dosyanın geri kalanına dokunulmaz.
+# Eskiden tüm dosya 'cat >' ile yeniden yazılıyordu; cPanel kendi PHP direktif
+# bloğunu aynı dosyaya eklediği için her güncellemede onu siliyorduk.
+HTNEW="$(mktemp)"
+SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+{
+  echo "# BEGIN $HTMARK (managed by install.sh — only this block is rewritten)"
+  # Her yol panoyu versin: CSF 16.31+, cPanel'in /var/cpanel/whm_server_status_key
+  # dosyası varsa PT_APACHESTATUS'teki YOLU o anahtarla değiştiriyor ve isteği
+  # /<anahtar> adresine yapıyor. Bu kural olmadan yük uyarısının eki boş gelir.
+  echo "# Serve the dashboard from ANY path under this directory: CSF 16.31+ replaces"
+  echo "# the path in PT_APACHESTATUS with cPanel's server-status key, so its high-load"
+  echo "# fetch asks for /<key>. Real files are served normally; the query string survives."
+  echo "<IfModule mod_rewrite.c>"
+  echo "RewriteEngine On"
+  echo "RewriteCond %{REQUEST_FILENAME} !-f"
+  echo "RewriteRule ^ index.php [L]"
+  echo "</IfModule>"
+  if [ -n "${ALLOW_IPS:-}" ]; then
     # 2.2 sözdizimi (Order/Deny/Allow): hem Apache'de (mod_access_compat, cPanel
     # EA4'te varsayılan açık) hem LiteSpeed'de uygulanır. 2.4 <RequireAny> blokları
     # LiteSpeed'in .htaccess işleyicisinde YOK SAYILIR — sayfa sessizce açık kalır.
-    cat > "$HTFILE" <<EOF
-# BEGIN $HTMARK (managed by install.sh — this file is rewritten on re-install)
-# 2.2-style rules: LiteSpeed ignores 2.4 <RequireAny> in .htaccess.
-# Loopback + the server's own IP stay allowed so CSF's high-load fetch works.
-# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP as another Allow line.
-Order deny,allow
-Deny from all
-Allow from 127.0.0.1
-Allow from ::1
-EOF
-    [ -n "${SERVER_IP:-}" ] && echo "Allow from $SERVER_IP" >> "$HTFILE"
-    for ip in $ALLOW_IPS; do echo "Allow from $ip" >> "$HTFILE"; done
-    echo "# END $HTMARK" >> "$HTFILE"
-    chown "$WEB_USER:$WEB_USER" "$HTFILE"; chmod 644 "$HTFILE"
-    echo "Access restricted to: $ALLOW_IPS  (+ ${SERVER_IP:-server IP} & loopback for CSF)"
+    echo "# 2.2-style rules: LiteSpeed ignores 2.4 <RequireAny> in .htaccess."
+    echo "# Loopback + the server's own IP stay allowed so CSF's high-load fetch works."
+    echo "# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP as another Allow line."
+    echo "Order deny,allow"
+    echo "Deny from all"
+    echo "Allow from 127.0.0.1"
+    echo "Allow from ::1"
+    [ -n "${SERVER_IP:-}" ] && echo "Allow from $SERVER_IP"
+    for ip in $ALLOW_IPS; do echo "Allow from $ip"; done
   fi
+  echo "# END $HTMARK"
+} > "$HTNEW"
+
+if [ -f "$HTFILE" ] && grep -q "BEGIN $HTMARK" "$HTFILE"; then
+  HTTMP="$(mktemp)"
+  awk -v b="# BEGIN $HTMARK" -v e="# END $HTMARK" -v f="$HTNEW" '
+    index($0, b) == 1 { inblk = 1; while ((getline l < f) > 0) print l; close(f); next }
+    index($0, e) == 1 { inblk = 0; next }
+    !inblk
+  ' "$HTFILE" > "$HTTMP"
+  cat "$HTTMP" > "$HTFILE"; rm -f "$HTTMP"
+  echo "Updated the managed block in $HTFILE (rest of the file untouched)."
 else
-  # Allowlist temizlendi ('-' ile) → bizim yönettiğimiz dosya kalırsa sayfa kilitli
-  # kalır ve kullanıcı "kaldırdım" sanır. Yalnız MARKER'lı dosya silinir; kullanıcının
-  # kendi yazdığı .htaccess'e dokunulmaz.
-  if [ -f "$HTFILE" ] && grep -q "$HTMARK" "$HTFILE"; then
-    rm -f "$HTFILE"
-    echo "Allowlist cleared — removed the managed .htaccess (page is open again)."
-  fi
+  [ -f "$HTFILE" ] && printf '\n' >> "$HTFILE"
+  cat "$HTNEW" >> "$HTFILE"
+  echo "Added the managed block to $HTFILE."
+fi
+rm -f "$HTNEW"
+chown "$WEB_USER:$WEB_USER" "$HTFILE"; chmod 644 "$HTFILE"
+if [ -n "${ALLOW_IPS:-}" ]; then
+  echo "Access restricted to: $ALLOW_IPS  (+ ${SERVER_IP:-server IP} & loopback for CSF)"
+else
+  echo "No IP allowlist — page is open (managed block keeps only the rewrite)."
 fi
 
 # ── Cron (idempotent; safe under set -e) ────────────────────────
@@ -172,8 +198,25 @@ URL_PATH="${WEB_SUBDIR#public_html}"; URL_PATH="${URL_PATH#/}"
 echo "Dashboard: https://<your-domain>/$URL_PATH   (files at $WEB_DIR)"
 echo "Collector: $DATA_DIR/collector.sh  (cron: every minute)"
 echo "Edit branding later in $WEB_DIR/config.php, or re-run this installer."
+
+# CSF 16.31+ ile cPanel'in server-status anahtarı varsa, lfd PT_APACHESTATUS'teki
+# YOLU o anahtarla değiştirir (yalnızca şema + ana makine korunur). Yol içeren bir
+# adres önermek bu sunucularda sessizce boş ek üretir — bu yüzden tespit edip
+# doğru biçimi yazıyoruz.
+CSF_KEY_FILE="/var/cpanel/whm_server_status_key"
+KEYQ=""; [ -n "${ACCESS_KEY:-}" ] && KEYQ="?key=$ACCESS_KEY"
+if [ -s "$CSF_KEY_FILE" ]; then
+  echo
+  echo "CSF: this server has $CSF_KEY_FILE, so CSF REPLACES the path in"
+  echo "     PT_APACHESTATUS with that key — a path like /$URL_PATH is discarded and"
+  echo "     the high-load mail attachment comes back empty."
+  echo "     Point it at a host whose document root IS $WEB_DIR (e.g. a subdomain):"
+  echo "       PT_APACHESTATUS = \"https://status.<your-domain>/$KEYQ\""
+  echo "     The managed .htaccess already answers on any path, so whichever key"
+  echo "     CSF appends lands on the dashboard."
+fi
 if [ -n "${ACCESS_KEY:-}" ]; then
   echo "Access key active — integration URLs must carry it:"
-  echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH?key=$ACCESS_KEY\""
+  [ -s "$CSF_KEY_FILE" ] || echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH$KEYQ\""
   echo "  WHMCS: https://<your-domain>/$URL_PATH?raw=1&key=$ACCESS_KEY"
 fi

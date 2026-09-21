@@ -204,6 +204,24 @@ Every alarm is rendered **server-side** and every output line stays under the SM
 **900-byte** limit, so it arrives intact as a readable HTML attachment — no
 JavaScript required.
 
+**Give CSF a host, not a path.** Where cPanel has created
+`/var/cpanel/whm_server_status_key`, CSF (16.31+) throws away the path in
+`PT_APACHESTATUS` and substitutes that key, so `https://example.com/status/`
+becomes `https://example.com/<key>` and the attachment arrives empty. Point CSF at
+a domain or subdomain whose **document root is the dashboard directory**; the
+installer's managed `.htaccess` answers on any path, so whichever key CSF appends
+still reaches the page. The query string survives the substitution, so an
+`?key=…` access key keeps working.
+
+**If the attachment says `Unable to download`,** check `URLGET` in
+`/etc/csf/csf.conf`. Value `2` (LWP) needs the `LWP::Protocol::https` Perl module
+for an `https://` URL and fails without it; `1` (HTTP::Tiny) works wherever
+`IO::Socket::SSL` is installed. Reproduce the exact fetch with:
+
+```
+perl -MHTTP::Tiny -e 'my $r=HTTP::Tiny->new(timeout=>30)->get("https://status.example.com/"); print "$r->{status} $r->{reason}\n"'
+```
+
 ### WHMCS Server Status
 
 Point a server's **Status Address** (WHM &rarr; *Products/Services &rarr;
