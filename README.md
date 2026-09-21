@@ -108,11 +108,13 @@ Allow from 203.0.113.10   # your static IP(s)
 ```
 
 - The 2.2-style syntax above is deliberate: **LiteSpeed ignores 2.4
-  `<RequireAny>`/`Require ip` blocks in `.htaccess`** (the page would silently
-  stay open), while `Order`/`Allow` is enforced by both LiteSpeed and Apache
-  (`mod_access_compat`, enabled by default on cPanel EA4).
-- **CSF** fetches `PT_APACHESTATUS` from the server itself — keep loopback and
-  the server's main IP in the list.
+  `<RequireAny>`/`Require ip` blocks in `.htaccess`**, so a page that looks locked
+  down stays open to everyone. Measured on LiteSpeed 6.3.6 / cPanel: a directory
+  whose `.htaccess` allowed one unrelated IP answered `200` under `Require ip` and
+  `403` under `Order`/`Allow`. On Apache the 2.2 syntax needs `mod_access_compat`,
+  which cPanel EA4 ships enabled unless you have turned it off.
+- **CSF** fetches `PT_APACHESTATUS` from the server itself, resolving the hostname
+  to its public address — keep loopback *and* the server's main IP in the list.
 - **WHMCS** polls `?raw=1` from the WHMCS server — add that server's IP too.
 - No static IP? Use HTTP basic auth instead (`AuthType Basic` + `htpasswd`), or
   combine both.
@@ -224,14 +226,19 @@ an account's `public_html`.
 This applies only to the CSF attachment. Browser access and the WHMCS endpoint
 work from any path, with or without the rewrite.
 
-**If the attachment says `Unable to download`,** check `URLGET` in
-`/etc/csf/csf.conf`. Value `2` (LWP) needs the `LWP::Protocol::https` Perl module
-for an `https://` URL and fails without it; `1` (HTTP::Tiny) works wherever
-`IO::Socket::SSL` is installed. Reproduce the exact fetch with:
+**If the attachment says `Unable to download: Not Found`,** CSF reached the server
+and got a 404 — the URL it built after the key substitution isn't the dashboard.
+The alert prints that path as `/REDACTED`, so check the real one by hand:
 
 ```
-perl -MHTTP::Tiny -e 'my $r=HTTP::Tiny->new(timeout=>30)->get("https://status.example.com/"); print "$r->{status} $r->{reason}\n"'
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://status.example.com/$(tr -d '[:space:]' < /var/cpanel/whm_server_status_key)"
 ```
+
+A `200` there means the next alert carries the dashboard. A different wording —
+a connection or TLS error rather than an HTTP status — points at `URLGET` in
+`/etc/csf/csf.conf` instead, which selects the HTTP client CSF uses for every
+external fetch.
 
 ### WHMCS Server Status
 
