@@ -45,6 +45,14 @@ else
   id "$WEB_USER" >/dev/null 2>&1 || { echo "ERROR: user '$WEB_USER' does not exist."; exit 1; }
   HOME_DIR="$(getent passwd "$WEB_USER" | cut -d: -f6)"; HOME_DIR="${HOME_DIR:-/home/$WEB_USER}"
 
+  # CSF eki için pano bir ana makinenin KÖKÜNDE olmalı (bkz. sondaki CSF notu).
+  # Alt dizine kurulum yine çalışır; uyarıyı seçimden ÖNCE veriyoruz ki kullanıcı
+  # dizini seçerken bilsin — sonda söylemek geç kalıyor.
+  if [ -s /var/cpanel/whm_server_status_key ]; then
+    echo "CSF note: for the high-load mail attachment the dashboard must sit at the"
+    echo "document root of some hostname (CSF discards the path). A subdomain pointed"
+    echo "at this directory afterwards is enough — nothing has to move."
+  fi
   WEB_SUBDIR="$(ask 'Dashboard sub-path under the account home' "$WEB_SUBDIR")"
   DATA_DIR="$(ask 'Collector directory (root-owned)' "$DATA_DIR")"
   [ -n "$SITE_SUBTITLE" ] || SITE_SUBTITLE="$(hostname) — Real-time server health"

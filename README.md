@@ -213,6 +213,17 @@ installer's managed `.htaccess` answers on any path, so whichever key CSF append
 still reaches the page. The query string survives the substitution, so an
 `?key=…` access key keeps working.
 
+On cPanel the quickest route is a subdomain pointed at the directory the
+dashboard already lives in — *Domains &rarr; Create A Domain*,
+`status.example.com` with document root `/home/<user>/public_html/status`.
+Nothing moves: `https://example.com/status/` and the WHMCS `?raw=1` endpoint keep
+working, and the subdomain only gives CSF a host whose root is the dashboard. An
+addon domain works the same way, as does installing the dashboard directly into
+an account's `public_html`.
+
+This applies only to the CSF attachment. Browser access and the WHMCS endpoint
+work from any path, with or without the rewrite.
+
 **If the attachment says `Unable to download`,** check `URLGET` in
 `/etc/csf/csf.conf`. Value `2` (LWP) needs the `LWP::Protocol::https` Perl module
 for an `https://` URL and fails without it; `1` (HTTP::Tiny) works wherever
