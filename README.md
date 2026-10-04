@@ -11,8 +11,9 @@ no external services).
 
 **▶ [Live demo](https://ayzeta.github.io/server-status-monitor/)** — a self-contained
 simulation (no backend): watch traffic climb, PHP workers and load rise, cards go
-red, backup / ImunifyAV / WP-Toolkit jobs run, a MySQL query pileup hit, RAID/SMART/
-inode/mail-queue warnings fire into the event log, then the server recover — on a loop.
+red, backup / ImunifyAV / WP-Toolkit jobs start and finish in the event log, a MySQL
+query pileup hit, RAID/SMART/inode/mail-queue warnings fire, then the server
+recover — on a loop.
 
 Almost everything is computed by the page itself. The one exception: a tiny
 **root cron collector** gathers what the web-account PHP can't reach on its own —
@@ -60,30 +61,34 @@ header button (per-browser, cookie-based). The version shows in the footer.
   / `Degraded` / `Issues detected`) aggregated from *every* metric and service,
   with the actual offenders listed inline. Tab title + favicon reflect it too.
 - **Proportional thresholds** — load is scaled to core count, CPU/RAM/disk are
-  percentages, network is % of link speed. Sensible on any server, not tuned to
-  one box.
+  percentages, network is a share of the interface's capacity. Sensible on any
+  server, not tuned to one box.
 - **Network line saturation** — each interface measured against its own link
-  speed (max, not sum), so an idle NIC never masks a saturated one.
+  speed (max, not sum), so an idle NIC never masks a saturated one. The card
+  states what it divided by — `50% of NIC speed · peak 53% (63.7 MB/s) · 1 Gbit/s`
+  — and `line_mbps` replaces that denominator where the provider shapes the line
+  below what the card can do. Shaping happens upstream and cannot be measured
+  from the server, so nothing is guessed.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
   history from the last 30 minutes.
 - **Background jobs, named** — cPanel backups, `upcp`, WP Toolkit, Imunify
-  on-demand scans and app discovery appear as chips while they run, and as
-  `started` / `finished` lines in the event log with their real timestamps.
-  Two sister tools join in when they are installed, and stay invisible when they
-  are not: [Ayzeta Backup](https://github.com/ayzeta) jobs — every kind of job,
-  not only backups, since a restore or an archive check works the server just as
-  hard; the chip names the job type and the account, and the start and finish
-  times come from the job's own record — and
+  scans and app discovery show as chips while they run and as `started` /
+  `finished` lines in the event log. Both carry the real timestamps *and* what
+  the job was working on: the account being packaged, the account being scanned.
+- **Sister tools, when installed** —
+  [Ayzeta Backup](https://github.com/ayzeta) jobs of every kind (a restore or an
+  archive check works the server as hard as a backup), with the job type, the
+  account, and start/finish read from the job's own record; and
   [csf-autogroup](https://github.com/ayzeta/csf-autogroup) runs, read from its
-  lock. A csf-autogroup run takes seconds and is usually missed, which is the
-  point: a chip that *stays* means a run is stuck.
+  lock — a run takes seconds and is usually missed, which is the point: a chip
+  that *stays* means a stuck run. Neither appears where the tool is absent.
 - **Knows its own version** — the collector reads the local git revision every
-  run and checks the remote once a day, so the footer says when an update is
-  waiting and the event log records the dashboard's own updates, including the
-  ones applied by hand. Optional `AUTO_UPDATE=1` lets the root cron apply them;
-  it is off by default and nothing web-facing can trigger it.
+  run and checks the remote once a day. The footer says when an update is
+  waiting; the event log records the dashboard's own updates, including the ones
+  applied by hand. Optional `AUTO_UPDATE=1` lets the root cron apply them — off
+  by default, with no button and nothing web-facing able to trigger it.
 - **Mobile-friendly** and **light/dark** aware.
 - **Drop-in for CSF & WHMCS** — works as CSF's high-load status page on LiteSpeed
   servers (which have no Apache `mod_status`) and as a WHMCS *Server Status*
@@ -179,6 +184,28 @@ non-interactively with your saved settings — no prompts, and your `config.php`
 (branding, `lang`) is left untouched. If there's nothing new it just prints
 "Already up to date". (Equivalent to `git pull` + `sudo bash install.sh --yes`.)
 
+Files are replaced atomically — written beside the target, then renamed — so an
+update never truncates the collector while cron is running it.
+
+### Letting the server update itself
+
+The collector checks the remote once a day and the footer says when an update is
+waiting. To have it applied as well, answer **1** to the installer's auto-update
+question, or set it directly:
+
+```bash
+sed -i 's/^AUTO_UPDATE=.*/AUTO_UPDATE=1/' /root/server-status-monitor/config.env
+```
+
+The daily check then runs `update.sh` in a detached process whenever the checkout
+is behind. It is **off by default**, there is no button anywhere in the dashboard,
+and only the root cron can trigger it — a visitor cannot, with or without an IP
+allowlist. Either way the event log records what happened:
+`Dashboard updated: 9a3f12e → c74b8d0`.
+
+Turning this on means every commit you push reaches the server within a day
+without you looking at it.
+
 ## Manual install
 
 ```bash
@@ -201,7 +228,8 @@ Two small, optional files (the installer writes both):
 - **`config.php`** (next to `index.php`) — branding + `web_user`. See
   [`config.php.example`](config.php.example). The dashboard runs with defaults
   if it's missing.
-- **`config.env`** (next to `collector.sh`) — `WEB_USER` (required) + `DATA_DIR`.
+- **`config.env`** (next to `collector.sh`) — `WEB_USER` (required), `DATA_DIR`,
+  and optionally `REPO_DIR` + `AUTO_UPDATE` (see *Updating*).
   See [`config.env.example`](config.env.example).
 
 ### Network line rate
@@ -319,7 +347,8 @@ web account ── index.php ◀──────────────┘  r
   its scale the ceiling grows to the observed maximum, so a real spike keeps its
   shape. Network throughput has no such ceiling — a gigabit link normally sits at
   1–3% — so those two charts stay auto-scaled and the caption names the window
-  peak (`79% of link · peak 2.8 MB/s`).
+  peak alongside what the percentage was measured against
+  (`50% of NIC speed · peak 53% (63.7 MB/s) · 1 Gbit/s`).
 - **One colouring rule across every metric card:** the value, the card border, the
   sparkline and the bottom fill bar all carry the same level colour. A card with a
   red number always has a red border. Cards without a health level — the hosted
@@ -384,6 +413,12 @@ rm -rf /root/server-status-monitor
 rm -f ~USER/public_html/status/index.php ~USER/public_html/status/config.php
 rm -f ~USER/.proc_snapshot ~USER/.metrics_history ~USER/.disk_history
 ```
+
+The installer also keeps a marked block in `~USER/public_html/status/.htaccess`
+(the access rules and the any-path rewrite). Delete that block — everything
+between the `BEGIN`/`END server-status-monitor access control` markers — or the
+whole file if nothing else wrote to it. Caches and state (`.upd_state`,
+`.act_state`, …) live under the collector directory and go with it.
 
 ## Demo
 
