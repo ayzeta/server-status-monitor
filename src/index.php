@@ -96,8 +96,13 @@ $TR = [
     // Kapasite config'ten mi karttan mı geldiğini metin söylüyor: sağlayıcı hattı
     // şekillendirmişse kart hızına göre oran yanıltır, ekranda hangisi olduğu yazsın.
     '%s%% · peak %s' => '%%%s · tepe %s',
-    '%s%% of line · peak %s%% (%s) · %s' => 'hattın %%%s · tepe %%%s (%s) · %s',
-    '%s%% of NIC speed · peak %s%% (%s) · %s' => 'kart hızının %%%s · tepe %%%s (%s) · %s', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
+    // nm-x = dar ekranda gizlenen parçalar (kaynak etiketi + kapasite). İşaretleme
+    // metnin İÇİNDE, çünkü sözcük sırası dile göre değişiyor: İngilizcede etiket
+    // sayıdan SONRA ("50% of line"), Türkçede ÖNCE ("hattın %50").
+    '%s%%<span class="nm-x"> of line</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>'
+        => '<span class="nm-x">hattın </span>%%%s · tepe %%%s (%s)<span class="nm-x"> · %s</span>',
+    '%s%%<span class="nm-x"> of NIC speed</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>'
+        => '<span class="nm-x">kart hızının </span>%%%s · tepe %%%s (%s)<span class="nm-x"> · %s</span>', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
     'Mail Queue' => 'Mail Kuyruğu', 'messages queued' => 'kuyruktaki mesaj', 'Web Response' => 'Web Yanıtı', 'HTTP response time' => 'HTTP yanıt süresi',
     'MySQL Response' => 'MySQL Yanıtı', 'TCP response time' => 'TCP yanıt süresi', 'Hosted Accounts' => 'Hesaplar', 'cPanel accounts' => 'cPanel hesabı',
     'days' => 'gün',
@@ -482,8 +487,8 @@ function netMeta($sat, $peakKB, $capMbps, $fromCfg) {
     // kısa biçime düş: uydurma kapasite göstermektense o bilgiyi hiç verme.
     if (!$capMbps || $capMbps <= 0) return tf('%s%% · peak %s', $sat, $peak);
     $pct = (int)round($peakKB * 1024 / ($capMbps * 125000) * 100);
-    return tf($fromCfg ? '%s%% of line · peak %s%% (%s) · %s'
-                       : '%s%% of NIC speed · peak %s%% (%s) · %s',
+    return tf($fromCfg ? '%s%%<span class="nm-x"> of line</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>'
+                       : '%s%%<span class="nm-x"> of NIC speed</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>',
               $sat, $pct, $peak, fmtLink($capMbps));
 }
 
@@ -2317,6 +2322,14 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    <=680px  -> 21px  (26px'te 375px ekranda 2 baslik kirpiliyordu)
    <=344px  -> gizli (320px'te 21px bile 5 baslik kirpiyor; o genislikte
                       alan dekorasyondan degerli, metrik basligiyla taniniyor) */
+/* Ağ kartlarının alt satırı: kaynak etiketi ("kart hızının"/"hattın") ve kapasite
+   ("1 Gbit/s") dar ekranda düşer, oran ile tepe kalır. Eşik ÖLÇÜLDÜ, düzen
+   kırılma noktasından (680px) bağımsız — kutu genişliği: 700px'te 188, 760'ta 208,
+   830'da 226, 900'de 249, 1000'de 283. Metin: tipik TR 215, tipik EN 224, en uzun
+   gerçekçi hal ("100% of NIC speed · peak 100% (1177.4 MB/s) · 2.5 Gbit/s") 254.
+   En uzun hal 900px'te bile sığmıyor; 950'de kutu ~265 oluyor. Gösteriliyorsa TEK
+   SATIR olsun diye eşik 950. */
+@media(max-width:950px){ .nm-x{display:none;} }
 @media(max-width:344px){ .res-icon{display:none;} }
 @media(max-width:379px){
   /* Çok dar ekran: başlık satırı yatay taşma yapmasın. Fontlar küçülür
@@ -2834,7 +2847,8 @@ function netMeta(sat,peakKB,capMbps,fromCfg){
   const peak=fmtBytes(Math.round(peakKB*1024));
   if(!capMbps||capMbps<=0)return tf('%s%% · peak %s',sat,peak);
   const p=Math.round(peakKB*1024/(capMbps*125000)*100);
-  return tf(fromCfg?'%s%% of line · peak %s%% (%s) · %s':'%s%% of NIC speed · peak %s%% (%s) · %s',
+  return tf(fromCfg?'%s%%<span class="nm-x"> of line</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>'
+                   :'%s%%<span class="nm-x"> of NIC speed</span> · peak %s%% (%s)<span class="nm-x"> · %s</span>',
             sat,p,peak,fmtLink(capMbps));
 }
 const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.toFixed(2),
@@ -3362,12 +3376,14 @@ function applyMetrics(data){
   // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
   {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
    if(e&&data.rxRate){e.innerHTML=vuSplit(data.rxRate);e.style.color=c;}
-   if(s)s.textContent=data.netRxSat!=null?netMeta(data.netRxSat,hist.rx.length?Math.max.apply(null,hist.rx):0,data.netCapMbps,data.netCapCfg):t('incoming traffic');
+   // innerHTML: netMeta dar ekranda gizlenen parcalar icin <span class="nm-x"> uretir.
+   // Icerideki degerlerin hepsi sayi ya da kendi bicimlendiricilerimizin ciktisi.
+   if(s)s.innerHTML=data.netRxSat!=null?netMeta(data.netRxSat,hist.rx.length?Math.max.apply(null,hist.rx):0,data.netCapMbps,data.netCapCfg):esc(t('incoming traffic'));
    setFill('ic-rx',data.netRxSat,c);
    if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c);}}
   {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
    if(e&&data.txRate){e.innerHTML=vuSplit(data.txRate);e.style.color=c;}
-   if(s)s.textContent=data.netTxSat!=null?netMeta(data.netTxSat,hist.tx.length?Math.max.apply(null,hist.tx):0,data.netCapMbps,data.netCapCfg):t('outgoing traffic');
+   if(s)s.innerHTML=data.netTxSat!=null?netMeta(data.netTxSat,hist.tx.length?Math.max.apply(null,hist.tx):0,data.netCapMbps,data.netCapCfg):esc(t('outgoing traffic'));
    setFill('ic-tx',data.netTxSat,c);
    if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c);}}
 }
