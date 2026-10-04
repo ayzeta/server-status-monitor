@@ -469,13 +469,25 @@ printf '%s' "$ACT_NEXT" > "$ACT_STATE" 2>/dev/null && chmod 600 "$ACT_STATE" 2>/
 # calismasi 3 sn kisalir.
 HIST="$HOME_DIR/.metrics_history"
 read L1 L5 L15 _ < /proc/loadavg
-RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d",(t-a)*100/t}' /proc/meminfo)
-DSK=$(df -P / | awk 'NR==2{gsub("%","",$5);print $5}')
+# YUVARLA, kirpma: PHP tarafi round() kullaniyor (index.php, $memUsagePercent).
+# Kirpinca kivilcim grafiginin son noktasi kartin buyuk rakamindan 1 eksik cikiyordu
+# — ayni metrigi gosterdikleri halde farkli gorunuyorlardi.
+# ISLEM SIRASI da PHP ile ayni: ((t-a)/t)*100. Kayan noktada (t-a)*100/t farkli
+# sonuc verebiliyor — %56.5 sinirinda biri 57 digeri 56 yaziyordu.
+RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d", int(((t-a)/t)*100 + 0.5)}' /proc/meminfo)
+# df'in HAZIR Use% sutunu KULLANILMAZ: POSIX onu YUKARI yuvarlar (ceiling), PHP
+# tarafi ise round() yapiyor — olculdu, xfs'te bile 1 puan ayrisiyordu (df 54,
+# PHP 53.18). Kart ile grafik ayni metrigi gostersin diye yuzde burada da PHP'nin
+# formuluyle hesaplanir: (toplam - kullanilabilir) / toplam, yarim yukari.
+# df -P sutunlari: $2=1024-blok toplam, $3=kullanilan, $4=kullanilabilir.
+DSK=$(df -P / | awk 'NR==2 && $2>0 {printf "%d", int((($2-$4)/$2)*100 + 0.5)}')
 WRK=$(ps -eo state,comm --no-headers | awk '$2=="lsphp" && ($1 ~ /^R/ || $1 ~ /^D/){c++} END{print c+0}')
 # Ag hizi (KB/s): yukaridaki 60 sn ortalamasinin arayuz toplami — eskiden burada
 # ayri bir 1 sn ornek aliniyordu; grafik artik kartla ayni metrigi gosterir ve
 # cron calismasi 1 sn daha kisalir.
-read RXK TXK < <(awk '{r=0;t=0; n=split($0,f," "); for(i=1;i<=n;i++){split(f[i],p,":"); r+=p[2]; t+=p[3]} printf "%d %d", r/1024, t/1024}' <<< "$NET_RATE")
+# YUVARLA, kirpma: PHP tarafi (int)round($rxRate/1024) yapiyor — ayni veriden
+# farkli sayi cikmasin diye burada da yarim yukari yuvarlanir.
+read RXK TXK < <(awk '{r=0;t=0; n=split($0,f," "); for(i=1;i<=n;i++){split(f[i],p,":"); r+=p[2]; t+=p[3]} printf "%d %d", int(r/1024 + 0.5), int(t/1024 + 0.5)}' <<< "$NET_RATE")
 RXK=${RXK:-0}; TXK=${TXK:-0}
 MQ=$(exim -bpc 2>/dev/null || echo 0)
 # 13. kolon: o dakikanin en cok CPU yiyen sureci ("comm:cpu"). Dashboard bunu
