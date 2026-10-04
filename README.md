@@ -86,9 +86,11 @@ header button (per-browser, cookie-based). The version shows in the footer.
   [Ayzeta Backup](https://github.com/ayzeta) jobs of every kind (a restore or an
   archive check works the server as hard as a backup), with the job type, the
   account, and start/finish read from the job's own record; and
-  [csf-autogroup](https://github.com/ayzeta/csf-autogroup) runs, read from its
-  lock — a run takes seconds and is usually missed, which is the point: a chip
-  that *stays* means a stuck run. Neither appears where the tool is absent.
+  [csf-autogroup](https://github.com/ayzeta/csf-autogroup) runs, found from the
+  root crontab entry and the running process — a run takes seconds and is
+  usually missed, which is the point: a chip that *stays* means a stuck run. A
+  run that *is* caught gets its real finish time and how many blocks it placed,
+  read from the tool's own run record. Neither appears where the tool is absent.
 - **Knows its own version** — the collector reads the local git revision every
   run and checks the remote once a day. The footer says when an update is
   waiting; the event log records the dashboard's own updates, including the ones

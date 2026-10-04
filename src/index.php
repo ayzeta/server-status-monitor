@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.6'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.9'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -177,7 +177,7 @@ $TR = [
     'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya', 'blocks' => 'engel',
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
@@ -959,8 +959,9 @@ $actDefs = [
     // tarafi Imunify'i ETIKETLE taniyor, eskiden sabit indise (i===3) bagliydi.
     // Yedek isi uzun surer, gercek baslangic/bitis damgasi is kaydindan gelir.
     ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0,  null],
-    // csf-autogroup turlari saniyeler surer (cron */10): cogu tur yakalanmaz,
-    // amac TAKILIP KALAN turu gostermek — o durumda kilit birakilmaz ve cip durur.
+    // csf-autogroup turlari saniyeler surer (cron ile periyodik): cogu tur
+    // yakalanmaz, amac TAKILIP KALAN turu gostermek. Yakalanan turun bitisi tur
+    // kaydindan gercek damgayi ve konan engel sayisini alir ('_fb').
     ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0,  null],
 ];
 // Guncelleme durumu — collector gunde bir uzaktaki surumu kontrol eder, yerel
@@ -972,7 +973,7 @@ $updBehind = ($rootFresh && isset($procSec['upd_behind']) && is_numeric($procSec
 $updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['upd_at']))
            ? (int)$procSec['upd_at'] : null;
 $updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
-$actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actImunifyN = null;
+$actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
     if ($mx === null) {
@@ -994,6 +995,10 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     // render'i ayni eki gostersin. Sira $actDefs ile birebir.
     $actScopes[] = $procSec[$aKey . '_p'] ?? null;
     $actKinds[]  = $procSec[$aKey . '_k'] ?? null;
+    // Bitis ayrintisi ('<anahtar>_fb'): is bitince dogan sayi. PHP seed'i ile
+    // JS gecis satiri ayni degeri yazsin diye tick'e de gider.
+    $aFbRaw      = $procSec[$aKey . '_fb'] ?? null;
+    $actFbs[]    = is_numeric($aFbRaw) ? (int)$aFbRaw : null;
     if ($mx !== null && !$imIncr) {
         $chip = t(str_replace(' running', '', $aLbl)) . ' · ' . fmtAgeShort($mx);
         if ($aKey === 'act_imunify') {
@@ -1471,7 +1476,13 @@ foreach ($actDefs as $ai => $ad) {
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
                        'ts'   => date('H:i:s', time() - (int)$aAge)];
     } elseif ($actEnds[$ai] !== null) {
-        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished'),
+        // Bazi islerde ayrinti is BITTIKTEN sonra doguyor: csf-autogroup tur
+        // kaydini tur bitince yaziyor, o turda konan engel sayisi ancak o zaman
+        // biliniyor. Collector '<anahtar>_fb' yayinliyorsa bitis satirina eklenir.
+        $aFb  = $rootFresh ? ($procSec[$ad[1] . '_fb'] ?? null) : null;
+        $fDet = (is_numeric($aFb) && (int)$aFb > 0)
+              ? ' · +' . (int)$aFb . ' ' . t('blocks') : '';
+        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished') . $fDet,
                        'ts'   => $actEnds[$ai]];
     }
 }
@@ -1674,7 +1685,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds,
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
         'updRev' => $updRev, 'updRemote' => $updRemote, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -3247,8 +3258,12 @@ function renderProcs(data){
         const ts=basladi
           ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
           : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
+        // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'), bitiste ise
+        // varsa is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel).
+        const fb=basladi?null:(data.actFbs&&data.actFbs[i]);
+        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(actDet[i]||'');
         addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
-               +(actDet[i]||''),ts);});
+               +det,ts);});
       actWas=st;
     }
   }

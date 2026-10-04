@@ -373,6 +373,8 @@ best_started, best_scope, best_kind = None, "", ""
 # Arsive bakmiyoruz: arsive tasima varsayilani 30 gun, panonun ilgilendigi pencere
 # bir saat — yakin isler her zaman jobs/ altinda.
 latest_fin = None
+# Son biten isin tur/hesabi: canli is yokken rozet bunlarla dolar.
+fin_kind, fin_scope = "", ""
 
 def canli(pid, job_id, updated):
     if not pid:                                   # pid 0: son yazma taze mi
@@ -404,6 +406,8 @@ for ad in girisler:
                 if mb.get("kind") in GRUP and isinstance(fa, int) and 0 < fa <= now:
                     if latest_fin is None or fa > latest_fin:
                         latest_fin = fa
+                        fin_kind = GRUP[mb["kind"]]
+                        fin_scope = (mb.get("current") or mb.get("user") or "").strip()
         except Exception:
             pass
         continue
@@ -429,6 +433,10 @@ for ad in girisler:
 # Anlik goruntu satiri BOSLUKLA ayrilir, bu yuzden bosluk kalamaz. Virgul korunur:
 # kuyrukta 'current' "hesap1, hesap2" olabiliyor, virgulu atmak iki hesap adini tek
 # kelimeye yapistirip okunaksiz yapiyordu. Uc alan: yas, kapsam, otoriter bitis.
+# Canli is yoksa son biten isin bilgisi kullanilir (kampanya payi penceresi).
+if best_started is None:
+    best_scope = best_scope or fin_scope
+    best_kind = best_kind or fin_kind
 kapsam = "".join(c for c in best_scope if c.isalnum() or c in "._-, ")[:28].strip()
 kapsam = kapsam.replace(", ", ",").replace(" ", "_")
 print("%s %s %s %s" % (
@@ -454,18 +462,69 @@ PYEOF
     fi
   fi
   # ── csf-autogroup ───────────────────────────────────────────────
-  # Kilit TUTULUYORSA bir tur suruyor — aracin kendi testi (lock_busy). Turlar
-  # saniyeler surdugu ve cron varsayilani */10 oldugu icin cogu tur yakalanmaz;
-  # amac zaten TAKILIP KALAN turu gostermek, o durumda kilit birakilmaz ve rozet
-  # yasi buyuyerek durur. Yas kilit dosyasinin mtime'indan ALINMAZ: lock dosyayi
-  # '>' ile acmak zaten bos bir dosyada mtime'i guncellemeyebiliyor, o zaman rozet
-  # "gunlerdir aktif" derdi. Kampanya yasini act_age'e biraktik — bizim ilk
-  # gordugumuz andan sayar, takilan turda dogru buyur.
-  CAG_LOCK=/var/lib/csf_autogroup/counter.lock
+  # KURULU MU: root crontab'indaki satir. Durum dizini (/var/lib/csf_autogroup)
+  # olcut DEGIL — kaldirilmis kurulumdan kalabiliyor. Crontab satiri ayrica
+  # betigin tam yolunu veriyor; yol sabit degil, depo nereye klonlandiysa orada.
+  CAG_SH=$(awk '/csf_autogroup\.sh/ && $0 !~ /^[[:space:]]*#/ {
+      for (i = 1; i <= NF; i++) if ($i ~ /csf_autogroup\.sh$/) { print $i; exit } }' \
+    /var/spool/cron/root 2>/dev/null)
   A=""
-  if [ -e "$CAG_LOCK" ] && command -v flock >/dev/null 2>&1 \
-     && ! flock -n "$CAG_LOCK" true 2>/dev/null; then A=1; fi
-  act_emit act_csfag "$A"
+  if [ -n "$CAG_SH" ]; then
+    # CALISIYOR MU: gercek tur ARGUMANSIZ kosar — satir betik yoluyla BITER.
+    # '--status --json' eklenti sayfasi acikken dakikada bir kosuyor, '--lookup'
+    # ve '--dry-run' da tur degil; sona capalamak hepsini eler. Kilide BAKILMAZ:
+    # panelden yapilan elle islemler de ayni kilidi birkac saniye tutuyor.
+    # Sona capa ayrica awk'in kendi komut satirini da eler (o '}' ile biter).
+    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" '
+      BEGIN { gsub(/\./, "\\.", sh) }
+      $0 ~ (sh "$") { if ($1 > m) m = $1 }
+      END { if (m) print m }')
+    # SON TAMAMLANAN TUR: events.jsonl'in son '"type":"run"' satiri. Satir tur
+    # BITINCE yazilir, yani 't' gercek bitis ani. Yarim yazilmis satira karsi tam
+    # JSON desenine capalanir. Sayac dosyasinin mtime'i OLCUT DEGIL: panelden
+    # yapilan elle islemler (ban, kaldirma) de onu degistiriyor.
+    CAG_EV=$(awk -F= '/^EVENTS_FILE=/{gsub(/"/, "", $2); print $2; exit}' \
+      "${CAG_SH%/*}/config.env" 2>/dev/null)
+    if [ -z "$CAG_EV" ]; then
+      CAG_EV=$(awk -F= '/^SAYAC_FILE=/{gsub(/"/, "", $2); print $2; exit}' \
+        "${CAG_SH%/*}/config.env" 2>/dev/null)
+      case "$CAG_EV" in */*) CAG_EV="${CAG_EV%/*}";; *) CAG_EV="";; esac
+      CAG_EV="${CAG_EV:-/var/lib/csf_autogroup}/events.jsonl"
+    fi
+    CAG_T=""; CAG_BLK=0
+    if [ -r "$CAG_EV" ]; then
+      read -r CAG_T CAG_BLK < <(grep '"type":"run"' "$CAG_EV" 2>/dev/null \
+        | grep -E '^\{"t":[0-9]+,.*\}$' | tail -1 | awk '
+            { t = ""; b = 0
+              if (match($0, /"t":[0-9]+/))          t  = substr($0, RSTART+4,  RLENGTH-4)
+              if (match($0, /"added":[0-9]+/))      b += substr($0, RSTART+8,  RLENGTH-8)
+              if (match($0, /"temp_added":[0-9]+/)) b += substr($0, RSTART+13, RLENGTH-13)
+              if (match($0, /"promoted":[0-9]+/))   b += substr($0, RSTART+11, RLENGTH-11)
+              if (t != "") print t, b }')
+      case "$CAG_T" in ''|*[!0-9]*) CAG_T=""; CAG_BLK=0;; esac
+      case "$CAG_BLK" in ''|*[!0-9]*) CAG_BLK=0;; esac
+    fi
+  fi
+  # Turlar 4-25 sn suruyor ve cron varsayilani 30 dk: dakikada bir bakan toplayici
+  # cogu turu kacirir. Amac zaten TAKILIP KALAN turu gostermek — o durumda surec
+  # ayakta kalir, rozet durur ve yasi buyur. YAKALANAN turun bitisi ise tur
+  # kaydindan gercek damgayi ve o turda konan engel sayisini alir; kacirilan tur
+  # hic yazilmaz, yani olay kaydi 30 dakikalik rutinle dolmaz.
+  act_age act_csfag "$A"
+  [ -n "$ACT_AGE" ] && echo "act_csfag $ACT_AGE"
+  if [ -n "$ACT_END" ]; then
+    # Guard IKI YONLU: kayit bu kampanyanin bitisine +/-2 dk icinde olmali. Tek
+    # yonlu olsa (yalnizca "gelecekte degil") bitis kaydi bir saat saklandigi icin
+    # arada YAKALANMAMIS bir tur kosunca onun damgasi eski "bitti" satirina yazilirdi.
+    # Tur sona erdikten saniyeler sonra kayda dusuyor, pencere bu yuzden dar.
+    CAG_END=$ACT_END
+    if [ -n "${CAG_T:-}" ] && [ "$CAG_T" -ge $(( ACT_END - 120 )) ] \
+       && [ "$CAG_T" -le $(( ACT_END + 120 )) ]; then
+      CAG_END=$CAG_T
+      [ "${CAG_BLK:-0}" -gt 0 ] && echo "act_csfag_fb $CAG_BLK"
+    fi
+    echo "act_csfag_end $CAG_END"
+  fi
   # ── Guncelleme durumu ───────────────────────────────────────────
   # REPO_DIR config.env'den gelir (kurulumun calistigi git kopyasi). Yoksa bu blok
   # tamamen atlanir — panoda guncelleme satiri hic gorunmez.
