@@ -310,6 +310,120 @@ OUT="$HOME_DIR/.proc_snapshot"
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
   A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]appspector/{if($1>m)m=$1} END{if(m)print m}')
   act_emit act_appdisc "$A"
+  # ── Ayzeta Backup ───────────────────────────────────────────────
+  # Kurulu degilse HICBIR SEY yayinlanmaz; pano da satiri hic gostermez.
+  # OTORITER kaynak is kayitlari: ps sezgiseli burada yaniltir, cunku bir is
+  # altinda pkgacct/tar/gzip/perl/php gibi bircok surec doguyor — surec sayisi da
+  # etimes'i da isin yasi degildir. meta.json 'started' alani kesin baslangictir.
+  # Canlilik olcutu aracin KENDI olcutu (ar_job_liveness): 'finished' dosyasi yok
+  # VE pid canli VE /proc/<pid>/cmdline is kimligini tasiyor; pid 0 ise 'updated'
+  # 600 sn'den yeni. Yalnizca "running" durumuna bakmak yetmez — isci oldurulurse
+  # durum 'running'de kalir.
+  # Yalnizca yedekleme turleri rozete girer; geri yukleme/okuma/tarama isleri degil.
+  AYZ_MARK=/usr/local/cpanel/whostmgr/docroot/cgi/ayzeta_backup/version.json
+  if [ -f "$AYZ_MARK" ]; then
+    read AYZ_AGE AYZ_P AYZ_FIN < <(python3 - /var/cpanel/ayzeta_backup/jobs <<'PYEOF'
+import json, os, sys, time
+
+KINDS = {"backup", "yapilandirma", "tamamla"}
+root = sys.argv[1]
+now = int(time.time())
+best_started, best_scope = None, ""
+# Yakin zamanda BITEN isin otoriter bitis damgasi. Kampanya durumundan cikarilan
+# "son gorulme" bir dakikaya kadar sapabiliyor; meta.json'daki finished_at kesin.
+# Arsive bakmiyoruz: arsive tasima varsayilani 30 gun, panonun ilgilendigi pencere
+# bir saat — yakin isler her zaman jobs/ altinda.
+latest_fin = None
+
+def canli(pid, job_id, updated):
+    if not pid:                                   # pid 0: son yazma taze mi
+        return updated and (now - updated) <= 600
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as f:
+            return job_id.encode() in f.read()
+    except Exception:
+        return False
+
+try:
+    girisler = os.listdir(root)
+except Exception:
+    girisler = []
+
+for ad in girisler:
+    d = os.path.join(root, ad)
+    if not os.path.isdir(d):
+        continue
+    bitti = os.path.join(d, "finished")
+    if os.path.exists(bitti):
+        # 'finished' dosyasinin mtime'i ucuz on eleme: yalnizca son bir saatte
+        # biten islerin meta.json'u okunur, 30 gunluk arsiv taranmaz.
+        try:
+            if now - int(os.stat(bitti).st_mtime) <= 3600:
+                with open(os.path.join(d, "meta.json"), "rb") as f:
+                    mb = json.load(f)
+                fa = mb.get("finished_at")
+                if mb.get("kind") in KINDS and isinstance(fa, int) and 0 < fa <= now:
+                    if latest_fin is None or fa > latest_fin:
+                        latest_fin = fa
+        except Exception:
+            pass
+        continue
+    try:
+        with open(os.path.join(d, "meta.json"), "rb") as f:
+            m = json.load(f)
+    except Exception:
+        continue
+    if m.get("kind") not in KINDS:
+        continue
+    started = m.get("started")
+    if not isinstance(started, int) or started <= 0 or started > now:
+        continue
+    if not canli(int(m.get("pid") or 0), str(m.get("id") or ad), m.get("updated")):
+        continue
+    # En ESKI canli is kazanir: "ne zamandir yedekleme suruyor" sorusunun cevabi o.
+    if best_started is None or started < best_started:
+        best_started = started
+        best_scope = (m.get("current") or m.get("user") or "").strip()
+
+# Anlik goruntu satiri BOSLUKLA ayrilir, bu yuzden bosluk kalamaz. Virgul korunur:
+# kuyrukta 'current' "hesap1, hesap2" olabiliyor, virgulu atmak iki hesap adini tek
+# kelimeye yapistirip okunaksiz yapiyordu. Uc alan: yas, kapsam, otoriter bitis.
+kapsam = "".join(c for c in best_scope if c.isalnum() or c in "._-, ")[:28].strip()
+kapsam = kapsam.replace(", ", ",").replace(" ", "_")
+print("%s %s %s" % (
+    (now - best_started) if best_started is not None else "-",
+    kapsam or "-",
+    latest_fin if latest_fin is not None else "-"))
+PYEOF
+)
+    [ "$AYZ_AGE" = "-" ] && AYZ_AGE=""
+    [ "$AYZ_FIN" = "-" ] && AYZ_FIN=""
+    act_age act_ayzbackup "$AYZ_AGE"
+    [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; }
+    if [ -n "$ACT_END" ]; then
+      # OTORITER bitis varsa onu yaz. Guard: damga bizim cikardigimiz bitise YAKIN
+      # olmali (en fazla 2 dk once, gelecekte degil) — yoksa baska/eski bir isin
+      # finished_at'ini bu kampanyanin bitisi diye yazabilirdik. Durdurulan ya da
+      # coken iste finished_at hic yazilmaz; o zaman son gorulme ani kullanilir.
+      AYZ_END=$ACT_END
+      if [ -n "$AYZ_FIN" ] && [ "$AYZ_FIN" -ge $(( ACT_END - 120 )) ] \
+         && [ "$AYZ_FIN" -le "$ACT_NOW" ]; then AYZ_END=$AYZ_FIN; fi
+      echo "act_ayzbackup_end $AYZ_END"
+    fi
+  fi
+  # ── csf-autogroup ───────────────────────────────────────────────
+  # Kilit TUTULUYORSA bir tur suruyor — aracin kendi testi (lock_busy). Turlar
+  # saniyeler surdugu ve cron varsayilani */10 oldugu icin cogu tur yakalanmaz;
+  # amac zaten TAKILIP KALAN turu gostermek, o durumda kilit birakilmaz ve rozet
+  # yasi buyuyerek durur. Yas kilit dosyasinin mtime'indan ALINMAZ: lock dosyayi
+  # '>' ile acmak zaten bos bir dosyada mtime'i guncellemeyebiliyor, o zaman rozet
+  # "gunlerdir aktif" derdi. Kampanya yasini act_age'e biraktik — bizim ilk
+  # gordugumuz andan sayar, takilan turda dogru buyur.
+  CAG_LOCK=/var/lib/csf_autogroup/counter.lock
+  A=""
+  if [ -e "$CAG_LOCK" ] && command -v flock >/dev/null 2>&1 \
+     && ! flock -n "$CAG_LOCK" true 2>/dev/null; then A=1; fi
+  act_emit act_csfag "$A"
   # imunify: OTORITER kaynak — ajanin kendi kayitlari (running durumundaki en eski
   # taramanin yasi). Surec sezgiseli burada calismaz: tarama kalici rustbolit
   # --resident icinde kosar, ps pcpu'su omur-boyu ortalama oldugundan iki yonde

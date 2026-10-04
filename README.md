@@ -68,6 +68,15 @@ header button (per-browser, cookie-based). The version shows in the footer.
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
   history from the last 30 minutes.
+- **Background jobs, named** — cPanel backups, `upcp`, WP Toolkit, Imunify
+  on-demand scans and app discovery appear as chips while they run, and as
+  `started` / `finished` lines in the event log with their real timestamps.
+  Two sister tools join in when they are installed, and stay invisible when they
+  are not: [Ayzeta Backup](https://github.com/ayzeta) jobs (read from the job
+  records, so the age is the job's own start time and the chip names the account
+  being backed up) and [csf-autogroup](https://github.com/ayzeta/csf-autogroup)
+  runs (read from its lock — a run takes seconds and is usually missed, which is
+  the point: a chip that *stays* means a run is stuck).
 - **Mobile-friendly** and **light/dark** aware.
 - **Drop-in for CSF & WHMCS** — works as CSF's high-load status page on LiteSpeed
   servers (which have no Apache `mod_status`) and as a WHMCS *Server Status*

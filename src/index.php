@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.1'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.2'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -933,8 +933,16 @@ $actDefs = [
     // Hesap hesap kısa turlarla döner: süreç etimes'i kampanya yaşını VERMEZ, o yüzden
     // collector kampanya durumu tutar (bkz. collector.sh act_age).
     ['app discovery',   'act_appdisc', '/wappspector/i',                                15, null],
+    // Kendi araclarimiz. Sunucuda KURULU DEGILSE collector hicbir sey yayinlamaz,
+    // dolayisiyla cip de olay kaydi da hic gorunmez. SONA eklendiler: JS tarafi
+    // Imunify'i i===3 ile sabit tuttugu icin araya girmek o kontrolu kaydirirdi.
+    // Yedek isi uzun surer, gercek baslangic/bitis damgasi is kaydindan gelir.
+    ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0,  null],
+    // csf-autogroup turlari saniyeler surer (cron */10): cogu tur yakalanmaz,
+    // amac TAKILIP KALAN turu gostermek — o durumda kilit birakilmaz ve cip durur.
+    ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0,  null],
 ];
-$actChips = []; $acts = []; $actImunifyN = null;
+$actChips = []; $acts = []; $actScopes = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
     if ($mx === null) {
@@ -952,6 +960,9 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     // olur ve haftalık sweep başlayınca Event log'a "started/finished" düşer.
     $imIncr = ($aKey === 'act_imunify' && ($procSec['act_imunify_p'] ?? '') === 'incremental');
     $acts[] = $imIncr ? null : $mx;
+    // Cip kapsami ('<anahtar>_p') JS'e de gitsin: canli tick ile sunucu
+    // render'i ayni eki gostersin. Sira $actDefs ile birebir.
+    $actScopes[] = $procSec[$aKey . '_p'] ?? null;
     if ($mx !== null && !$imIncr) {
         $chip = t(str_replace(' running', '', $aLbl)) . ' · ' . fmtAgeShort($mx);
         if ($aKey === 'act_imunify') {
@@ -961,6 +972,11 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
                 $actImunifyN = (int)$procSec['act_imunify_n'];
                 $chip .= ' · ' . fmtCount($actImunifyN) . ' ' . t('files');
             }
+        } elseif (($procSec[$aKey . '_p'] ?? '') !== '' && ($procSec[$aKey . '_p'] ?? '') !== '-') {
+            // Genel kapsam eki: collector '<anahtar>_p' yayınlıyorsa çipe eklenir
+            // (Ayzeta Backup'ta o an yedeklenen hesap). Imunify kendi dalında
+            // kalıyor, çünkü orada dosya sayısı da ekleniyor.
+            $chip .= ' · ' . htmlspecialchars($procSec[$aKey . '_p']);
         }
         $actChips[] = $chip;
     }
@@ -1611,7 +1627,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
         'netCapMbps'        => $netCapMbps, 'netCapCfg' => $netCapFromCfg, 'netIfOne' => ($netIfCount <= 1),
@@ -3127,7 +3143,7 @@ function renderProcs(data){
     // log'u spam'liyordu. Kök sebep collector'da çözüldü (kampanya durumu + kabul
     // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
     // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
-    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false]];
+    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false],['Ayzeta Backup',/ayzeta_backup\/worker\.php/i,0,false],['csf-autogroup',/csf_autogroup/i,0,false]];
     const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
     const chips=defs.map(([lbl,re,minCpu],i)=>{
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
@@ -3140,6 +3156,11 @@ function renderProcs(data){
       if(i===3){ // imunify: hesap adı + varsa dosya sayısı
         if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
         if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' '+t('files');
+      }else{
+        // Genel kapsam eki — PHP'deki '<anahtar>_p' daliyla es (Ayzeta Backup'ta
+        // o an yedeklenen hesap). Imunify kendi dalinda, orada dosya sayisi da var.
+        const sc=data.actScopes&&data.actScopes[i];
+        if(sc&&sc!=='-')c+=' · '+esc(sc);
       }
       return c;});
     ac.innerHTML=chips.filter(Boolean).map(c=>'<span class="bk-chip">'+esc(c)+'</span>').join('');
