@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.2'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.3'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -180,6 +180,7 @@ $TR = [
     'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
+    'update available' => 'güncelleme var', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
 ];
@@ -946,6 +947,15 @@ $actDefs = [
     // amac TAKILIP KALAN turu gostermek — o durumda kilit birakilmaz ve cip durur.
     ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0,  null],
 ];
+// Guncelleme durumu — collector gunde bir uzaktaki surumu kontrol eder, yerel
+// revizyonu her turda okur. Hicbiri yoksa (git kopyasi yok) satirlar gorunmez.
+$updRev    = $rootFresh ? ($procSec['upd_rev'] ?? null) : null;
+$updRemote = $rootFresh ? ($procSec['upd_remote'] ?? null) : null;
+$updBehind = ($rootFresh && isset($procSec['upd_behind']) && is_numeric($procSec['upd_behind']))
+           ? (int)$procSec['upd_behind'] : 0;
+$updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['upd_at']))
+           ? (int)$procSec['upd_at'] : null;
+$updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
 $actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
@@ -1441,8 +1451,15 @@ foreach ($actDefs as $ai => $ad) {
     $aEndRaw = $rootFresh ? ($procSec[$ad[1] . '_end'] ?? null) : null;
     $actEnds[$ai] = is_numeric($aEndRaw) ? date('H:i:s', (int)$aEndRaw) : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
+    // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
+    // yayinlamiyor, o yuzden seed edilen 'bitti' satiri sade kalir.
+    $aDet = '';
+    $aKd  = $rootFresh ? ($procSec[$ad[1] . '_k'] ?? '') : '';
+    $aSc  = $rootFresh ? ($procSec[$ad[1] . '_p'] ?? '') : '';
+    if ($aKd !== '' && $aKd !== '-') $aDet .= ' · ' . t(str_replace('_', ' ', $aKd));
+    if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental') $aDet .= ' · ' . $aSc;
     if ($aAge !== null) {
-        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started'),
+        $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
                        'ts'   => date('H:i:s', time() - (int)$aAge)];
     } elseif ($actEnds[$ai] !== null) {
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished'),
@@ -1606,6 +1623,14 @@ foreach ($svcSeed as $sName => $sInf) {
     $seedLogs[] = ['type' => $sInf[0] === 'offline' ? 'err' : 'warn', 'msg' => $sMsg, 'ts' => date('H:i')];
 }
 
+// Panonun KENDI guncellemesi. Elle 'bash update.sh' calistirildiginda da yazilir:
+// collector revizyon degisimini izliyor, kim tetikledigi onemli degil. Panonun
+// davranisi bir saatten beri degistiyse sebebi bu satirda gorunur.
+if ($updAt !== null && $updFrom && $updRev) {
+    $seedLogs[] = ['type' => 'ok', 'msg' => tf('Dashboard updated: %s → %s', $updFrom, $updRev),
+                   'ts' => date('H:i:s', $updAt)];
+}
+
 // ════════════════════════════════════════════════════════════════
 // ROUTING
 // Parametresiz → dashboard HTML
@@ -1640,7 +1665,9 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds,
+        'updRev' => $updRev, 'updRemote' => $updRemote, 'updBehind' => $updBehind,
+        'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
         'netCapMbps'        => $netCapMbps, 'netCapCfg' => $netCapFromCfg, 'netIfOne' => ($netIfCount <= 1),
@@ -2650,7 +2677,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <?php if ($CREDIT_TEXT): ?>
   <div class="footer-credit"><?php if ($CREDIT_URL): ?><a href="<?=htmlspecialchars($CREDIT_URL, ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noopener"><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?></a><?php else: ?><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?><?php endif; ?></div>
 <?php endif; ?>
-  <div id="footer-time"><span title="Server Status Monitor <?=APP_VERSION?>">v<?=APP_VERSION?></span> &middot; <?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?></div>
+  <div id="footer-time"><span title="Server Status Monitor <?=APP_VERSION?>">v<?=APP_VERSION?></span> &middot; <?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?><?=$updBehind > 0 ? ' · ' . t('update available') . ' (' . $updBehind . ')' : ''?></div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -3134,6 +3161,9 @@ function renderSvc(key,data){
 
 let lastSnapMtime=<?=json_encode($procMtime)?>; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
+// Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
+// artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
+const actDet=[];
 function renderProcs(data){
   if(!document.getElementById('proc-row'))return;
   const age=document.getElementById('proc-age');
@@ -3187,6 +3217,14 @@ function renderProcs(data){
         if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]===actWas[i])return;
         const basladi=st[i]==='1';
+        if(basladi){
+          const kd=data.actKinds&&data.actKinds[i];
+          const sc=(i===3)?data.actImunifyP:(data.actScopes&&data.actScopes[i]);
+          let d='';
+          if(kd&&kd!=='-')d+=' · '+t(kd.replace(/_/g,' '));
+          if(sc&&sc!=='-'&&sc!=='incremental')d+=' · '+sc;
+          actDet[i]=d;
+        }
         // Damga her iki yonde de GERCEK an: baslangic = sunucu saati - cip yasi,
         // bitis = collector'in kaydettigi son gorulme (data.actEnds). Ikisi de
         // fark edildigi ana degil olayin kendi anina bagli — sekme uyusa da,
@@ -3194,7 +3232,8 @@ function renderProcs(data){
         const ts=basladi
           ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
           : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
-        addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished'),ts);});
+        addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
+               +(actDet[i]||''),ts);});
       actWas=st;
     }
   }
@@ -3392,6 +3431,14 @@ function checkAlerts(data){
     }
     prev[k]=cs;
   });
+  // Panonun KENDI guncellemesi. updAt degisince yazilir; ilk tick yalnizca
+  // taban kurar, cunku sunucu render'i onu zaten seed etmis olabilir.
+  if(prevUpdAt===undefined){prevUpdAt=data.updAt||null;}
+  else if((data.updAt||null)!==prevUpdAt){
+    prevUpdAt=data.updAt||null;
+    if(data.updAt&&data.updFrom&&data.updRev)
+      addLog('ok',tf('Dashboard updated: %s → %s',data.updFrom,data.updRev),now);
+  }
 }
 
 // Ortak metrik render'ı — render + renderMetrics'in TEK kaynağı (eskiden ikisinde
@@ -3403,7 +3450,9 @@ function applyMetrics(data){
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
   document.getElementById('time-val').textContent=data.time.split(' ')[1];
-  document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'');
+  // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
+  // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
+  document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -3496,6 +3545,8 @@ function render(data){
 // besleme yok. Eskiden tek bir bayrakti; bu yuzden IP engeli "ulasilamiyor" diye
 // yaziliyor, ikisinden donuste de "servis beslemesi geri geldi" cikiyordu.
 let downKind='';
+// undefined = henuz taban kurulmadi (ilk tick). null = guncelleme bilgisi yok.
+let prevUpdAt;
 // null: hic yanit alinamadi (ag/DNS/servis kapali). Sayi: sunucu yanit verdi ama
 // HTTP durumu ok degil — 403 tipik olarak IP degisiminden sonra CSF/guvenlik duvari.
 let lastHttpStatus=null;

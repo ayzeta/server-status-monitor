@@ -79,6 +79,11 @@ header button (per-browser, cookie-based). The version shows in the footer.
   [csf-autogroup](https://github.com/ayzeta/csf-autogroup) runs, read from its
   lock. A csf-autogroup run takes seconds and is usually missed, which is the
   point: a chip that *stays* means a run is stuck.
+- **Knows its own version** — the collector reads the local git revision every
+  run and checks the remote once a day, so the footer says when an update is
+  waiting and the event log records the dashboard's own updates, including the
+  ones applied by hand. Optional `AUTO_UPDATE=1` lets the root cron apply them;
+  it is off by default and nothing web-facing can trigger it.
 - **Mobile-friendly** and **light/dark** aware.
 - **Drop-in for CSF & WHMCS** — works as CSF's high-load status page on LiteSpeed
   servers (which have no Apache `mod_status`) and as a WHMCS *Server Status*

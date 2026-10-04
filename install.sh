@@ -20,7 +20,7 @@ command -v whmapi1 >/dev/null 2>&1 || echo "WARNING: whmapi1 not found — this 
 # ── Defaults (overridden by a previous run) ─────────────────────
 WEB_USER=""; WEB_SUBDIR="public_html/status"; DATA_DIR="/root/server-status-monitor"
 SITE_TITLE="Infrastructure Monitor"; SITE_SUBTITLE=""; LOGO_URL=""; FAVICON_URL=""
-ALLOW_IPS=""; ACCESS_KEY=""; LINE_MBPS=""
+ALLOW_IPS=""; ACCESS_KEY=""; LINE_MBPS=""; AUTO_UPDATE="0"
 [ -f "$CONF" ] && . "$CONF"
 
 # Enter = kayıtlı cevabı koru; '-' = kayıtlı cevabı TEMİZLE (boş kaydet).
@@ -68,6 +68,14 @@ else
   echo "the NIC's own link speed; enter your contracted Mbps if the provider shapes"
   echo "it lower (a 1 Gbit NIC on a 500 Mbit line would otherwise read half empty)."
   LINE_MBPS="$(ask 'Contracted line speed in Mbps (blank = read from NIC)' "$LINE_MBPS")"
+  # Otomatik guncelleme: VARSAYILAN KAPALI. Acikken root cron'u gunde bir kez
+  # uzaktaki surumu kontrol eder ve geride kalinmissa update.sh'i ayrik bir
+  # surec olarak baslatir. Web tarafindan tetiklenemez, panoda dugme yoktur.
+  echo "Auto-update: the collector can check once a day and apply updates itself."
+  echo "Off by default — turn it on only if you want this server to follow the"
+  echo "repository without you running 'bash update.sh'."
+  AUTO_UPDATE="$(ask 'Apply updates automatically? (0 = no, 1 = yes)' "$AUTO_UPDATE")"
+  case "$AUTO_UPDATE" in 1|yes|y|Y) AUTO_UPDATE=1;; *) AUTO_UPDATE=0;; esac
   case "$LINE_MBPS" in
     ''|*[!0-9]*) [ -n "$LINE_MBPS" ] && echo "NOTE: not a plain number — ignored, NIC speed will be used."; LINE_MBPS="";;
   esac
@@ -93,22 +101,32 @@ else
   cat > "$CONF" <<EOF
 WEB_USER="$WEB_USER"; WEB_SUBDIR="$WEB_SUBDIR"; DATA_DIR="$DATA_DIR"
 SITE_TITLE="$SITE_TITLE"; SITE_SUBTITLE="$SITE_SUBTITLE"; LOGO_URL="$LOGO_URL"; FAVICON_URL="$FAVICON_URL"
-ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"; LINE_MBPS="$LINE_MBPS"
+ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"; LINE_MBPS="$LINE_MBPS"; AUTO_UPDATE="$AUTO_UPDATE"
 EOF
 fi
 
 # ── Collector (root) ────────────────────────────────────────────
 mkdir -p "$DATA_DIR"
-install -m 700 "$SRC/src/collector.sh" "$DATA_DIR/collector.sh"
+# ATOMIK: dogrudan uzerine yazmak, o anda CALISAN toplayiciyi bozar — bash
+# betigi parca parca okur, dosya kirpilirsa kalan kismi cop olarak calisir.
+# Gecici ada kurup mv ile tasiriz; mv ayni dosya sisteminde atomik rename,
+# calisan surec eski inode'u okumaya devam eder.
+install -m 700 "$SRC/src/collector.sh" "$DATA_DIR/collector.sh.new"
+mv -f "$DATA_DIR/collector.sh.new" "$DATA_DIR/collector.sh"
 cat > "$DATA_DIR/config.env" <<EOF
 WEB_USER=$WEB_USER
 DATA_DIR=$DATA_DIR
+# Kurulumun calistigi git kopyasi — guncelleme kontrolu buradan bakar.
+REPO_DIR=$SRC
+AUTO_UPDATE=$AUTO_UPDATE
 EOF
 chmod 600 "$DATA_DIR/config.env"
 
 # ── Dashboard (web account) ─────────────────────────────────────
 mkdir -p "$WEB_DIR"
-install -m 644 "$SRC/src/index.php" "$WEB_DIR/index.php"
+# ATOMIK (yukaridaki gerekce): PHP istegi tam o anda dosyayi okuyor olabilir.
+install -m 644 "$SRC/src/index.php" "$WEB_DIR/index.php.new"
+mv -f "$WEB_DIR/index.php.new" "$WEB_DIR/index.php"
 # config.php: keep existing on non-interactive update (preserves any manual
 # edits like 'lang' => 'tr'); write it on interactive install / first run.
 if [ $AUTO -eq 1 ] && [ -f "$WEB_DIR/config.php" ]; then

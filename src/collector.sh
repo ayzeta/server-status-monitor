@@ -289,8 +289,24 @@ OUT="$HOME_DIR/.proc_snapshot"
   # her hesapta yeniden dogar, "10 saatlik yedek" 1m gorunurdu). Koseli parantez
   # hilesi ([p]kgacct) awk'in kendi komut satirini eslemesini onler.
   # backup: gorev-omurlu surecler, dogrudan gozlem (esik gerekmez).
-  A=$(ps axo etimes=,pcpu=,args= | awk '/[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/{if($1>m)m=$1} END{if(m)print m}')
-  act_emit act_backup "$A"
+  # pkgacct cagrisinda o an paketlenen HESAP argumanda duruyor: 'pkgacct user ...'.
+  # Olay kaydina yazilinca "yedekleme basladi" yerine kimin yedeklendigi gorunur.
+  # Yalnizca cPanel kullanici adi bicimine uyan jeton kabul edilir (kucuk harf +
+  # rakam, en fazla 16) — secenek/yol/cop deger rozete sizmasin. cpbackup'ta
+  # hesap yoktur (orkestrator), o zaman bos kalir.
+  read A ABK < <(ps axo etimes=,args= | awk '
+    /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
+      if ($1 > m) { m = $1; u = ""
+        for (i = 2; i <= NF; i++)
+          if ($i ~ /pkgacct$/) {
+            for (j = i + 1; j <= NF; j++)
+              if ($j ~ /^[a-z][a-z0-9]{0,15}$/) { u = $j; break }
+            break
+          } } }
+    END { if (m) print m, (u == "" ? "-" : u) }')
+  act_age act_backup "$A"
+  [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; }
+  [ -n "$ACT_END" ] && echo "act_backup_end $ACT_END"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
   A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
@@ -435,6 +451,59 @@ PYEOF
   if [ -e "$CAG_LOCK" ] && command -v flock >/dev/null 2>&1 \
      && ! flock -n "$CAG_LOCK" true 2>/dev/null; then A=1; fi
   act_emit act_csfag "$A"
+  # ── Guncelleme durumu ───────────────────────────────────────────
+  # REPO_DIR config.env'den gelir (kurulumun calistigi git kopyasi). Yoksa bu blok
+  # tamamen atlanir — panoda guncelleme satiri hic gorunmez.
+  if [ -n "${REPO_DIR:-}" ] && [ -d "$REPO_DIR/.git" ] && command -v git >/dev/null 2>&1; then
+    UPD_CACHE="$DATA_DIR/.upd_cache"; UPD_STATE="$DATA_DIR/.upd_state"
+    # Yerel revizyon HER TURDA okunur. Agsiz, yerel bir git cagrisi (~10 ms) —
+    # guncelleme ELLE de yapilabildigi icin degisimi yakalamanin tek guvenilir
+    # yolu bu; dosya tarihine bakmak config yeniden yazilinca da tetiklenirdi.
+    LREV=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)
+    if [ -n "$LREV" ]; then
+      echo "upd_rev $LREV"
+      read SREV SAT SOLD < <(cat "$UPD_STATE" 2>/dev/null)
+      if [ -z "$SREV" ]; then
+        # Ilk calisma: taban kaydedilir, guncelleme olayi URETILMEZ.
+        printf '%s %s\n' "$LREV" "$ACT_NOW" > "$UPD_STATE"
+      elif [ "$SREV" != "$LREV" ]; then
+        printf '%s %s %s\n' "$LREV" "$ACT_NOW" "$SREV" > "$UPD_STATE"
+        SAT=$ACT_NOW; SOLD=$SREV
+      fi
+      chmod 600 "$UPD_STATE" 2>/dev/null
+      # Son guncelleme ACT_RETAIN (1 sa) icindeyse olay kaydina dussun: sayfayi
+      # sonradan acan da gorsun, act_*_end ile ayni mantik.
+      if [ -n "${SOLD:-}" ] && [ $(( ACT_NOW - ${SAT:-0} )) -le "$ACT_RETAIN" ]; then
+        echo "upd_at $SAT"; echo "upd_from $SOLD"
+      fi
+    fi
+    # Uzaktaki surum: GUNDE BIR (tek ag erisimi). Basarisiz olursa eski cache
+    # korunur; "guncel" diye yanlis bilgi vermektense bayat bilgi daha iyi.
+    if [ ! -f "$UPD_CACHE" ] \
+       || [ $(( ACT_NOW - $(stat -c %Y "$UPD_CACHE" 2>/dev/null || echo 0) )) -gt 86400 ]; then
+      UPD_BR=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
+      if [ -n "$UPD_BR" ] && timeout 60 git -C "$REPO_DIR" fetch --quiet origin "$UPD_BR" 2>/dev/null; then
+        UPD_RREV=$(git -C "$REPO_DIR" rev-parse --short "origin/$UPD_BR" 2>/dev/null)
+        UPD_BEH=$(git -C "$REPO_DIR" rev-list --count "HEAD..origin/$UPD_BR" 2>/dev/null)
+        printf '%s %s\n' "${UPD_RREV:--}" "${UPD_BEH:-0}" > "$UPD_CACHE.tmp" \
+          && mv "$UPD_CACHE.tmp" "$UPD_CACHE"
+        chmod 600 "$UPD_CACHE" 2>/dev/null
+      fi
+    fi
+    read UPD_RREV UPD_BEH < <(cat "$UPD_CACHE" 2>/dev/null)
+    case "${UPD_BEH:-0}" in ''|*[!0-9]*) UPD_BEH=0;; esac
+    if [ "$UPD_BEH" -gt 0 ]; then
+      echo "upd_behind $UPD_BEH"; echo "upd_remote ${UPD_RREV:--}"
+      # Otomatik uygulama: VARSAYILAN KAPALI, yalnizca config.env acikca 1 ise.
+      # Ayrik surec (setsid): toplayici kendi turunu bitirir; install.sh dosyalari
+      # atomik degistirdigi icin calisan betik etkilenmez. flock ust uste
+      # calismayi onler — update.sh ~20 sn surer, cron ise dakikada bir koser.
+      if [ "${AUTO_UPDATE:-0}" = "1" ] && command -v flock >/dev/null 2>&1; then
+        flock -n "$DATA_DIR/.upd_run.lock" \
+          setsid bash "$REPO_DIR/update.sh" >/dev/null 2>&1 &
+      fi
+    fi
+  fi
   # imunify: OTORITER kaynak — ajanin kendi kayitlari (running durumundaki en eski
   # taramanin yasi). Surec sezgiseli burada calismaz: tarama kalici rustbolit
   # --resident icinde kosar, ps pcpu'su omur-boyu ortalama oldugundan iki yonde
