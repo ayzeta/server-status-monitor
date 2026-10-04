@@ -35,6 +35,17 @@ return [
     // IP allowlist (see README "Securing the dashboard").
     // 'access_key' => '',
 
+    // ── Line rate (optional) ──────────────────────────────────
+    // Contracted bandwidth in Mbps, used as the denominator of the Network
+    // IN/OUT percentage. Leave it out and the NIC's own link speed is used
+    // instead — the card then reads "% of NIC speed" rather than "% of line".
+    // Set it when the provider shapes the line below the card's capability: a
+    // 1 Gbit NIC on a 500 Mbit line otherwise reads half empty and the warning
+    // thresholds never fire. Shaping happens upstream and cannot be measured
+    // from the server, so nothing here is guessed.
+    // 'line_mbps'  => 500,                  // all interfaces
+    // 'line_mbps'  => ['eth0' => 500],      // or per interface
+
     // ── Thresholds (optional) ─────────────────────────────────
     // Override any alert/color threshold; unlisted keys keep their defaults.
     // The same values drive the server render, the CSF mail attachment, and

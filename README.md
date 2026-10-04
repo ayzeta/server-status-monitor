@@ -188,6 +188,26 @@ Two small, optional files (the installer writes both):
 - **`config.env`** (next to `collector.sh`) — `WEB_USER` (required) + `DATA_DIR`.
   See [`config.env.example`](config.env.example).
 
+### Network line rate
+
+The Network IN/OUT cards show how full the link is. The denominator comes from
+the NIC's own link speed (`/sys/class/net/<if>/speed`), and the card says so:
+**`50% of NIC speed · peak 53% (63.7 MB/s) · 1 Gbit/s`**.
+
+Providers often shape the line below what the card can do — a 1 Gbit NIC on a
+500 Mbit line reads half empty, and the 70%/90% warnings never fire. Shaping
+happens upstream and cannot be measured from the server, so the panel does not
+guess it. Set your contracted speed and the card switches to **`% of line`**:
+
+```php
+'line_mbps' => 500,                 // all interfaces
+'line_mbps' => ['eth0' => 500],     // or per interface
+```
+
+The installer asks for this; leaving it blank keeps the NIC reading. The peak
+percentage covers the last 30 minutes, so a spike that filled the link stays
+visible after the instantaneous value drops back.
+
 ## Integrations
 
 ### CSF high-load alerts (LiteSpeed / no Apache mod_status)

@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.0'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.1'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -92,7 +92,12 @@ $TR = [
     'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
     // Info şeridi
     'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
-    '%s%% of link' => 'hattın %%%s', '%s%% of link · peak %s' => 'hattın %%%s · tepe %s', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
+    '%s%% of link' => 'hattın %%%s',
+    // Kapasite config'ten mi karttan mı geldiğini metin söylüyor: sağlayıcı hattı
+    // şekillendirmişse kart hızına göre oran yanıltır, ekranda hangisi olduğu yazsın.
+    '%s%% · peak %s' => '%%%s · tepe %s',
+    '%s%% of line · peak %s%% (%s) · %s' => 'hattın %%%s · tepe %%%s (%s) · %s',
+    '%s%% of NIC speed · peak %s%% (%s) · %s' => 'kart hızının %%%s · tepe %%%s (%s) · %s', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
     'Mail Queue' => 'Mail Kuyruğu', 'messages queued' => 'kuyruktaki mesaj', 'Web Response' => 'Web Yanıtı', 'HTTP response time' => 'HTTP yanıt süresi',
     'MySQL Response' => 'MySQL Yanıtı', 'TCP response time' => 'TCP yanıt süresi', 'Hosted Accounts' => 'Hesaplar', 'cPanel accounts' => 'cPanel hesabı',
     'days' => 'gün',
@@ -417,14 +422,30 @@ foreach ($ifRates as $r) { $rxRate += $r['rx']; $txRate += $r['tx']; }
 // üye toplamı hız olarak sunar → doğru ölçülür. Link hızı ($netSpeed) root
 // cron'dan gelir (CageFS PHP'nin /sys/class/net'i okumasını engeller, disk I/O
 // gibi); trafik canlı. Tam çift-yönlü: rx/tx ayrı → Network IN/OUT ayrı renklenir.
-$netRxSat = null; $netTxSat = null;
-if ($rootFresh && $netSpeed) {
+// Kapasite önce config'ten: sağlayıcının şekillendirdiği SÖZLEŞME hızı
+// /sys/class/net/<if>/speed'de GÖRÜNMEZ (kart 1 Gbit bildirirken hat 500 Mbit
+// olabilir; o durumda doluluk yarı yarıya düşük çıkar ve eşikler hiç ateşlenmez).
+// Sunucunun içinden ölçülemediği için tahmin etmiyoruz — girilmezse karttan alıp
+// ekranda "kart hızının %..." diye etiketliyoruz, yani ne ölçtüğümüzü yazıyoruz.
+// 'line_mbps': tek sayı = tüm arayüzler, dizi = arayüz başına.
+$netRxSat = null; $netTxSat = null; $netCapMbps = null; $netCapFromCfg = false;
+if ($rootFresh) {
+    $lineCfg = $cfg['line_mbps'] ?? null;
+    $netWorst = -1;
     foreach ($ifRates as $n => $r) {
-        if (empty($netSpeed[$n])) continue;          // hızı bilinmeyen/atıl port atlanır
-        $cap = $netSpeed[$n] * 125000;               // Mbps → B/s (yön başına, çift-yönlü)
-        if ($cap <= 0) continue;
-        $netRxSat = max($netRxSat ?? 0, (int)round($r['rx'] / $cap * 100));
-        $netTxSat = max($netTxSat ?? 0, (int)round($r['tx'] / $cap * 100));
+        $mbps    = is_array($lineCfg) ? ($lineCfg[$n] ?? null) : $lineCfg;
+        $fromCfg = is_numeric($mbps) && $mbps > 0;
+        if (!$fromCfg) $mbps = $netSpeed[$n] ?? 0;
+        if (!is_numeric($mbps) || $mbps <= 0) continue;  // hızı bilinmeyen/atıl port atlanır
+        $cap = $mbps * 125000;                           // Mbps → B/s (yön başına, çift-yönlü)
+        $rxS = (int)round($r['rx'] / $cap * 100);
+        $txS = (int)round($r['tx'] / $cap * 100);
+        $netRxSat = max($netRxSat ?? 0, $rxS);
+        $netTxSat = max($netTxSat ?? 0, $txS);
+        // Etiket, oranı belirleyen (en dolu) arayüzün kapasitesini göstermeli.
+        if (max($rxS, $txS) > $netWorst) {
+            $netWorst = max($rxS, $txS); $netCapMbps = (int)$mbps; $netCapFromCfg = $fromCfg;
+        }
     }
 }
 $netSat = ($netRxSat === null && $netTxSat === null) ? null : max((int)$netRxSat, (int)$netTxSat);
@@ -445,6 +466,25 @@ function fmtBytes($b) {
     if ($b >= 1048576) return round($b/1048576, 1) . ' MB/s';
     if ($b >= 1024)    return round($b/1024, 1)    . ' KB/s';
     return $b . ' B/s';
+}
+// Hat/kart kapasitesi — oranın NEYE göre hesaplandığını ekranda göstermek için.
+// Birim Mbit/s; 1000'in tam katları Gbit/s olarak kısaltılır (1 Gbit/s, 2.5 Gbit/s).
+function fmtLink($mbps) {
+    if ($mbps >= 1000) { $g = $mbps / 1000; return (floor($g) == $g ? (int)$g : round($g, 1)) . ' Gbit/s'; }
+    return (int)$mbps . ' Mbit/s';
+}
+// Ağ kartlarının alt satırı: anlık oran + tepe (yüzde VE mutlak) + kapasite.
+// Tepenin yüzdesi önemli: anlık oran, 30 dk'lık pencerede hattı dolduran bir
+// tepeyi bir dakika sonra göstermez. JS'teki netMeta() ile birebir aynı tutulur.
+function netMeta($sat, $peakKB, $capMbps, $fromCfg) {
+    $peak = fmtBytes((int)round($peakKB * 1024));
+    // Kapasite bilinmiyorsa (demo verisi, eksik snapshot) "0 Mbit/s" yazmak yerine
+    // kısa biçime düş: uydurma kapasite göstermektense o bilgiyi hiç verme.
+    if (!$capMbps || $capMbps <= 0) return tf('%s%% · peak %s', $sat, $peak);
+    $pct = (int)round($peakKB * 1024 / ($capMbps * 125000) * 100);
+    return tf($fromCfg ? '%s%% of line · peak %s%% (%s) · %s'
+                       : '%s%% of NIC speed · peak %s%% (%s) · %s',
+              $sat, $pct, $peak, fmtLink($capMbps));
 }
 
 // ── Memory ────────────────────────────────────────────────────
@@ -1550,6 +1590,7 @@ if (isset($_GET['json'])) {
         'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
+        'netCapMbps'        => $netCapMbps, 'netCapCfg' => $netCapFromCfg,
         'webResponseTime'   => $webResponseTime,
         'mysqlResponseTime' => $mysqlResponseTime,
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
@@ -2417,12 +2458,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="info-card has-fill" id="ic-rx" style="--c:<?=$netRxCol?>;--fill:<?=$netRxSat !== null ? min((int)$netRxSat,100) : 0?>%<?=cardBorderCss($netRxCol)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=vuSplit(fmtBytes($rxRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['rx'], 260, 52, $netRxCol, 'ssr-rx')?><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
-      <div class="res-meta" id="iv-rx-sub"><?=$netRxSat !== null ? tf('%s%% of link · peak %s', $netRxSat, fmtBytes(($ssr['rx'] ? max($ssr['rx']) : 0) * 1024)) : t('incoming traffic')?></div>
+      <div class="res-meta" id="iv-rx-sub"><?=$netRxSat !== null ? netMeta($netRxSat, ($ssr['rx'] ? max($ssr['rx']) : 0), $netCapMbps, $netCapFromCfg) : t('incoming traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:<?=$netTxCol?>;--fill:<?=$netTxSat !== null ? min((int)$netTxSat,100) : 0?>%<?=cardBorderCss($netTxCol)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=vuSplit(fmtBytes($txRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['tx'], 260, 52, $netTxCol, 'ssr-tx')?><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
-      <div class="res-meta" id="iv-tx-sub"><?=$netTxSat !== null ? tf('%s%% of link · peak %s', $netTxSat, fmtBytes(($ssr['tx'] ? max($ssr['tx']) : 0) * 1024)) : t('outgoing traffic')?></div>
+      <div class="res-meta" id="iv-tx-sub"><?=$netTxSat !== null ? netMeta($netTxSat, ($ssr['tx'] ? max($ssr['tx']) : 0), $netCapMbps, $netCapFromCfg) : t('outgoing traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-wrk" style="--c:<?=$wrkCol = lsphpCol($lsphpTotal, $coreCount)?>;--fill:<?=$lsphpTotal !== null ? min((int)round($lsphpTotal/max($coreCount * $TH['wrk_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($wrkCol)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('cpu')?></span><span class="res-name"><?=t('PHP Workers')?></span></div><span class="res-val" id="iv-lsphp" style="color:<?=$wrkCol?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></span></div>
@@ -2779,10 +2820,28 @@ tipEl.className='spark-tip';
 document.body.appendChild(tipEl);
 // Tooltip birimleri kartlarla AYNI eşikte MB'ye geçer (PHP fmtBytes ile eş): kart
 // "4.5 MB/s" derken tooltip "4595 KB/s" göstermesin.
-function fmtKB(v){return v>=1024?(v/1024).toFixed(1)+' MB/s':Math.round(v)+' KB/s';}
+// PHP'deki fmtBytes() ikizi. Eski fmtKB() toFixed(1) kullaniyordu ve "2.0 MB/s"
+// yaziyordu; PHP round() ise "2 MB/s" veriyor — ayni deger mailde ve canli sayfada
+// farkli gorunuyordu. Tek kullanim yeri netMeta oldugu icin PHP'ye hizalandi.
+function fmtBytes(b){
+  if(b>=1048576)return (Math.round(b/1048576*10)/10)+' MB/s';
+  if(b>=1024)return (Math.round(b/1024*10)/10)+' KB/s';
+  return (b|0)+' B/s';
+}
+// PHP'deki fmtLink() / netMeta() ikizleri — ciftli render paritesi.
+function fmtLink(m){if(m>=1000){const g=m/1000;return (Math.floor(g)===g?g:Math.round(g*10)/10)+' Gbit/s';}return (m|0)+' Mbit/s';}
+function netMeta(sat,peakKB,capMbps,fromCfg){
+  const peak=fmtBytes(Math.round(peakKB*1024));
+  if(!capMbps||capMbps<=0)return tf('%s%% · peak %s',sat,peak);
+  const p=Math.round(peakKB*1024/(capMbps*125000)*100);
+  return tf(fromCfg?'%s%% of line · peak %s%% (%s) · %s':'%s%% of NIC speed · peak %s%% (%s) · %s',
+            sat,p,peak,fmtLink(capMbps));
+}
 const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.toFixed(2),
   'sp-cpu':v=>Math.round(v)+'%','sp-ram':v=>Math.round(v)+'%','sp-disk':v=>Math.round(v)+'%','sp-iow':v=>Math.round(v)+'%',
-  'sp-rx':fmtKB,'sp-tx':fmtKB,'sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
+  // Kivilcim ipuclari KB/s tasir; alt satirla ayni yazimi kullansin diye fmtBytes'a cevrilir.
+  'sp-rx':v=>fmtBytes(Math.round(v*1024)),'sp-tx':v=>fmtBytes(Math.round(v*1024)),
+  'sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
 document.addEventListener('mousemove',e=>{
   const c=e.target.closest?e.target.closest('canvas.load-spark,canvas.res-spark,canvas.info-spark-canvas'):null;
   if(!c||!c._d||c._d.length<2){tipEl.style.opacity=0;return;}
@@ -3303,12 +3362,12 @@ function applyMetrics(data){
   // Network IN/OUT: değer + spark + alt-etiket, hat doygunluğuna göre renkli
   {const c=data.netRxCol||'var(--accent)',e=document.getElementById('iv-rx'),s=document.getElementById('iv-rx-sub');
    if(e&&data.rxRate){e.innerHTML=vuSplit(data.rxRate);e.style.color=c;}
-   if(s)s.textContent=data.netRxSat!=null?tf('%s%% of link · peak %s',data.netRxSat,fmtKB(hist.rx.length?Math.max.apply(null,hist.rx):0)):t('incoming traffic');
+   if(s)s.textContent=data.netRxSat!=null?netMeta(data.netRxSat,hist.rx.length?Math.max.apply(null,hist.rx):0,data.netCapMbps,data.netCapCfg):t('incoming traffic');
    setFill('ic-rx',data.netRxSat,c);
    if(data.rxK!=null){push(hist.rx,data.rxK);spark('sp-rx',hist.rx,c);}}
   {const c=data.netTxCol||'var(--accent)',e=document.getElementById('iv-tx'),s=document.getElementById('iv-tx-sub');
    if(e&&data.txRate){e.innerHTML=vuSplit(data.txRate);e.style.color=c;}
-   if(s)s.textContent=data.netTxSat!=null?tf('%s%% of link · peak %s',data.netTxSat,fmtKB(hist.tx.length?Math.max.apply(null,hist.tx):0)):t('outgoing traffic');
+   if(s)s.textContent=data.netTxSat!=null?netMeta(data.netTxSat,hist.tx.length?Math.max.apply(null,hist.tx):0,data.netCapMbps,data.netCapCfg):t('outgoing traffic');
    setFill('ic-tx',data.netTxSat,c);
    if(data.txK!=null){push(hist.tx,data.txK);spark('sp-tx',hist.tx,c);}}
 }

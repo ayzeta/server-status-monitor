@@ -20,7 +20,7 @@ command -v whmapi1 >/dev/null 2>&1 || echo "WARNING: whmapi1 not found — this 
 # ── Defaults (overridden by a previous run) ─────────────────────
 WEB_USER=""; WEB_SUBDIR="public_html/status"; DATA_DIR="/root/server-status-monitor"
 SITE_TITLE="Infrastructure Monitor"; SITE_SUBTITLE=""; LOGO_URL=""; FAVICON_URL=""
-ALLOW_IPS=""; ACCESS_KEY=""
+ALLOW_IPS=""; ACCESS_KEY=""; LINE_MBPS=""
 [ -f "$CONF" ] && . "$CONF"
 
 # Enter = kayıtlı cevabı koru; '-' = kayıtlı cevabı TEMİZLE (boş kaydet).
@@ -60,6 +60,17 @@ else
   SITE_SUBTITLE="$(ask 'Site subtitle' "$SITE_SUBTITLE")"
   LOGO_URL="$(ask 'Logo URL (blank = initials)' "$LOGO_URL")"
   FAVICON_URL="$(ask 'Favicon URL, same-origin (blank = generated tile)' "$FAVICON_URL")"
+  # Saglayicinin sekillendirdigi sozlesme hizi /sys/class/net/<if>/speed'de GORUNMEZ:
+  # kart 1 Gbit bildirirken hat 500 Mbit olabilir ve doluluk yari yarıya dusuk cikar.
+  # Icerden olculemedigi icin soruyoruz; bos birakilirsa kart hizi kullanilir ve
+  # panoda oran "kart hizinin %..." diye etiketlenir (ne olculdugu yaziyor olur).
+  echo "Network line rate: the panel shows how full the link is. Leave blank to use"
+  echo "the NIC's own link speed; enter your contracted Mbps if the provider shapes"
+  echo "it lower (a 1 Gbit NIC on a 500 Mbit line would otherwise read half empty)."
+  LINE_MBPS="$(ask 'Contracted line speed in Mbps (blank = read from NIC)' "$LINE_MBPS")"
+  case "$LINE_MBPS" in
+    ''|*[!0-9]*) [ -n "$LINE_MBPS" ] && echo "NOTE: not a plain number — ignored, NIC speed will be used."; LINE_MBPS="";;
+  esac
   # Erişim kısıtı (önerilir): panel sürüm/hesap adı/süreç komutu gösterir — herkese
   # açık kalmamalı. IP verilirse .htaccess allowlist yazılır; boş = atla.
   echo "Access restriction (recommended): the dashboard shows versions, account"
@@ -82,7 +93,7 @@ else
   cat > "$CONF" <<EOF
 WEB_USER="$WEB_USER"; WEB_SUBDIR="$WEB_SUBDIR"; DATA_DIR="$DATA_DIR"
 SITE_TITLE="$SITE_TITLE"; SITE_SUBTITLE="$SITE_SUBTITLE"; LOGO_URL="$LOGO_URL"; FAVICON_URL="$FAVICON_URL"
-ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"
+ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"; LINE_MBPS="$LINE_MBPS"
 EOF
 fi
 
@@ -111,6 +122,8 @@ else
   'logo_url'      => '$(printf '%s' "$LOGO_URL"      | sed "s/'/\\\\'/g")',
   'favicon_url'   => '$(printf '%s' "$FAVICON_URL"   | sed "s/'/\\\\'/g")',
   'access_key'    => '$(printf '%s' "$ACCESS_KEY"    | sed "s/'/\\\\'/g")',
+  // Sözleşmeli hat hızı (Mbps). null = ağ kartının bildirdiği link hızı kullanılır.
+  'line_mbps'     => ${LINE_MBPS:-null},
 );
 EOF
   chown "$WEB_USER:$WEB_USER" "$WEB_DIR/config.php"
