@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.3'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.5'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -180,6 +180,7 @@ $TR = [
     'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
+    'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
     'update available' => 'güncelleme var', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
@@ -802,7 +803,24 @@ function svcCheck($label, $whmName, $port, $lp, $whmSvcs, $whmOk) {
         $n   = $ok ? 'responding' . ($lst ? ' · listening' : '') : 'no response';
         return ['label' => $label, 'ok' => $ok, 'type' => 'check', 'note' => $n, 'source' => 'port'];
     }
-    return ['label' => $label, 'ok' => false, 'type' => 'check', 'note' => 'unknown', 'source' => 'none'];
+    // DOGRULANAMADI — 'kapali' DEGIL. Ne whmapi1 verisi var ne de bakilacak bir
+    // port; ornegin cPanel lisansi dustugunde Imunify360/LFD boyle gorunur.
+    // 'unknown' bayragi grup sayimindan dislar, 'ok' yalnizca gosterim icin false.
+    return ['label' => $label, 'ok' => false, 'unknown' => true, 'type' => 'check',
+            'note' => 'unknown', 'source' => 'none'];
+}
+
+// Grup sayimi: dogrulanabilen kontroller uzerinden. Dogrulanamayanlar ne basarili
+// ne basarisiz sayilir — sayilari ayrica donup kartta 'N bilinmiyor' diye yazilir,
+// boylece bosluk gizlenmez ama sahte alarm da uretmez.
+function svcTally($checks) {
+    $v   = array_values(array_filter($checks, fn($c) => isset($c['ok']) && empty($c['unknown'])));
+    $ok  = array_sum(array_column($v, 'ok'));
+    $tot = count($v);
+    $unk = count(array_filter($checks, fn($c) => !empty($c['unknown'])));
+    $st  = $tot > 0 ? ($ok === $tot ? 'operational' : ($ok > 0 ? 'degraded' : 'offline'))
+                    : 'operational';   // hicbiri dogrulanamadi: besleme sinyali ayrica uyarir
+    return [$st, $ok, $tot, $unk];
 }
 function chkPort($label, $port, $lp) {
     $ok  = portOpen('127.0.0.1', $port);
@@ -840,9 +858,7 @@ $webChecks = [
     svcCheck('WHM (2087)',    'cpsrvd', 2087, $listeningPorts, $whmServices, $whmApiOk),
     svcCheck('cPanel (2083)', 'cpsrvd', 2083, $listeningPorts, $whmServices, $whmApiOk),
 ];
-$webOk     = array_sum(array_column($webChecks, 'ok'));
-$webTotal  = count($webChecks);
-$webStatus = $webOk === $webTotal ? 'operational' : ($webOk > 0 ? 'degraded' : 'offline');
+[$webStatus, $webOk, $webTotal, $webUnknown] = svcTally($webChecks);
 
 // ════════════════════════════════════════════════════════════════
 // MAIL
@@ -939,8 +955,8 @@ $actDefs = [
     // collector kampanya durumu tutar (bkz. collector.sh act_age).
     ['app discovery',   'act_appdisc', '/wappspector/i',                                15, null],
     // Kendi araclarimiz. Sunucuda KURULU DEGILSE collector hicbir sey yayinlamaz,
-    // dolayisiyla cip de olay kaydi da hic gorunmez. SONA eklendiler: JS tarafi
-    // Imunify'i i===3 ile sabit tuttugu icin araya girmek o kontrolu kaydirirdi.
+    // dolayisiyla cip de olay kaydi da hic gorunmez. Siralama artik serbest: JS
+    // tarafi Imunify'i ETIKETLE taniyor, eskiden sabit indise (i===3) bagliydi.
     // Yedek isi uzun surer, gercek baslangic/bitis damgasi is kaydindan gelir.
     ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0,  null],
     // csf-autogroup turlari saniyeler surer (cron */10): cogu tur yakalanmaz,
@@ -1025,9 +1041,7 @@ function lsphpCol($n, $cores) {
     $c = ($cores && $cores > 0) ? $cores : 1;
     return $n >= $c * $TH['wrk_crit_x'] ? 'var(--danger)' : ($n >= $c * $TH['wrk_warn_x'] ? 'var(--warn)' : 'var(--accent)');
 }
-$mailOk     = array_sum(array_column($mailChecks, 'ok'));
-$mailTotal  = count($mailChecks);
-$mailStatus = $mailOk === $mailTotal ? 'operational' : ($mailOk > 0 ? 'degraded' : 'offline');
+[$mailStatus, $mailOk, $mailTotal, $mailUnknown] = svcTally($mailChecks);
 
 // ════════════════════════════════════════════════════════════════
 // DNS
@@ -1037,9 +1051,7 @@ $dnsChecks = [
     ['label' => 'DNS UDP (53)', 'ok' => isListening(53, $udpPorts), 'type' => 'check', 'source' => 'proc',
      'note'  => isListening(53, $udpPorts) ? 'listening' : 'not detected'],
 ];
-$dnsOk     = array_sum(array_column($dnsChecks, 'ok'));
-$dnsTotal  = count($dnsChecks);
-$dnsStatus = $dnsOk === $dnsTotal ? 'operational' : ($dnsOk > 0 ? 'degraded' : 'offline');
+[$dnsStatus, $dnsOk, $dnsTotal, $dnsUnknown] = svcTally($dnsChecks);
 
 // ════════════════════════════════════════════════════════════════
 // SECURITY
@@ -1066,12 +1078,9 @@ $secChecks = array_merge([
     svcCheck('Imunify360',   'imunify360', null, $listeningPorts, $whmServices, $whmApiOk),
     svcCheck('LFD',          'lfd',        null, $listeningPorts, $whmServices, $whmApiOk),
 ], $secRoot);
-$secVerifiable = array_filter($secChecks, fn($c) => isset($c['ok']));
-$secOk    = array_sum(array_column(array_values($secVerifiable), 'ok'));
-$secTotal = count($secVerifiable);
-$secStatus = $secTotal > 0
-    ? ($secOk === $secTotal ? 'operational' : ($secOk > 0 ? 'degraded' : 'offline'))
-    : 'operational';
+// isset($c['ok']) TEK BASINA YETMIYORDU: dogrulanamayan kontrol de 'ok' => false
+// tasiyor, yani anahtar var degeri false. svcTally ikisini de dogru ayiriyor.
+[$secStatus, $secOk, $secTotal, $secUnknown] = svcTally($secChecks);
 
 // ════════════════════════════════════════════════════════════════
 // DATABASE
@@ -1107,9 +1116,7 @@ $cacheChecks = [
     chkPort('Redis (6379)',       6379,  $listeningPorts),
     chkPort('Memcached (11211)', 11211,  $listeningPorts),
 ];
-$cacheOk     = array_sum(array_column($cacheChecks, 'ok'));
-$cacheTotal  = count($cacheChecks);
-$cacheStatus = $cacheOk === $cacheTotal ? 'operational' : ($cacheOk > 0 ? 'degraded' : 'offline');
+[$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);
 
 // ════════════════════════════════════════════════════════════════
 // FTP
@@ -1121,9 +1128,7 @@ $ftpChecks = [
     ['label' => 'Kernel state', 'ok' => $ftpListen, 'type' => 'check', 'source' => 'proc',
      'note'  => $ftpListen ? 'port bound' : 'not bound'],
 ];
-$ftpOk     = array_sum(array_column($ftpChecks, 'ok'));
-$ftpTotal  = count($ftpChecks);
-$ftpStatus = $ftpOk === $ftpTotal ? 'operational' : ($ftpOk > 0 ? 'degraded' : 'offline');
+[$ftpStatus, $ftpOk, $ftpTotal, $ftpUnknown] = svcTally($ftpChecks);
 
 // ── Servis yaşları (root snapshot: svcage) ────────────────────
 // Ana daemon ne zamandır ayakta? Uzun uptime'lı sunucuda kısa etime =
@@ -1290,6 +1295,10 @@ $health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] �
     'mailq'    => [$mailQ===null?'ok':($mailQ>=$mqBase*$TH['mailq_crit_x']?'err':($mailQ>=$mqBase*$TH['mailq_warn_x']?'warn':'ok')), tf('Mail queue %s', $mailQ)],
     'wrk'      => [$lsphpTotal===null?'ok':($lsphpTotal>=$coreCount*$TH['wrk_crit_x']?'err':($lsphpTotal>=$coreCount*$TH['wrk_warn_x']?'warn':'ok')), tf('%s PHP workers', $lsphpTotal)],
     'snap'     => [($procAge===null||$procAge>$TH['snap_stale'])?'warn':'ok',                     t('Snapshot stale')],
+    // Besleme yoklugu KENDI adiyla bildirilir. Eskiden bu durum yalnizca servis
+    // gruplarini dusurerek gorunuyordu — cPanel lisansi bitince baslikta
+    // "Guvenlik Sorunlu" yaziyordu, oysa guvenlik yazilimlari calisiyor olabilir.
+    'feed'     => [$whmApiOk ? 'ok' : 'warn',                                                   t('Service feed unavailable')],
 ];
 foreach (['Web'=>$webStatus,'Mail'=>$mailStatus,'DNS'=>$dnsStatus,'Security'=>$secStatus,'Database'=>$dbStatus,'Cache'=>$cacheStatus,'FTP'=>$ftpStatus] as $n=>$st) {
     $health['svc_'.strtolower($n)] = [$st==='offline'?'err':($st==='degraded'?'warn':'ok'), t($n).' '.t(ucfirst($st))];
@@ -1682,7 +1691,7 @@ if (isset($_GET['json'])) {
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
         'dns'   => ['status' => $dnsStatus,   'checks' => $dnsChecks,   'ok' => $dnsOk,   'total' => $dnsTotal],
-        'sec'   => ['status' => $secStatus,   'checks' => $secChecks,   'ok' => $secOk,   'total' => $secTotal],
+        'sec'   => ['status' => $secStatus,   'checks' => $secChecks,   'ok' => $secOk,   'total' => $secTotal, 'unknown' => $secUnknown],
         'db'    => ['status' => $dbStatus,    'checks' => $dbChecks,    'ok' => $dbOk,    'total' => $dbTotal],
         'cache' => ['status' => $cacheStatus, 'checks' => $cacheChecks, 'ok' => $cacheOk, 'total' => $cacheTotal],
         'ftp'   => ['status' => $ftpStatus,   'checks' => $ftpChecks,   'ok' => $ftpOk,   'total' => $ftpTotal],
@@ -2612,7 +2621,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><?=icon('shield-check')?></div>
-      <div class="svc-info"><div class="svc-name"><?=t('Security')?></div><div class="svc-count" id="sk-sec"><?=$secOk?>/<?=$secTotal?> <?=t('verified active')?></div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Security')?></div><div class="svc-count" id="sk-sec"><?=$secOk?>/<?=$secTotal?> <?=t('verified active')?><?=$secUnknown > 0 ? ' · ' . tf('%s unknown', $secUnknown) : ''?></div></div>
       <div class="badge <?=bclass($secStatus)?>" id="bd-sec"><?=blabel($secStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-sec"><?=renderChecks($secChecks)?></div>
@@ -3146,7 +3155,9 @@ function renderSvc(key,data){
   const count=document.getElementById('sk-'+key),checks=document.getElementById('ch-'+key);
   if(icon){icon.style.background=s==='operational'?'var(--accent-bg)':s==='degraded'?'var(--warn-bg)':'var(--danger-bg)';icon.style.color=s==='operational'?'var(--accent)':s==='degraded'?'var(--warn)':'var(--danger)';}
   if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):t('Offline');}
-  if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'');}
+  if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};
+    // PHP ile ayni: dogrulanamayan kontrol sayisi ayrica yazilir, bosluk gizlenmesin.
+    count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'')+(data.unknown>0?' · '+tf('%s unknown',data.unknown):'');}
   if(checks&&data.checks){
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
@@ -3189,14 +3200,17 @@ function renderProcs(data){
     const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false],['Ayzeta Backup',/ayzeta_backup\/worker\.php/i,0,false],['csf-autogroup',/csf_autogroup/i,0,false]];
     const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
     const chips=defs.map(([lbl,re,minCpu],i)=>{
+      // Imunify ETIKETLE taninir, indisle degil: liste sirasi degisince
+      // yanlis cip gizlenmesin (PHP tarafi da anahtar adiyla bakiyor).
+      const imu=(lbl==='Imunify on-demand');
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
-      if(i===3&&data.actImunifyP==='incremental')return null;
+      if(imu&&data.actImunifyP==='incremental')return null;
       let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
       if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
       if(mx==null)return null;
       ages[i]=mx;
       let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
-      if(i===3){ // imunify: hesap adı + varsa dosya sayısı
+      if(imu){ // imunify: hesap adı + varsa dosya sayısı
         if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
         if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' '+t('files');
       }else{
@@ -3219,7 +3233,8 @@ function renderProcs(data){
         const basladi=st[i]==='1';
         if(basladi){
           const kd=data.actKinds&&data.actKinds[i];
-          const sc=(i===3)?data.actImunifyP:(data.actScopes&&data.actScopes[i]);
+          const sc=(lbl==='Imunify on-demand')?data.actImunifyP
+                   :(data.actScopes&&data.actScopes[i]);
           let d='';
           if(kd&&kd!=='-')d+=' · '+t(kd.replace(/_/g,' '));
           if(sc&&sc!=='-'&&sc!=='incremental')d+=' · '+sc;

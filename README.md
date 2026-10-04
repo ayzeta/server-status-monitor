@@ -60,6 +60,11 @@ header button (per-browser, cookie-based). The version shows in the footer.
 - **Unified health model** — one status in the header (`All systems operational`
   / `Degraded` / `Issues detected`) aggregated from *every* metric and service,
   with the actual offenders listed inline. Tab title + favicon reflect it too.
+  A check the dashboard cannot *verify* is not counted as a check that failed:
+  when the cPanel license lapses and `whmapi1` goes silent, Imunify360 and LFD
+  have no port to fall back to, and reporting them as down would raise a security
+  alarm for something that is still running. They are listed as unknown, and the
+  header names the real cause — `Service feed unavailable`.
 - **Proportional thresholds** — load is scaled to core count, CPU/RAM/disk are
   percentages, network is a share of the interface's capacity. Sensible on any
   server, not tuned to one box.
