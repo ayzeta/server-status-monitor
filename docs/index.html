@@ -489,7 +489,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">17:17:04</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">17:21:50</span></div></div>
   </div>
 </div>
 
@@ -692,21 +692,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Database went offline &#183; MySQL (3306), MySQL socket</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Database went offline &#183; MySQL (3306), MySQL socket</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web response time high: 2024ms</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Web response time high: 2024ms</span><span class="log-ts">17:21</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">17:17</span></div>
+<span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">17:21</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="Drag to resize"></div>
 </div>
@@ -714,7 +714,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.9">v1.5.9</span> &middot; 2026-10-04 17:17:04</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.9">v1.5.9</span> &middot; 2026-10-04 17:21:50</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -821,7 +821,7 @@ const seed={
     "mq": [],
     "top": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:67,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'17:17:04'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:67,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'17:21:50'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
@@ -849,42 +849,42 @@ const seedLogs=[
     {
         "type": "err",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "Web response time high: 2024ms",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "Web server went offline \u00b7 Apache, HTTPS (443) +3",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "Mail services went offline \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "DNS went offline \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "Database went offline \u00b7 MySQL (3306), MySQL socket",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "Cache went offline \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "17:17"
+        "ts": "17:21"
     },
     {
         "type": "err",
         "msg": "FTP went offline \u00b7 FTP service, Kernel state",
-        "ts": "17:17"
+        "ts": "17:21"
     }
 ];
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda

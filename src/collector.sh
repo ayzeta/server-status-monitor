@@ -451,12 +451,15 @@ PYEOF
     act_age act_ayzbackup "$AYZ_AGE"
     [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; echo "act_ayzbackup_k ${AYZ_K:--}"; }
     if [ -n "$ACT_END" ]; then
-      # OTORITER bitis varsa onu yaz. Guard: damga bizim cikardigimiz bitise YAKIN
-      # olmali (en fazla 2 dk once, gelecekte degil) — yoksa baska/eski bir isin
-      # finished_at'ini bu kampanyanin bitisi diye yazabilirdik. Durdurulan ya da
-      # coken iste finished_at hic yazilmaz; o zaman son gorulme ani kullanilir.
+      # OTORITER bitis varsa onu yaz. Guard IKI YONLU: damga bizim cikardigimiz
+      # bitisin +/-2 dk'si icinde VE gelecekte olmamali. Ust sinir sart: bitis
+      # kaydi bir saat saklaniyor, o surede YAKALANMAMIS kisa bir is (okuma,
+      # indirme) bitse onun finished_at'i eski kampanyanin "bitti" satirina
+      # yazilirdi. Alt sinir da baska/eski bir isin damgasini eler. Durdurulan ya
+      # da coken iste finished_at hic yazilmaz; o zaman son gorulme ani kullanilir.
       AYZ_END=$ACT_END
       if [ -n "$AYZ_FIN" ] && [ "$AYZ_FIN" -ge $(( ACT_END - 120 )) ] \
+         && [ "$AYZ_FIN" -le $(( ACT_END + 120 )) ] \
          && [ "$AYZ_FIN" -le "$ACT_NOW" ]; then AYZ_END=$AYZ_FIN; fi
       echo "act_ayzbackup_end $AYZ_END"
     fi
