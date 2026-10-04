@@ -324,8 +324,23 @@ OUT="$HOME_DIR/.proc_snapshot"
   act_emit act_wpt "$A"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
-  A=$(ps axo etimes=,pcpu=,args= | awk '$2>=15 && /[w]appspector/{if($1>m)m=$1} END{if(m)print m}')
-  act_emit act_appdisc "$A"
+  # Taranan hesap YOL argumanindan gelir: wappspector hesap adi almiyor,
+  # 'wappspector:inspect [<path>]' aliyor ve cPanel onu /home/<hesap>/... uzerinde
+  # kosturuyor. /home2 gibi ikincil koklar da kabul edilir. Yalnizca cPanel
+  # kullanici adi bicimine uyan jeton alinir; yol parcasi rozete cop basmasin.
+  read A APD < <(ps axo etimes=,pcpu=,args= | awk '
+    $2 >= 15 && /[w]appspector/ {
+      if ($1 > m) { m = $1; u = ""
+        for (i = 3; i <= NF; i++)
+          if ($i ~ /^\/home[0-9]*\/[^\/]+/) {
+            split($i, p, "/")
+            if (p[3] ~ /^[a-z][a-z0-9]{0,15}$/) u = p[3]
+            break
+          } } }
+    END { if (m) print m, (u == "" ? "-" : u) }')
+  act_age act_appdisc "$A"
+  [ -n "$ACT_AGE" ] && { echo "act_appdisc $ACT_AGE"; echo "act_appdisc_p ${APD:--}"; }
+  [ -n "$ACT_END" ] && echo "act_appdisc_end $ACT_END"
   # ── Ayzeta Backup ───────────────────────────────────────────────
   # Kurulu degilse HICBIR SEY yayinlanmaz; pano da satiri hic gostermez.
   # OTORITER kaynak is kayitlari: ps sezgiseli burada yaniltir, cunku bir is
