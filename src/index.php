@@ -178,6 +178,10 @@ $TR = [
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
     'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya',
+    // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
+    // ('backup' karsiligi yukarida zaten var).
+    'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
+    'download' => 'indirme', 'read' => 'okuma',
 ];
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
@@ -942,7 +946,7 @@ $actDefs = [
     // amac TAKILIP KALAN turu gostermek — o durumda kilit birakilmaz ve cip durur.
     ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0,  null],
 ];
-$actChips = []; $acts = []; $actScopes = []; $actImunifyN = null;
+$actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
     if ($mx === null) {
@@ -963,6 +967,7 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
     // Cip kapsami ('<anahtar>_p') JS'e de gitsin: canli tick ile sunucu
     // render'i ayni eki gostersin. Sira $actDefs ile birebir.
     $actScopes[] = $procSec[$aKey . '_p'] ?? null;
+    $actKinds[]  = $procSec[$aKey . '_k'] ?? null;
     if ($mx !== null && !$imIncr) {
         $chip = t(str_replace(' running', '', $aLbl)) . ' · ' . fmtAgeShort($mx);
         if ($aKey === 'act_imunify') {
@@ -972,6 +977,14 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
                 $actImunifyN = (int)$procSec['act_imunify_n'];
                 $chip .= ' · ' . fmtCount($actImunifyN) . ' ' . t('files');
             }
+        } elseif ($aKey === 'act_ayzbackup') {
+            // Is TURU gizlenmez, yazilir: geri yukleme/denetim de sunucuyu mesgul
+            // eder, ama 'Ayzeta Backup' etiketi tek basina 'yedekleme suruyor'
+            // diye okunurdu. Tur + o an islenen hesap birlikte gosterilir.
+            $aK = $procSec['act_ayzbackup_k'] ?? '';
+            if ($aK !== '' && $aK !== '-') $chip .= ' · ' . t(str_replace('_', ' ', $aK));
+            $aP = $procSec['act_ayzbackup_p'] ?? '';
+            if ($aP !== '' && $aP !== '-') $chip .= ' · ' . htmlspecialchars($aP);
         } elseif (($procSec[$aKey . '_p'] ?? '') !== '' && ($procSec[$aKey . '_p'] ?? '') !== '-') {
             // Genel kapsam eki: collector '<anahtar>_p' yayınlıyorsa çipe eklenir
             // (Ayzeta Backup'ta o an yedeklenen hesap). Imunify kendi dalında
@@ -1627,7 +1640,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
         'netCapMbps'        => $netCapMbps, 'netCapCfg' => $netCapFromCfg, 'netIfOne' => ($netIfCount <= 1),
@@ -3157,8 +3170,9 @@ function renderProcs(data){
         if(data.actImunifyP&&data.actImunifyP!=='-')c+=' · '+esc(data.actImunifyP);
         if(data.actImunifyN>0)c+=' · '+fmtCount(data.actImunifyN)+' '+t('files');
       }else{
-        // Genel kapsam eki — PHP'deki '<anahtar>_p' daliyla es (Ayzeta Backup'ta
-        // o an yedeklenen hesap). Imunify kendi dalinda, orada dosya sayisi da var.
+        // PHP'deki dalin ikizi: once is turu, sonra kapsam.
+        const kd=data.actKinds&&data.actKinds[i];
+        if(kd&&kd!=='-')c+=' · '+t(kd.replace(/_/g,' '));
         const sc=data.actScopes&&data.actScopes[i];
         if(sc&&sc!=='-')c+=' · '+esc(sc);
       }

@@ -322,13 +322,21 @@ OUT="$HOME_DIR/.proc_snapshot"
   # Yalnizca yedekleme turleri rozete girer; geri yukleme/okuma/tarama isleri degil.
   AYZ_MARK=/usr/local/cpanel/whostmgr/docroot/cgi/ayzeta_backup/version.json
   if [ -f "$AYZ_MARK" ]; then
-    read AYZ_AGE AYZ_P AYZ_FIN < <(python3 - /var/cpanel/ayzeta_backup/jobs <<'PYEOF'
+    read AYZ_AGE AYZ_P AYZ_FIN AYZ_K < <(python3 - /var/cpanel/ayzeta_backup/jobs <<'PYEOF'
 import json, os, sys, time
 
-KINDS = {"backup", "yapilandirma", "tamamla"}
+# Her is turu sayilir; tur gizlenmez, rozete yazilir. Gruplama yalnizca
+# etiket okunur kalsin diye — PHP/JS tarafi bu jetonu ceviriyor.
+GRUP = {
+    "backup": "backup", "yapilandirma": "backup", "tamamla": "backup",
+    "single": "restore", "batch": "restore", "dosya": "restore",
+    "posta": "restore", "vt": "restore", "cron_uygula": "restore",
+    "scan": "archive check", "indir": "download",
+    "liste": "read", "vt_oku": "read", "cron_oku": "read",
+}
 root = sys.argv[1]
 now = int(time.time())
-best_started, best_scope = None, ""
+best_started, best_scope, best_kind = None, "", ""
 # Yakin zamanda BITEN isin otoriter bitis damgasi. Kampanya durumundan cikarilan
 # "son gorulme" bir dakikaya kadar sapabiliyor; meta.json'daki finished_at kesin.
 # Arsive bakmiyoruz: arsive tasima varsayilani 30 gun, panonun ilgilendigi pencere
@@ -362,7 +370,7 @@ for ad in girisler:
                 with open(os.path.join(d, "meta.json"), "rb") as f:
                     mb = json.load(f)
                 fa = mb.get("finished_at")
-                if mb.get("kind") in KINDS and isinstance(fa, int) and 0 < fa <= now:
+                if mb.get("kind") in GRUP and isinstance(fa, int) and 0 < fa <= now:
                     if latest_fin is None or fa > latest_fin:
                         latest_fin = fa
         except Exception:
@@ -373,8 +381,9 @@ for ad in girisler:
             m = json.load(f)
     except Exception:
         continue
-    if m.get("kind") not in KINDS:
-        continue
+    grup = GRUP.get(m.get("kind"))
+    if grup is None:
+        continue          # bilinmeyen tur: sessizce atla
     started = m.get("started")
     if not isinstance(started, int) or started <= 0 or started > now:
         continue
@@ -384,22 +393,24 @@ for ad in girisler:
     if best_started is None or started < best_started:
         best_started = started
         best_scope = (m.get("current") or m.get("user") or "").strip()
+        best_kind = grup
 
 # Anlik goruntu satiri BOSLUKLA ayrilir, bu yuzden bosluk kalamaz. Virgul korunur:
 # kuyrukta 'current' "hesap1, hesap2" olabiliyor, virgulu atmak iki hesap adini tek
 # kelimeye yapistirip okunaksiz yapiyordu. Uc alan: yas, kapsam, otoriter bitis.
 kapsam = "".join(c for c in best_scope if c.isalnum() or c in "._-, ")[:28].strip()
 kapsam = kapsam.replace(", ", ",").replace(" ", "_")
-print("%s %s %s" % (
+print("%s %s %s %s" % (
     (now - best_started) if best_started is not None else "-",
     kapsam or "-",
-    latest_fin if latest_fin is not None else "-"))
+    latest_fin if latest_fin is not None else "-",
+    best_kind.replace(" ", "_") or "-"))
 PYEOF
 )
     [ "$AYZ_AGE" = "-" ] && AYZ_AGE=""
     [ "$AYZ_FIN" = "-" ] && AYZ_FIN=""
     act_age act_ayzbackup "$AYZ_AGE"
-    [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; }
+    [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; echo "act_ayzbackup_k ${AYZ_K:--}"; }
     if [ -n "$ACT_END" ]; then
       # OTORITER bitis varsa onu yaz. Guard: damga bizim cikardigimiz bitise YAKIN
       # olmali (en fazla 2 dk once, gelecekte degil) — yoksa baska/eski bir isin
