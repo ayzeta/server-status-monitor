@@ -121,6 +121,18 @@ ACT_NOW=$(date +%s); ACT_NEXT=""
 # Kampanya yeniden basladiginda eski bitis kaydi dusurulur: ayni etkinlik icin
 # ayni anda hem "basladi" hem "bitti" gostermek kafa karistirir.
 ACT_RETAIN=3600
+# ps|awk tespitlerinin ORTAK on-eki: komutu arama/goruntuleme/duzenleme araci olan
+# satirlar hic degerlendirilmez. Bunlar is DEGIL, isin ADINI tasiyan sureclerdir:
+# 'grep pkgacct', 'vim .../csf_autogroup.sh', 'tail -f ...', toplayicinin kendi
+# awk'i. Her biri, desen metinde gectigi icin sahte "basladi" uretebiliyordu
+# (en sinsisi awk'in kendisi: ps yuk altinda 1 sn gecikince kendi programini
+# yas 1 ile goruyordu). Iki surum: komut 2. alanda (etimes,args) / 3. alanda
+# (etimes,pcpu,args).
+PS_SKIP_RE='(^|\/)(awk|gawk|mawk|grep|egrep|fgrep|rg|ack|vim|vi|view|nvim|nano|emacs|mcedit|less|more|cat|tail|head|sed|diff|tee|bat|strings|watch|git)$'
+PS_SKIP2='$2 ~ /'"$PS_SKIP_RE"'/ { next }
+'
+PS_SKIP3='$3 ~ /'"$PS_SKIP_RE"'/ { next }
+'
 # KAPSAM ($3, opsiyonel: o an gorulen hesap): kampanya boyunca TEK hesap
 # goruldiyse bitis kaydina tasinir ve "bitti" satirinda hesap adi yazilir
 # (elle baslatilan tek hesap yedegi). Birden fazla hesap goruldiyse "*" olur ve
@@ -315,8 +327,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # olan satirlar atlanir. Eskiden hesap deseni duz /pkgacct$/ idi ve yaris
   # kaybedilince yasi 0, hesabi olmayan sahte "yedekleme basladi/bitti" ciftleri
   # dusuyordu (takvim disi gunlerde gorulen anonim yedek satirlari).
-  read A ABK AFULL < <(ps axo etimes=,args= | awk '
-    $2 ~ /(^|\/)awk$/ { next }
+  read A ABK AFULL < <(ps axo etimes=,args= | awk "$PS_SKIP2"'
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
       if ($1 > m) { m = $1
         for (i = 2; i <= NF; i++) if ($i ~ /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
@@ -335,7 +346,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
-  A=$(ps axo etimes=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps axo etimes=,args= | awk "$PS_SKIP2"'/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
   act_emit act_update "$A"
   # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
   # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
@@ -346,7 +357,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # executor, 3.8 gunluk) — "execute-background-task" ikisinin de alt dizesi degil.
   # Ikinci sart parti disindaki WPT etkinligi icin eski sezgiseli korur: kalici
   # sw-engine-fpm havuzu bosta %0'da gezdigi icin CPU esigi onu eler.
-  A=$(ps axo etimes=,pcpu=,args= | awk '/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps axo etimes=,pcpu=,args= | awk "$PS_SKIP3"'/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){if($1>m)m=$1} END{if(m)print m}')
   act_emit act_wpt "$A"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
@@ -354,7 +365,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # 'wappspector:inspect [<path>]' aliyor ve cPanel onu /home/<hesap>/... uzerinde
   # kosturuyor. /home2 gibi ikincil koklar da kabul edilir. Yalnizca cPanel
   # kullanici adi bicimine uyan jeton alinir; yol parcasi rozete cop basmasin.
-  read A APD < <(ps axo etimes=,pcpu=,args= | awk '
+  read A APD < <(ps axo etimes=,pcpu=,args= | awk "$PS_SKIP3"'
     $2 >= 15 && /[w]appspector/ {
       if ($1 > m) { m = $1; u = ""
         for (i = 3; i <= NF; i++)
@@ -501,14 +512,16 @@ PYEOF
     /var/spool/cron/root 2>/dev/null)
   A=""
   if [ -n "$CAG_SH" ]; then
-    # CALISIYOR MU: gercek tur ARGUMANSIZ kosar — satir betik yoluyla BITER.
-    # '--status --json' eklenti sayfasi acikken dakikada bir kosuyor, '--lookup'
-    # ve '--dry-run' da tur degil; sona capalamak hepsini eler. Kilide BAKILMAZ:
+    # CALISIYOR MU: yalnizca betigin GERCEKTEN calistirildigi bicim sayilir:
+    # '/bin/bash <yol>' (shebang), 'bash|sh <yol>' ya da dogrudan '<yol>', baska
+    # argumansiz (NF<=3). Gercek tur argumansiz kosar; '--status --json' (eklenti
+    # sayfasi), '--lookup', '--dry-run' tur degildir ve elenir. Kilide BAKILMAZ:
     # panelden yapilan elle islemler de ayni kilidi birkac saniye tutuyor.
-    # Sona capa ayrica awk'in kendi komut satirini da eler (o '}' ile biter).
-    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" '
-      BEGIN { gsub(/\./, "\\.", sh) }
-      $0 ~ (sh "$") { if ($1 > m) m = $1 }
+    # ESKIDEN "yol ile biten her satir" sayiliyordu: 'vim <yol>', 'cat <yol>' ve
+    # (ps satir sonunu ham basan surumlerde) bu awk'in kendi '-v sh=<yol>' argumani
+    # da eslesiyor, takvim disi sahte "csf-autogroup basladi" dusuyordu.
+    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" "$PS_SKIP2"'
+      NF <= 3 && ($2 == sh || ($2 ~ /(^|\/)(bash|sh|dash)$/ && $3 == sh)) { if ($1 > m) m = $1 }
       END { if (m) print m }')
     # SON TAMAMLANAN TUR: events.jsonl'in son '"type":"run"' satiri. Satir tur
     # BITINCE yazilir, yani 't' gercek bitis ani. Yarim yazilmis satira karsi tam
