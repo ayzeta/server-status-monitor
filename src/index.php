@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.11'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.12'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -175,7 +175,7 @@ $TR = [
     'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya', 'blocks' => 'engel',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'full backup' => 'tam yedek', 'all accounts' => 'tüm hesaplar', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya', 'blocks' => 'engel',
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
@@ -999,19 +999,16 @@ foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu]) {
                 $actImunifyN = (int)$procSec['act_imunify_n'];
                 $chip .= ' · ' . fmtCount($actImunifyN) . ' ' . t('files');
             }
-        } elseif ($aKey === 'act_ayzbackup') {
-            // Is TURU gizlenmez, yazilir: geri yukleme/denetim de sunucuyu mesgul
-            // eder, ama 'Ayzeta Backup' etiketi tek basina 'yedekleme suruyor'
-            // diye okunurdu. Tur + o an islenen hesap birlikte gosterilir.
-            $aK = $procSec['act_ayzbackup_k'] ?? '';
+        } else {
+            // Genel: once is TURU ('<anahtar>_k': Ayzeta Backup'ta geri yukleme/denetim,
+            // cPanel yedeginde 'tam yedek'), sonra KAPSAM ('<anahtar>_p': o an islenen
+            // hesap). Tur gizlenmez: 'Ayzeta Backup' tek basina 'yedekleme suruyor' diye
+            // okunurdu. JS tarafiyla (defs dongusu) ayni sira. Imunify kendi dalinda,
+            // cunku orada dosya sayisi da ekleniyor.
+            $aK = $procSec[$aKey . '_k'] ?? '';
             if ($aK !== '' && $aK !== '-') $chip .= ' · ' . t(str_replace('_', ' ', $aK));
-            $aP = $procSec['act_ayzbackup_p'] ?? '';
+            $aP = $procSec[$aKey . '_p'] ?? '';
             if ($aP !== '' && $aP !== '-') $chip .= ' · ' . htmlspecialchars($aP);
-        } elseif (($procSec[$aKey . '_p'] ?? '') !== '' && ($procSec[$aKey . '_p'] ?? '') !== '-') {
-            // Genel kapsam eki: collector '<anahtar>_p' yayınlıyorsa çipe eklenir
-            // (Ayzeta Backup'ta o an yedeklenen hesap). Imunify kendi dalında
-            // kalıyor, çünkü orada dosya sayısı da ekleniyor.
-            $chip .= ' · ' . htmlspecialchars($procSec[$aKey . '_p']);
         }
         $actChips[] = $chip;
     }
@@ -1485,7 +1482,10 @@ foreach ($actDefs as $ai => $ad) {
     // Bitis kapsami: collector kampanya boyunca TEK hesap gorduyse '<anahtar>_end_p'
     // yayinlar — "yedekleme bitti · hesap" (elle baslatilan tek hesap yedegi).
     // Tam yedekte (coklu hesap) yayinlanmaz; satir sade kalir.
-    $aEndP = $rootFresh ? preg_replace('/[^A-Za-z0-9_.,\-]/', '', (string)($procSec[$ad[1] . '_end_p'] ?? '')) : '';
+    // "*" = kampanyada birden fazla hesap goruldu (tam yedek, haftalik tarama):
+    // "tum hesaplar" yazilir; tek hesap ise adi.
+    $aEndRawP = (string)($procSec[$ad[1] . '_end_p'] ?? '');
+    $aEndP = $rootFresh ? ($aEndRawP === '*' ? t('all accounts') : preg_replace('/[^A-Za-z0-9_.,\-]/', '', $aEndRawP)) : '';
     $actEndsP[$ai] = ($aEndP !== '' && $aEndP !== '-' && $aEndP !== 'incremental') ? $aEndP : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
     // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
@@ -1494,7 +1494,8 @@ foreach ($actDefs as $ai => $ad) {
     $aKd  = $rootFresh ? ($procSec[$ad[1] . '_k'] ?? '') : '';
     $aSc  = $rootFresh ? ($procSec[$ad[1] . '_p'] ?? '') : '';
     if ($aKd !== '' && $aKd !== '-') $aDet .= ' · ' . t(str_replace('_', ' ', $aKd));
-    if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental') $aDet .= ' · ' . $aSc;
+    // Tam yedekte hesap "o an paketlenen"dir, baslangic satirina yazilmaz (cipte kalir).
+    if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental' && $aKd !== 'full_backup') $aDet .= ' · ' . $aSc;
     if ($aAge !== null) {
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
                        'ts'   => date('H:i:s', time() - (int)$aAge),
@@ -3348,7 +3349,7 @@ function renderProcs(data){
                    :(data.actScopes&&data.actScopes[i]);
           let d='';
           if(kd&&kd!=='-')d+=' · '+t(kd.replace(/_/g,' '));
-          if(sc&&sc!=='-'&&sc!=='incremental')d+=' · '+sc;
+          if(sc&&sc!=='-'&&sc!=='incremental'&&kd!=='full_backup')d+=' · '+sc; // tam yedekte hesap = o an paketlenen, baslangica yazilmaz
           actDet[i]=d;
         }
         // Damga her iki yonde de GERCEK an: baslangic = sunucu saati - cip yasi,

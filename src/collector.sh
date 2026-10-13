@@ -183,8 +183,9 @@ act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam -> $AC
   ACT_NEXT="$ACT_NEXT""END:$k $pe $pes"$'\n'
   ACT_END=$pe; act_end_scope "$pes"
 }
-# Bitis kapsami: tek hesap ise yayinlanir; "*" (coklu) ve "-" (bilinmiyor) yayinlanmaz.
-act_end_scope() { case "$1" in ''|-|'*') ACT_END_P="";; *) ACT_END_P=$1;; esac; }
+# Bitis kapsami: tek hesap ise adi, birden fazla hesap goruldiyse "*" (pano "tum
+# hesaplar" yazar); "-" (hic bilinmedi) yayinlanmaz.
+act_end_scope() { case "$1" in ''|-) ACT_END_P="";; *) ACT_END_P=$1;; esac; }
 # Cikti yardimcisi: yas ve/veya bitis satirini yazar.
 act_emit() {  # $1=anahtar  $2=etimes
   act_age "$1" "$2"
@@ -300,20 +301,26 @@ OUT="$HOME_DIR/.proc_snapshot"
   # pkgacct cagrisinda o an paketlenen HESAP argumanda duruyor: 'pkgacct user ...'.
   # Olay kaydina yazilinca "yedekleme basladi" yerine kimin yedeklendigi gorunur.
   # Yalnizca cPanel kullanici adi bicimine uyan jeton kabul edilir (kucuk harf +
-  # rakam, en fazla 16) — secenek/yol/cop deger rozete sizmasin. cpbackup'ta
-  # hesap yoktur (orkestrator), o zaman bos kalir.
-  read A ABK < <(ps axo etimes=,args= | awk '
+  # rakam, en fazla 16) — secenek/yol/cop deger rozete sizmasin.
+  # TUR: orkestrator (cpbackup / bin/backup) gorunuyorsa bu cPanel'in TAM yedegi
+  # (gece, tum hesaplar) -> act_backup_k full_backup; pano "yedekleme basladi ·
+  # tam yedek" yazar, bitiste kapsam "*" oldugu icin "tum hesaplar" der. Hesap
+  # (_p) o an paketlenen = en YENI pkgacct'in argumani; cip "· tam yedek · hesap"
+  # gosterir. Tek pkgacct (elle tek hesap yedegi) ise tur yok, hesap yazilir.
+  read A ABK AFULL < <(ps axo etimes=,args= | awk '
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
-      if ($1 > m) { m = $1; u = ""
+      if ($1 > m) m = $1
+      if ($0 ~ /[c]pbackup|cpanel\/[b]in\/backup/) full = 1
+      if ($0 ~ /[p]kgacct/)
         for (i = 2; i <= NF; i++)
           if ($i ~ /pkgacct$/) {
             for (j = i + 1; j <= NF; j++)
-              if ($j ~ /^[a-z][a-z0-9]{0,15}$/) { u = $j; break }
+              if ($j ~ /^[a-z][a-z0-9]{0,15}$/) { if (pm == "" || $1 < pm) { pm = $1; u = $j }; break }
             break
-          } } }
-    END { if (m) print m, (u == "" ? "-" : u) }')
+          } }
+    END { if (m) print m, (u == "" ? "-" : u), (full ? "full_backup" : "-") }')
   act_age act_backup "$A" "$ABK"
-  [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; }
+  [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; [ "${AFULL:--}" != "-" ] && echo "act_backup_k $AFULL"; }
   [ -n "$ACT_END" ] && echo "act_backup_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
