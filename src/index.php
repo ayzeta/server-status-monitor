@@ -141,7 +141,7 @@ $TR = [
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
-    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'No events yet.' => 'Henüz olay yok.', 'Drag to resize' => 'Sürükleyerek boyutlandır',
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'yesterday' => 'dün', 'No events yet.' => 'Henüz olay yok.', 'Drag to resize' => 'Sürükleyerek boyutlandır',
     // Footer
     'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
     'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
@@ -1390,6 +1390,29 @@ function lvlHyst($v, $cr, $hi, $cur) {
     if (($cur === 'err' || $cur === 'warn') && $v >= $hi * 0.9) return 'warn';
     return 'ok';
 }
+// "H:i" / "H:i:s" damgasini bugunun epoch'una cevirir; sonuc "simdi"den ileride
+// kalirsa dune aittir (gece yarisi gecisi) — bir gun geri alinir.
+function logEpoch($hms) {
+    $p = array_map('intval', explode(':', (string)$hms));
+    if (count($p) < 2) return time();
+    $e = strtotime(date('Y-m-d') . ' ' . sprintf('%02d:%02d:%02d', $p[0], $p[1], $p[2] ?? 0));
+    if ($e === false) return time();
+    if ($e > time() + 120) $e -= 86400;
+    return $e;
+}
+// Olay damgasi etiketi: bugunku kayit sade saat; dunku "dun 17:53:26"; daha
+// eskisi "12.10 17:53:26" (en: "Oct 12"). Olay kaydi yalnizca saat gosterirken
+// dun 17:53'te baslayan bir is bugunun gelecegi gibi okunuyordu (bkz. JS fmtLogTs).
+function logTsLabel($L) {
+    global $LANG_UI;
+    $ts = $L['ts'] ?? '';
+    $t  = isset($L['t']) ? (int)$L['t'] : null;
+    if ($t === null) return $ts;
+    $day = date('Y-m-d', $t);
+    if ($day === date('Y-m-d')) return $ts;
+    if ($day === date('Y-m-d', time() - 86400)) return t('yesterday') . ' ' . $ts;
+    return ($LANG_UI === 'tr' ? date('d.m', $t) : date('M j', $t)) . ' ' . $ts;
+}
 $seedLogs = [];
 $seedLvl  = ['load' => 'ok', 'cpu' => 'ok', 'ram' => 'ok', 'iow' => 'ok'];
 if (!empty($histSeed['t'])) {
@@ -1397,6 +1420,9 @@ if (!empty($histSeed['t'])) {
     $n = count($histSeed['t']);
     for ($i = 0; $i < $n; $i++) {
         $ts = $histSeed['t'][$i];
+        // History damgasi yalnizca H:i tasir; gece yarisini asan 35 dk'lik pencerede
+        // "bugun" varsayimi gelecege duserse bir gun geri alinir (logEpoch).
+        $tsE = logEpoch($ts);
         $l1v = $histSeed['l1'][$i];
         // Şüpheli iliştirme: aynı history satırındaki top process ("comm:cpu").
         // Metrikle aynı cron koşusunda yazıldığı için zaman uyumu birebir —
@@ -1439,9 +1465,9 @@ if (!empty($histSeed['t'])) {
         foreach ($chk as $k => [$v, $cr, $hi, $mErr, $mWarn, $mOk]) {
             $new = lvlHyst($v, $cr, $hi, $lvl[$k]);
             if ($new === $lvl[$k]) continue;
-            if ($new === 'err')          $seedLogs[] = ['type' => 'err',  'msg' => $mErr,  'ts' => $ts];
-            elseif ($new === 'warn')     $seedLogs[] = ['type' => 'warn', 'msg' => $mWarn, 'ts' => $ts];
-            elseif ($lvl[$k] !== 'ok')   $seedLogs[] = ['type' => 'ok',   'msg' => $mOk,   'ts' => $ts];
+            if ($new === 'err')          $seedLogs[] = ['type' => 'err',  'msg' => $mErr,  'ts' => $ts, 't' => $tsE, 'x' => 1];
+            elseif ($new === 'warn')     $seedLogs[] = ['type' => 'warn', 'msg' => $mWarn, 'ts' => $ts, 't' => $tsE, 'x' => 1];
+            elseif ($lvl[$k] !== 'ok')   $seedLogs[] = ['type' => 'ok',   'msg' => $mOk,   'ts' => $ts, 't' => $tsE, 'x' => 1];
             $lvl[$k] = $new;
         }
     }
@@ -1459,11 +1485,12 @@ if (!empty($histSeed['t'])) {
 // "bitti" de aynı şekilde: collector kampanya bitince SON GÖRÜLME anını kaydediyor
 // (act_<key>_end) ve bir saat saklıyor. Damga gerçek bitiş anı — çipin söndüğü an
 // değil; kabul penceresi 10 dakika olduğu için ikisi arasında o kadar fark olabilir.
-$actEnds = [];
+$actEnds = []; $actEndsT = []; // H:i:s metni + epoch (JS olay kaydi gun etiketi icin)
 foreach ($actDefs as $ai => $ad) {
     $aAge    = $acts[$ai] ?? null;
     $aEndRaw = $rootFresh ? ($procSec[$ad[1] . '_end'] ?? null) : null;
-    $actEnds[$ai] = is_numeric($aEndRaw) ? date('H:i:s', (int)$aEndRaw) : null;
+    $actEnds[$ai]  = is_numeric($aEndRaw) ? date('H:i:s', (int)$aEndRaw) : null;
+    $actEndsT[$ai] = is_numeric($aEndRaw) ? (int)$aEndRaw : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
     // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
     // yayinlamiyor, o yuzden seed edilen 'bitti' satiri sade kalir.
@@ -1474,7 +1501,8 @@ foreach ($actDefs as $ai => $ad) {
     if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental') $aDet .= ' · ' . $aSc;
     if ($aAge !== null) {
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
-                       'ts'   => date('H:i:s', time() - (int)$aAge)];
+                       'ts'   => date('H:i:s', time() - (int)$aAge),
+                       't'    => time() - (int)$aAge, 'x' => 1];
     } elseif ($actEnds[$ai] !== null) {
         // Bazi islerde ayrinti is BITTIKTEN sonra doguyor: csf-autogroup tur
         // kaydini tur bitince yaziyor, o turda konan engel sayisi ancak o zaman
@@ -1483,7 +1511,7 @@ foreach ($actDefs as $ai => $ad) {
         $fDet = (is_numeric($aFb) && (int)$aFb > 0)
               ? ' · +' . (int)$aFb . ' ' . t('blocks') : '';
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished') . $fDet,
-                       'ts'   => $actEnds[$ai]];
+                       'ts'   => $actEnds[$ai], 't' => $actEndsT[$ai], 'x' => 1];
     }
 }
 
@@ -1498,6 +1526,13 @@ if ($procAge === null || $procAge > $TH['snap_stale']) {
                 ? t('Root snapshot missing — cron down?')
                 : tf('Root snapshot stale (%ss) — cron down?', $procAge),
         'ts'   => date('H:i')];
+}
+// Servis beslemesi (WHM API / taze snapshot) yoksa bu da tohumlanir. Eskiden
+// yalnizca JS yaziyordu ve downKind her sayfa yuklemesinde bos basladigi icin
+// besleme kesikken her F5 yeni bir "Servis beslemesi yok" satiri ekliyordu;
+// mail ekinde ise satir hic gorunmuyordu. JS downKind'i da buradan baslar.
+if (!$whmApiOk) {
+    $seedLogs[] = ['type' => 'warn', 'msg' => t('Service feed unavailable (root snapshot stale?)'), 'ts' => date('H:i')];
 }
 
 // Swap kullanımı — RAM baskısının en erken habercisi. Eşik ORANSAL (swap'ın
@@ -1648,8 +1683,22 @@ foreach ($svcSeed as $sName => $sInf) {
 // davranisi bir saatten beri degistiyse sebebi bu satirda gorunur.
 if ($updAt !== null && $updFrom && $updRev) {
     $seedLogs[] = ['type' => 'ok', 'msg' => tf('Dashboard updated: %s → %s', $updFrom, $updRev),
-                   'ts' => date('H:i:s', $updAt)];
+                   'ts' => date('H:i:s', $updAt), 't' => (int)$updAt, 'x' => 1];
 }
+
+// Olay kaydi son isleme. Damgasi "render ani" olan tohumlar (su an aktif sorunlar:
+// swap, servis, RAID...) epoch'u simdi alir; 'x' (kesin olay ani) tasimaz, JS
+// birlesirken bunlari yalnizca mesajla esler (her yenilemede tekrar dusmesin).
+// Siralama yeni->eski, epoch'a gore: eskiden saat METNIYLE siralaniyordu ve dun
+// 17:53'te baslayan is bugunun 13:47'sinin ustune cikiyordu. 30 satir siniri
+// burada da uygulanir (history 30 + aktivite satirlari asabiliyordu).
+foreach ($seedLogs as $si => $L) {
+    if (!isset($L['t'])) $seedLogs[$si]['t'] = time();
+    $seedLogs[$si]['i'] = $si; // uretim sirasi: esit epoch'ta (ayni dakika) sonraki ustte
+}
+usort($seedLogs, function ($a, $b) { return ($b['t'] <=> $a['t']) ?: ($b['i'] <=> $a['i']); });
+$seedLogs = array_slice($seedLogs, 0, 30);
+foreach ($seedLogs as $si => $L) unset($seedLogs[$si]['i']);
 
 // ════════════════════════════════════════════════════════════════
 // ROUTING
@@ -1670,7 +1719,7 @@ if (isset($_GET['json'])) {
     header('Cache-Control: no-store'); // 30sn tick'i taze kalsın — ara proxy'ler önbelleklemesin
     echo json_encode([
         'hostname'          => gethostname(), 'threads' => $coreCount,
-        'time'              => date('Y-m-d H:i:s'),
+        'time'              => date('Y-m-d H:i:s'), 'now' => time(), 'tz' => (int)date('Z'),
         'overall'           => ['status' => $overallStatus, 'color' => $overallColorCss, 'detail' => $overallDetail],
         'cardCol'           => ['cpu' => $cpuCardCol, 'ram' => $ramCardCol, 'disk' => $diskCardCol, 'iow' => $iowCardCol],
         'load1'             => $load1, 'load5' => $load5, 'load15' => $load15,
@@ -1685,7 +1734,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
         'updRev' => $updRev, 'updRemote' => $updRemote, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -2680,9 +2729,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
   </div>
   <div class="log-list" id="log-list">
-<?php if ($seedLogs): foreach (array_reverse($seedLogs) as $L): ?>
+<?php if ($seedLogs): foreach ($seedLogs as $L): ?>
     <div class="log-item"><div class="log-dot <?=htmlspecialchars($L['type'])?>"></div>
-<span class="log-txt"><?=htmlspecialchars($L['msg'])?></span><span class="log-ts"><?=htmlspecialchars($L['ts'])?></span></div>
+<span class="log-txt"><?=htmlspecialchars($L['msg'])?></span><span class="log-ts"><?=htmlspecialchars(logTsLabel($L))?></span></div>
 <?php endforeach; else: ?>
     <div style="font-size:11px;color:var(--hint);padding:6px 8px;"><?=t('No events yet.')?></div>
 <?php endif; ?>
@@ -2779,6 +2828,26 @@ function trimHist(nowStr){
 function updRange(){const mr=document.getElementById('metrics-range');if(mr&&histT.length)mr.textContent='\u00b7 '+histT[0].slice(0,5)+' \u2013 '+histT[histT.length-1].slice(0,5);}
 let prev={},logs=[];
 const seedLogs=<?=json_encode($seedLogs, JSON_PRETTY_PRINT)?>;
+// Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
+// Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
+let srvNow=<?=time()?>,TZOFF=<?=(int)date('Z')?>;
+let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
+function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
+function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
+  return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
+function dayIdx(t){return Math.floor((t+TZOFF)/86400);}
+// "H:i[:s]" -> epoch (sunucu gunu). Sonuc simdiden ilerideyse dune aittir.
+function tsEpoch(ts){var m=String(ts||'').split(':');if(m.length<2)return srvNow;
+  var e=srvNow-(((srvNow+TZOFF)%86400)+86400)%86400+(+m[0])*3600+(+m[1])*60+(+(m[2]||0));
+  if(e>srvNow+120)e-=86400;return e;}
+// Damga etiketi: bugun sade saat, dun "dun 17:53:26", daha eski "12.10 17:53:26".
+function fmtLogTs(l){if(l.t==null)return l.ts||'';var d=dayIdx(srvNow)-dayIdx(l.t);
+  if(d<=0)return l.ts;if(d===1)return t('yesterday')+' '+l.ts;
+  var D=new Date((l.t+TZOFF)*1000),z=function(n){return(n<10?'0':'')+n;};
+  return(LANG_UI==='tr'?z(D.getUTCDate())+'.'+z(D.getUTCMonth()+1)
+    :['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][D.getUTCMonth()]+' '+D.getUTCDate())+' '+l.ts;}
+function logKey(m){return String(m||'').split(' \u2014 ')[0].split(' \u00b7 ')[0];}
+function sortLogs(){logs.sort(function(a,b){return (b.t||0)-(a.t||0)||(b.ts||'').localeCompare(a.ts||'');});}
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
 // birikmiş canlı alarmlar kaybolmasın (reload sunucudan yalnız anlık durumu
 // seed'ler). Kayıt varsa onu kullan; yoksa sunucu seed'iyle başla. Yeni sekme
@@ -2788,20 +2857,39 @@ function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}ca
 (function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
   if(r&&r.length){
     logs=r;
+    // Eski surumden kalan kayitlarda epoch yok: saatten turet (bugun/dun varsayimi).
+    logs.forEach(function(l){if(l.t==null)l.t=tsEpoch(l.ts);});
     // Sayfa zaten sorun aktifken açıldıysa: sunucunun seed'lediği güncel alarmlardan
     // saklı log'da OLMAYANLARI da ekle (yoksa o an aktif sorun hiç görünmez), sonra
     // yeni→eski sırala ve 30'la sınırla.
+    // Esleme: ayni TEMEL mesaj + (tohum "render ani" damgaliysa her zaman | kesin
+    // olay aniysa 15 dk icinde). Boylece dun bitip bugun yine biten bir yedekleme
+    // iki ayri satir olur, ama suren bir servis arizasi her F5'te tekrar dusmez.
+    // Temel mesaj = " — top: ..." fail eki ve " · ayrinti" atilmis hali: canli
+    // satir ek tasir ("CPU high: 85% — top: lsphp · acct · index.php 76.0% (snap 30s)",
+    // "yedekleme bitti · backup · acct"), tohum tasimaz; tam esitlik hic tutmuyor
+    // ve ayni olay her yenilemede ikinci kez dusuyordu.
     if(seedLogs&&seedLogs.length){
-      var have={};logs.forEach(function(l){have[l.msg]=1;});
-      seedLogs.forEach(function(s){if(!have[s.msg])logs.push(s);});
-      logs.sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
+      seedLogs.forEach(function(s){
+        var sk=logKey(s.msg);
+        var dup=logs.some(function(l){return logKey(l.msg)===sk&&(!s.x||Math.abs((l.t||0)-s.t)<900);});
+        if(!dup)logs.push(s);});
+      sortLogs();
       if(logs.length>30)logs.length=30;
     }
     renderLog();saveLogs();
-  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
+  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice();})();
 const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},<?=json_encode($seedLvl)?>);
 const mpend={};
-function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
+// PHP lvlHyst'in ikizi: seviyeye giris normal esikten, cikis %10 altindan.
+// Eskiden JS'te histerezis yoktu: sayfa 0.9×esik bandinda acilinca PHP 'warn'
+// tohumluyor, JS 'ok' goruyor ve ~60 sn sonra sahte "normale dondu" yaziliyordu.
+function lvlOf(v,cr,hi,cur){
+  if(v>=cr)return'err';
+  if(cur==='err'&&v>=cr*0.9)return'err';
+  if(v>=hi)return'warn';
+  if((cur==='err'||cur==='warn')&&v>=hi*0.9)return'warn';
+  return'ok';}
 function checkSnap(data,now){
   const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'err':'ok';
   if(sl!==mlvl.snap){
@@ -2811,7 +2899,7 @@ function checkSnap(data,now){
   }
 }
 function transLog(key,v,cr,hi,mErr,mWarn,mOk,now){
-  const nl=lvlOf(v,cr,hi);
+  const nl=lvlOf(v,cr,hi,mlvl[key]);
   if(nl===mlvl[key]){mpend[key]=null;return;}          // mevcut seviyede — beklemede bir şey varsa iptal
   if(!mpend[key]||mpend[key].lvl!==nl){mpend[key]={lvl:nl,n:1};return;} // yeni aday seviye — 1. gözlem
   if(++mpend[key].n<2)return;                          // henüz doğrulanmadı
@@ -3258,12 +3346,15 @@ function renderProcs(data){
         const ts=basladi
           ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
           : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
+        const tE=basladi
+          ? (ages[i]!=null?srvNow-ages[i]:srvNow)
+          : ((data.actEndsT&&data.actEndsT[i]!=null)?data.actEndsT[i]:srvNow);
         // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'), bitiste ise
         // varsa is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel).
         const fb=basladi?null:(data.actFbs&&data.actFbs[i]);
         const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(actDet[i]||'');
         addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
-               +det,ts);});
+               +det,ts,tE);});
       actWas=st;
     }
   }
@@ -3312,7 +3403,9 @@ function renderProcs(data){
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
 }
 
-function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();saveLogs();}
+// t: olayin epoch'u (sunucu saati). Verilmezse saat metninden turetilir — gece
+// yarisini asan geri hesaplamalarda (basladi = simdi - yas) dune duser.
+function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:tsEpoch(ts))});sortLogs();if(logs.length>30)logs.length=30;renderLog();saveLogs();}
 // Grup satirina dusen kontrolleri ekler. "Mail servisleri sorunlu" tek basina neyin
 // bozuldugunu soylemiyordu. En fazla iki etiket yazilir, kalan sayi olarak eklenir.
 // PHP tarafindaki seed ile ayni bicim.
@@ -3326,7 +3419,7 @@ function renderLog(){
   const el=document.getElementById('log-list');if(!el)return;
   if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
   // msg + ts tek yerde escape (üreticiler artık ham metin verir) — XSS savunması
-  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(l.ts)}</span></div>`).join('');
+  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(fmtLogTs(l))}</span></div>`).join('');
 }
 
 function checkAlerts(data){
@@ -3382,7 +3475,7 @@ function checkAlerts(data){
     tf('RAM critical: %s%%%s',data.ram,topRam),tf('RAM high: %s%%%s',data.ram,topRam),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
     tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
-  if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
+  if(data.swapPct!=null)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
     tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
   // shmem AKILLI (PHP $shmemLevel ile birebir): yalnız bellek baskısı (available<%12
   // veya swap≥%10) varken alarm; %75+ kaçak her durumda kritik, %65+ erken uyarı.
@@ -3419,6 +3512,9 @@ function checkAlerts(data){
       else if(rl==='warn')addLog('warn',tf('%s — array rebuilding',data.raidTxt),now);
       else if(mlvl.raid!=='ok')addLog('ok',t('RAID array healthy again'),now);
       mlvl.raid=rl;}}
+  // Bayat snapshot'ta PHP smartMsg/raidMismatch'i bos verir; bu "temizlendi"
+  // degildir — tazeyken degerlendir (checkSnap zaten STALE'i yaziyor).
+  if(snapFresh){
   {const sl=data.smartMsg?'err':'ok';
    if(sl!==mlvl.smart){
      if(sl==='err')addLog('err',data.smartMsg,now);
@@ -3429,6 +3525,7 @@ function checkAlerts(data){
      if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
      else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
+  }
   if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.webrt_crit,TH.webrt_warn,
     tf('Web response time high: %sms',data.webResponseTime),
     tf('Web response time elevated: %sms',data.webResponseTime),
@@ -3574,7 +3671,7 @@ function render(data){
 // '' saglikli | 'conn' hic yanit yok | '403' | '401' | 'http' diger HTTP hatasi | 'feed'
 // besleme yok. Eskiden tek bir bayrakti; bu yuzden IP engeli "ulasilamiyor" diye
 // yaziliyor, ikisinden donuste de "servis beslemesi geri geldi" cikiyordu.
-let downKind='';
+let downKind=<?=$whmApiOk ? "''" : "'feed'"?>; // besleme zaten kesikse PHP tohumladi; JS tekrar yazmasin
 // undefined = henuz taban kurulmadi (ilk tick). null = guncelleme bilgisi yok.
 let prevUpdAt;
 // null: hic yanit alinamadi (ag/DNS/servis kapali). Sayi: sunucu yanit verdi ama
@@ -3611,12 +3708,13 @@ async function tick(){
                   : k==='401' ? t('Authentication required (401)')
                   : k==='http'? tf('Server responded with error (%s)',s)
                   :             t('Server unreachable'),
-             new Date().toTimeString().slice(0,8));
+             hmsOf(srvClock()),srvClock()); // sunucu yanit vermedi: yurutulen sunucu saati (tarayici saati degil)
     }
     return;
   }
 
   const now=data.time.split(' ')[1];
+  if(data.now!=null){srvNow=+data.now;srvWall=Date.now();}if(data.tz!=null)TZOFF=+data.tz;
   checkSnap(data,now);
 
   // Bağlantı geri geldi — beslemeden AYRI mesaj. Eskiden ağ/403 dönüşünde de
@@ -3711,7 +3809,7 @@ renderLog();
 if(location.protocol==='file:'){
   // CSF mail eki dosya olarak açıldı — canlı yenileme yapılamaz
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
-         new Date().toTimeString().slice(0,8));
+         hmsOf(srvClock()),srvClock());
 }else{
   document.body.classList.remove('static-mode');
   // 'Updated'/'Snapshot' t()'den gecer ve PHP'nin upper()'i ile ayni buyutulur.
