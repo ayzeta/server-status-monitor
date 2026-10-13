@@ -781,7 +781,11 @@ MQ=$(exim -bpc 2>/dev/null || echo 0)
 # bilgi vermezken "top: lsphp . enesoto 76%" dogrudan eyleme donusur. Eski
 # satirlar iki alanli kalir, PHP tarafi ucuncuyu yoksa atlar.
 TOPP=$(ps axo pcpu,user:32,comm --sort=-pcpu --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, $1, u}')
-echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--}" >> "$HIST"
+# 14. kolon: en cok BELLEK (RSS) tutan surec "ad:rss_mb:kullanici". RAM uyarisinin
+# faili top-CPU sureci degildir; sayfa acilisinda tarihceden uretilen RAM satiri
+# bu sayede canli satirla ayni bilgiyi tasir ("— top: mariadbd · mysql 8.3 GB").
+TOPR=$(ps axo rss,user:32,comm --sort=-rss --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, int($1/1024), u}')
+echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--}" >> "$HIST"
 tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"
 

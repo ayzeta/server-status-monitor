@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.10'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.11'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -147,7 +147,7 @@ $TR = [
     // ── Event-log mesaj şablonları (%s=değer, %%=literal %) — PHP+JS ortak ──
     'High load: %s (1m)%s' => 'Yüksek yük: %s (1dk)%s', 'Load elevated: %s (1m)%s' => 'Yük yükseldi: %s (1dk)%s', 'Load back to normal: %s' => 'Yük normale döndü: %s',
     'CPU critical: %s%%%s' => 'CPU kritik: %s%%%s', 'CPU high: %s%%%s' => 'CPU yüksek: %s%%%s', 'CPU back to normal: %s%%' => 'CPU normale döndü: %s%%',
-    'RAM critical: %s%%' => 'RAM kritik: %s%%', 'RAM critical: %s%%%s' => 'RAM kritik: %s%%%s', 'RAM high: %s%%' => 'RAM yüksek: %s%%', 'RAM high: %s%%%s' => 'RAM yüksek: %s%%%s', 'RAM back to normal: %s%%' => 'RAM normale döndü: %s%%',
+    'RAM critical: %s%%%s' => 'RAM kritik: %s%%%s', 'RAM high: %s%%%s' => 'RAM yüksek: %s%%%s', 'RAM back to normal: %s%%' => 'RAM normale döndü: %s%%',
     'IO Wait critical: %s%%%s' => 'IO Bekleme kritik: %s%%%s', 'IO Wait high: %s%%%s' => 'IO Bekleme yüksek: %s%%%s', 'IO Wait back to normal: %s%%' => 'IO Bekleme normale döndü: %s%%',
     'Swap heavily in use: %s GB (%s%%)' => 'Swap yoğun kullanımda: %s GB (%%%s)', 'Swap in use: %s GB (%s%%)' => 'Swap kullanımda: %s GB (%%%s)', 'Swap cleared' => 'Swap temizlendi',
     'Shared memory very high: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek çok yüksek: %s GB (RAM %%%s)', 'Shared memory elevated: %s GB (%s%% of RAM)' => 'Paylaşımlı bellek yükseldi: %s GB (RAM %%%s)', 'Shared memory back to normal' => 'Paylaşımlı bellek normale döndü',
@@ -157,10 +157,10 @@ $TR = [
     'Disk pre-failure — %s; plan replacement' => 'Disk ön-arıza — %s; değişim planla', 'SMART pre-failure cleared' => 'SMART ön-arıza temizlendi',
     'Network link saturated: %s%% of line rate' => 'Ağ hattı doygun: hat oranı %%%s', 'Network link busy: %s%% of line rate' => 'Ağ hattı yoğun: hat oranı %%%s', 'Network load back to normal' => 'Ağ yükü normale döndü',
     'MySQL threads_running very high: %s (query pileup)' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)',
-    'MySQL threads_running very high: %s (query pileup)%s' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)%s', 'MySQL threads_running elevated: %s' => 'MySQL threads_running yükseldi: %s',
+    'MySQL threads_running very high: %s (query pileup)%s' => 'MySQL threads_running çok yüksek: %s (sorgu birikmesi)%s', 
     'MySQL threads_running elevated: %s%s' => 'MySQL threads_running yükseldi: %s%s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
-    'PHP workers very high: %s' => 'PHP işçileri çok yüksek: %s', 'PHP workers very high: %s%s' => 'PHP işçileri çok yüksek: %s%s', 'PHP workers elevated: %s' => 'PHP işçileri yükseldi: %s', 'PHP workers elevated: %s%s' => 'PHP işçileri yükseldi: %s%s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
-    'Disk critically full: %s%%' => 'Disk kritik doldu: %s%%', 'Disk usage high: %s%%' => 'Disk kullanımı yüksek: %s%%', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
+    'PHP workers very high: %s%s' => 'PHP işçileri çok yüksek: %s%s', 'PHP workers elevated: %s%s' => 'PHP işçileri yükseldi: %s%s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
+    'Disk critically full: %s%%%s' => 'Disk kritik doldu: %s%%%s', 'Disk usage high: %s%%%s' => 'Disk kullanımı yüksek: %s%%%s', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
     'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
     // Disk büyüme projeksiyonu — hf = hafta, ay = ay (kısaltmalar fmtAgeShort ile aynı ruhta)
@@ -1334,7 +1334,7 @@ if ($sslDaysLeft !== null) {
 // /home/ayzeta/.metrics_history dosyasına yazar (son 30 dk).
 // Sayfa bu geçmişle grafikleri açılışta doldurur; mail ekinde de
 // spike'a giden trend görünür.
-$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[]];
+$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[]];
 $histFile = $HOME_DIR . '/.metrics_history';
 if (is_readable($histFile)) {
     foreach (@file($histFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
@@ -1352,7 +1352,8 @@ if (is_readable($histFile)) {
             $histSeed['rx'][]   = isset($p[9]) ? (int)$p[9] : 0;
             $histSeed['tx'][]   = isset($p[10]) ? (int)$p[10] : 0;
             $histSeed['mq'][]   = isset($p[11]) ? (int)$p[11] : 0;
-            $histSeed['top'][]  = (isset($p[12]) && $p[12] !== '-') ? $p[12] : ''; // "comm:cpu" — eski satırlarda yok
+            $histSeed['top'][]  = (isset($p[12]) && $p[12] !== '-') ? $p[12] : ''; // "comm:cpu[:user]" — eski satırlarda yok
+            $histSeed['topr'][] = (isset($p[13]) && $p[13] !== '-') ? $p[13] : ''; // "comm:rss_mb:user" — 1.5.11+
         }
     }
     // Pencere NOKTA SAYISIYLA değil ZAMANLA tanımlı: son 30 dakika.
@@ -1415,26 +1416,25 @@ if (!empty($histSeed['t'])) {
         // "bugun" varsayimi gelecege duserse bir gun geri alinir (logEpoch).
         $tsE = logEpoch($ts);
         $l1v = $histSeed['l1'][$i];
-        // Şüpheli iliştirme: aynı history satırındaki top process ("comm:cpu").
-        // Metrikle aynı cron koşusunda yazıldığı için zaman uyumu birebir —
-        // yük uyarısı kendini açıklar ("— top: pigz 72%"). RAM'e uygulanmaz
-        // (top-CPU süreci RAM spike'ının faili olmayabilir, yanıltır).
-        $sfx = '';
-        if (($histSeed['top'][$i] ?? '') !== '' && strpos($histSeed['top'][$i], ':') !== false) {
-            // "ad:cpu" (eski) veya "ad:cpu:kullanici" (1.4.1+). Ucuncu alan yoksa
-            // sadece ad gosterilir — eski history satirlari kirilmaz.
-            $tp  = explode(':', $histSeed['top'][$i], 3);
-            $tn  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[0]);
-            $tc  = (int)($tp[1] ?? 0);
-            $tu  = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
-            if ($tn !== '') {
-                // Ayirici DUZ karakter olmali: olay kaydi metni ayrica kacisliyor,
-                // '&middot;' yazilirsa '&amp;middot;' olup harfi harfine gorunuyordu.
-                // Cikti tamponu ASCII disi karakterleri zaten entity'e ceviriyor.
-                $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' · ' . $tu : '');
-                $sfx = ' — ' . t('top:') . ' ' . $who . ' ' . $tc . '%';
-            }
-        }
+        // Şüpheli iliştirme: aynı history satırındaki top process. Metrikle aynı
+        // cron koşusunda yazıldığı için zaman uyumu birebir — yük uyarısı kendini
+        // açıklar ("— top: pigz · root 72%"). RAM için ayrı sütun (top-RSS süreci):
+        // top-CPU süreci RAM spike'ının faili olmayabilir, yanıltır.
+        // "ad:deger" (eski) veya "ad:deger:kullanici". Ucuncu alan yoksa sadece ad
+        // gosterilir — eski history satirlari kirilmaz. Ayirici DUZ karakter olmali:
+        // olay kaydi metni ayrica kacisliyor, '&middot;' yazilirsa '&amp;middot;'
+        // olup harfi harfine gorunuyordu (cikti tamponu ASCII disini entity yapar).
+        $topSfx = function ($raw, $fmt) {
+            if ($raw === '' || strpos($raw, ':') === false) return '';
+            $tp = explode(':', $raw, 3);
+            $tn = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[0]);
+            $tu = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
+            if ($tn === '') return '';
+            $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' · ' . $tu : '');
+            return ' — ' . t('top:') . ' ' . $who . ' ' . $fmt((int)($tp[1] ?? 0));
+        };
+        $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
+        $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
                        tf('High load: %s (1m)%s', number_format($l1v, 2), $sfx),
@@ -1445,8 +1445,8 @@ if (!empty($histSeed['t'])) {
                        tf('CPU high: %s%%%s', $histSeed['cpu'][$i], $sfx),
                        tf('CPU back to normal: %s%%', $histSeed['cpu'][$i])],
             'ram'  => [$histSeed['ram'][$i], $TH['ram_crit'], $TH['ram_warn'],
-                       tf('RAM critical: %s%%', $histSeed['ram'][$i]),
-                       tf('RAM high: %s%%', $histSeed['ram'][$i]),
+                       tf('RAM critical: %s%%%s', $histSeed['ram'][$i], $sfxR),
+                       tf('RAM high: %s%%%s', $histSeed['ram'][$i], $sfxR),
                        tf('RAM back to normal: %s%%', $histSeed['ram'][$i])],
             'iow'  => [$histSeed['iow'][$i], $TH['iow_crit'], $TH['iow_warn'],
                        tf('IO Wait critical: %s%%%s', $histSeed['iow'][$i], $sfx),
@@ -1591,33 +1591,41 @@ if ($netSat !== null && $netSat >= $TH['net_crit']) {
     $seedLvl['net'] = 'warn';
     $seedLogs[] = ['type' => 'warn', 'msg' => tf('Network link busy: %s%% of line rate', $netSat), 'ts' => date('H:i')];
 }
+// Fail ekleri — JS checkAlerts'teki topWrk/topSql/topDisk'in ikizi: en cok isci
+// acan hesap, en uzun suren sorgunun kullanicisi, en dolu hesap. Snapshot tazeyse
+// eklenir ve JS gibi "(snap Xs)" yas etiketi tasir. Hesap adi olmadan "PHP isçileri
+// yükseldi: 14" eyleme donusmuyordu.
+$snapTag = $rootFresh ? tf(' (snap %ss)', $procAge) : '';
+$topWrk  = ($rootFresh && $procPhp) ? ' — ' . t('top:') . ' ' . $procPhp[0][0] . ' ' . $procPhp[0][1] . $snapTag : '';
+$topSql  = ($rootFresh && $procSql) ? ' — ' . t('top:') . ' ' . $procSql[0][1] . ($procSql[0][2] !== '' ? ' · ' . $procSql[0][2] : '') . ' ' . $procSql[0][3] . 's' . $snapTag : '';
+$topDisk = ($rootFresh && $diskAcct) ? ' — ' . t('top:') . ' ' . $diskAcct[0][0] . ' ' . $diskAcct[0][1] . ' GB' : '';
 // Threads_running — DB'de aynı anda koşan sorgu (çekirdeğe oranlı: warn ≥ N / err ≥ 2N).
 $seedLvl['mysqlthr'] = 'ok';
 if ($mysqlThr !== null && $mysqlThr >= $coreCount * $TH['mysqlthr_crit_x']) {
     $seedLvl['mysqlthr'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL threads_running very high: %s (query pileup)', $mysqlThr), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('MySQL threads_running very high: %s (query pileup)%s', $mysqlThr, $topSql), 'ts' => date('H:i')];
 } elseif ($mysqlThr !== null && $mysqlThr >= $coreCount * $TH['mysqlthr_warn_x']) {
     $seedLvl['mysqlthr'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL threads_running elevated: %s', $mysqlThr), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('MySQL threads_running elevated: %s%s', $mysqlThr, $topSql), 'ts' => date('H:i')];
 }
 // PHP workers (aktif lsphp, R/D) — çekirdeğe oranlı: warn ≥ N / err ≥ 2N. Birleşik
 // sağlığa (header suçluları) giriyordu ama event log'a düşmüyordu; burada seed'lenir.
 $seedLvl['wrk'] = 'ok';
 if ($lsphpTotal !== null && $lsphpTotal >= $coreCount * $TH['wrk_crit_x']) {
     $seedLvl['wrk'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => tf('PHP workers very high: %s', $lsphpTotal), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('PHP workers very high: %s%s', $lsphpTotal, $topWrk), 'ts' => date('H:i')];
 } elseif ($lsphpTotal !== null && $lsphpTotal >= $coreCount * $TH['wrk_warn_x']) {
     $seedLvl['wrk'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('PHP workers elevated: %s', $lsphpTotal), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('PHP workers elevated: %s%s', $lsphpTotal, $topWrk), 'ts' => date('H:i')];
 }
 // Disk kullanımı — warn %75 / err %90. Header sağlığına giriyordu ama event log'a düşmüyordu.
 $seedLvl['disk'] = 'ok';
 if ($diskUsagePercent >= $TH['disk_crit']) {
     $seedLvl['disk'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => tf('Disk critically full: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Disk critically full: %s%%%s', $diskUsagePercent, $topDisk), 'ts' => date('H:i')];
 } elseif ($diskUsagePercent >= $TH['disk_warn']) {
     $seedLvl['disk'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Disk usage high: %s%%', $diskUsagePercent), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Disk usage high: %s%%%s', $diskUsagePercent, $topDisk), 'ts' => date('H:i')];
 }
 // Yanıt süreleri + SSL — bunlar da header'da suçlu olarak çıkıyordu ama sunucu
 // render'ında (ve mail ekinde) olay kaydına hiç düşmüyordu: kullanıcı "Degraded ·
@@ -1745,7 +1753,7 @@ if (isset($_GET['json'])) {
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
-        'hist'              => array_diff_key($histSeed, ['top' => 1]), // 'top' yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
+        'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1]), // top/topr yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
@@ -2800,7 +2808,7 @@ function UPPER(s){return LANG_UI==='tr'
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
-const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1]), JSON_PRETTY_PRINT)?>;
+const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1, 'topr' => 1]), JSON_PRETTY_PRINT)?>;
 const init={l1:<?=json_encode($load1)?>,l5:<?=json_encode($load5)?>,l15:<?=json_encode($load15)?>,t:<?=(int)$coreCount?>,cpu:<?=(int)$cpuUsage?>,ram:<?=(int)$memUsagePercent?>,disk:<?=(int)$diskUsagePercent?>,iow:<?=(int)$ioWait?>,wrk:<?=(int)($lsphpTotal ?? 0)?>,rx:<?=(int)round(($rxRate ?? 0)/1024)?>,tx:<?=(int)round(($txRate ?? 0)/1024)?>,mq:<?=(int)($mailQ ?? 0)?>,time:'<?=date('H:i:s')?>'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
@@ -3468,6 +3476,10 @@ function checkAlerts(data){
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
     topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
+  // Disk alarminda en dolu hesap: diskAcct = [hesap, GB], azalan sirali (saatlik
+  // kota verisi; yas etiketi anlamsiz, o yuzden suffix() degil dogrudan).
+  let topDisk='';
+  if(snapFresh&&data.diskAcct&&data.diskAcct.length) topDisk=' — '+t('top:')+' '+data.diskAcct[0][0]+' '+data.diskAcct[0][1]+' GB';
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
@@ -3505,7 +3517,7 @@ function checkAlerts(data){
     transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s%s',data.lsphpTotal,topWrk),tf('PHP workers elevated: %s%s',data.lsphpTotal,topWrk),t('PHP workers back to normal'),now);}
   // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
   if(data.disk!=null)transLog('disk',data.disk,TH.disk_crit,TH.disk_warn,
-    tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);
+    tf('Disk critically full: %s%%%s',data.disk,topDisk),tf('Disk usage high: %s%%%s',data.disk,topDisk),tf('Disk usage back to normal: %s%%',data.disk),now);
   // Mail kuyruğu — hesap sayısına oranlı (warn ≥ hesap / crit ≥ 3×); header sağlığıyla aynı.
   if(data.mailQ!=null){const b=data.acctForMailq||50;
     transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
