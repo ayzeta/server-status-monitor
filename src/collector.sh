@@ -307,10 +307,13 @@ OUT="$HOME_DIR/.proc_snapshot"
   # tam yedek" yazar, bitiste kapsam "*" oldugu icin "tum hesaplar" der. Hesap
   # (_p) o an paketlenen = en YENI pkgacct'in argumani; cip "· tam yedek · hesap"
   # gosterir. Tek pkgacct (elle tek hesap yedegi) ise tur yok, hesap yazilir.
+  # HESAP YOKSA ne eslestigi yazilir (act_backup_k = programin adi, or. cpbackup_
+  # transporter): "yedekleme basladi" tek basina neyin calistigini soylemiyordu.
   read A ABK AFULL < <(ps axo etimes=,args= | awk '
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
-      if ($1 > m) m = $1
-      if ($0 ~ /[c]pbackup|cpanel\/[b]in\/backup/) full = 1
+      if ($1 > m) { m = $1
+        for (i = 2; i <= NF; i++) if ($i ~ /pkgacct|cpbackup|cpanel\/bin\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
+      if ($0 ~ /[c]pbackup |cpanel\/[b]in\/backup( |$)/) full = 1
       if ($0 ~ /[p]kgacct/)
         for (i = 2; i <= NF; i++)
           if ($i ~ /pkgacct$/) {
@@ -318,7 +321,7 @@ OUT="$HOME_DIR/.proc_snapshot"
               if ($j ~ /^[a-z][a-z0-9]{0,15}$/) { if (pm == "" || $1 < pm) { pm = $1; u = $j }; break }
             break
           } }
-    END { if (m) print m, (u == "" ? "-" : u), (full ? "full_backup" : "-") }')
+    END { if (m) print m, (u == "" ? "-" : u), (full ? "full_backup" : (u == "" && prog != "" ? prog : "-")) }')
   act_age act_backup "$A" "$ABK"
   [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; [ "${AFULL:--}" != "-" ] && echo "act_backup_k $AFULL"; }
   [ -n "$ACT_END" ] && echo "act_backup_end $ACT_END"
