@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.14'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.15'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -139,7 +139,7 @@ $TR = [
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
-    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'yesterday' => 'dün', 'No events yet.' => 'Henüz olay yok.', 'Drag to resize' => 'Sürükleyerek boyutlandır',
+    'Recent alerts & status changes' => 'Son alarmlar ve durum değişiklikleri', 'Clear' => 'Temizle', 'yesterday' => 'dün', 'Clear the log; cleared events do not come back on refresh' => 'Kaydı temizle; temizlenen olaylar yenilemede geri gelmez', 'Drag to resize · double-click for automatic height' => 'Sürükleyerek boyutlandır · çift tıkla: otomatik yükseklik', 'No events yet.' => 'Henüz olay yok.', 
     // Footer
     'Auto-refresh every 30 seconds' => '30 saniyede bir yenilenir', 'Static snapshot (mail attachment)' => 'Statik anlık görüntü (mail eki)',
     'Static snapshot (mail attachment) — live refresh disabled' => 'Statik anlık görüntü (mail eki) — canlı yenileme kapalı',
@@ -2307,10 +2307,14 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
 .log-clear:hover{background:var(--card2);}
-/* Yükseklik sürükleyerek ayarlanır (textarea gibi): olay örgüsünü izlerken 140px
-   pencerede kaydırıp durmak yorucu. resize'ın çalışması için overflow'un visible
-   olmaması gerekiyor, zaten auto. min-height listeyi hiçe indirmeyi engeller. */
-.log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
+/* Yükseklik İÇERİĞE göre: 1 satır varsa 1 satırlık, 8 satıra kadar uzar, sonrası
+   kaydırmalı (max-height). Eskiden sabit 140px'ti: 2 satırda boş alan, 10 satırda
+   kaydırma. Tutamakla sürüklenirse sabit yükseklik verilir (max-height kalkar),
+   tutamağa çift tıklama otomatiğe döndürür. --log-rows satır sayısıdır:
+   satır ≈ 30px (6px dolgu ×2 + 18px metin) + 4px aralık. min-height "Henüz olay
+   yok" satırını korur. */
+.log-list{display:flex;flex-direction:column;gap:4px;height:auto;min-height:32px;
+  --log-rows:8;max-height:calc(var(--log-rows) * 34px - 4px);
   overflow-y:auto;overflow-x:hidden;}
 /* Boyutlandırma tutamağı KENDİ tutamağımız, tarayıcının resize'ı değil. Sebep iki:
    (1) yerel tutamak ::-webkit-resizer ile boyanmıyor, koyu temada beyaz bir kare
@@ -2741,7 +2745,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="log-hdr">
     <?=icon('list','','style="font-size:15px;color:var(--hint)"')?>
     <span class="log-hdr-title"><?=t('Recent alerts & status changes')?></span>
-    <button class="log-clear" id="log-clear-btn"><?=t('Clear')?></button>
+    <button class="log-clear" id="log-clear-btn" title="<?=htmlspecialchars(t('Clear the log; cleared events do not come back on refresh'), ENT_QUOTES, 'UTF-8')?>"><?=t('Clear')?></button>
   </div>
   <div class="log-list" id="log-list">
 <?php if ($seedLogs): foreach ($seedLogs as $L): ?>
@@ -2751,7 +2755,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div style="font-size:11px;color:var(--hint);padding:6px 8px;"><?=t('No events yet.')?></div>
 <?php endif; ?>
   </div>
-  <div class="log-grip" id="log-grip" title="<?=t('Drag to resize')?>"></div>
+  <div class="log-grip" id="log-grip" title="<?=htmlspecialchars(t('Drag to resize · double-click for automatic height'), ENT_QUOTES, 'UTF-8')?>"></div>
 </div>
 
 <div class="footer">
@@ -2840,7 +2844,7 @@ function trimHist(nowStr){
 }
 function updRange(){const mr=document.getElementById('metrics-range');if(mr&&histT.length)mr.textContent='\u00b7 '+histT[0].slice(0,5)+' \u2013 '+histT[histT.length-1].slice(0,5);}
 let prev={},logs=[];
-const seedLogs=<?=json_encode($seedLogs, JSON_PRETTY_PRINT)?>;
+let seedLogs=<?=json_encode($seedLogs, JSON_PRETTY_PRINT)?>;
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
 let srvNow=<?=time()?>,TZOFF=<?=(int)date('Z')?>;
@@ -2867,7 +2871,24 @@ function sortLogs(){logs.sort(function(a,b){return (b.t||0)-(a.t||0)||(b.ts||'')
 // = temiz başlangıç (sessionStorage sekmeye özel).
 const LOG_KEY='az-logs';
 function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}catch(e){}}
+// "Temizle" KALICI: yalnizca sekmedeki listeyi silmek yetmiyordu — F5'te sunucu
+// son 35 dakikanin gecislerini ve suren isleri yeniden tohumluyor, temizlendigini
+// bilmiyordu. Temizleme ani (sunucu epoch'u) ve o an silinen temel mesajlar
+// localStorage'da tutulur (tarayici geneli: yeni sekmede de geri gelmez).
+// Yenilemede tohum elenir: kesin olay anli (x) tohum temizlemeden eskiyse;
+// "render ani" damgali (aktif sorun) tohum, temizlenen mesajlar arasindaysa.
+// Temizlemeden SONRA baslayan/degisen her sey normal dusmeye devam eder.
+const CLR_KEY='az-logs-clear';
+function loadClear(){try{var c=JSON.parse(localStorage.getItem(CLR_KEY));if(c&&c.t)return c;}catch(e){}return null;}
+// Mesaj listesi 24 saat gecerli: bir hafta sonra yeniden kapanan servis, eski
+// temizlemede silindi diye sonsuza dek gizlenmesin. Olay anli (x) sinir kalici.
+function seedAllowed(s,c){if(!c)return true;
+  if(s.x)return (s.t||0)>c.t;
+  if(srvNow-c.t>86400)return true;
+  return (c.k||[]).indexOf(logKey(s.msg))<0;}
 (function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
+  var clr=loadClear();
+  if(clr&&seedLogs&&seedLogs.length)seedLogs=seedLogs.filter(function(s){return seedAllowed(s,clr);});
   if(r&&r.length){
     logs=r;
     // Eski surumden kalan kayitlarda epoch yok: saatten turet (bugun/dun varsayimi).
@@ -3764,7 +3785,10 @@ async function tick(){
   render(data);
 }
 
-document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+document.getElementById('log-clear-btn').addEventListener('click',()=>{
+  // Temizleme isareti: an + silinen temel mesajlar (bkz. loadClear/seedAllowed).
+  try{localStorage.setItem(CLR_KEY,JSON.stringify({t:srvClock(),k:logs.map(l=>logKey(l.msg))}));}catch(e){}
+  logs=[];renderLog();saveLogs();});
 // Olay kaydı boyutlandırma tutamağı. Kenar otomatik kaydırma: imleç viewport'un
 // altına yaklaşınca sayfa kaydırılır ve referans aynı miktarda yukarı alınır —
 // böylece kutu büyürken tutamak imlecin altında kalır ve TEK sürüklemede istenen
@@ -3774,9 +3798,12 @@ document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];r
 (function(){
   const list=document.getElementById('log-list'),grip=document.getElementById('log-grip');
   if(!list||!grip)return;
-  const MIN=56;
+  const MIN=32;
   let y0=0,h0=0,sonY=0,aktif=false,zaman=null;
-  const uygula=function(){list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  // Surukleme sabit yukseklige gecirir: otomatik ust sinir (max-height) kalkar.
+  const uygula=function(){list.style.maxHeight='none';list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  // Cift tiklama: otomatik yukseklige don (icerige gore, 8 satira kadar).
+  grip.addEventListener('dblclick',function(){list.style.height='';list.style.maxHeight='';});
   grip.addEventListener('pointerdown',function(e){
     aktif=true;y0=sonY=e.clientY;h0=list.offsetHeight;
     try{grip.setPointerCapture(e.pointerId);}catch(_){}
