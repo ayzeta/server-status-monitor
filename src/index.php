@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.15'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.16'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -129,7 +129,9 @@ $TR = [
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları
     'Top processes · CPU' => 'En yüklü süreçler · İşlemci', 'Top processes · RAM' => 'En yüklü süreçler · Bellek',
-    'Top disk · account' => 'En dolu disk · hesap', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
+    'Top disk · account' => 'En dolu disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
+    'Per-account disk I/O (read+write), 1-minute average. Source: CloudLinux LVE — counts every process of the account, short-lived ones included. Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: CloudLinux LVE — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu',
+    'Per-account disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: /proc/<pid>/io farkları — iki örnek arasında biten süreçler sayılmaz (eksik sayar). Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
     'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
     'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
@@ -209,7 +211,7 @@ function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (stri
 // root yazıp web kullanıcısına chown eder). Dosya yoksa bölüm görünmez.
 $procSnapFile = $HOME_DIR . '/.proc_snapshot';
 $sqlMinSec = 5; // cron'daki 'time >= N' ile aynı olmalı; placeholder metni de bunu kullanır
-$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $smartBad = []; $netSpeed = []; $procAge = null;
+$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioSrc = ''; $smartBad = []; $netSpeed = []; $procAge = null;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -283,6 +285,12 @@ if (is_readable($procSnapFile)) {
             foreach ($lines as $ln) {
                 $p = preg_split('/\s+/', trim($ln)); // diskacct user gb
                 if (count($p) === 3 && $p[0] === 'diskacct' && is_numeric($p[2])) $diskAcct[] = [$p[1], (float)$p[2]];
+            }
+        } elseif (stripos($title, 'Top IO accounts') !== false) {
+            foreach ($lines as $ln) {
+                $p = preg_split('/\s+/', trim($ln)); // ioacct user kbps iops | io_src lve|proc
+                if (count($p) === 2 && $p[0] === 'io_src') $ioSrc = $p[1];
+                elseif (count($p) === 4 && $p[0] === 'ioacct' && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null];
             }
         }
     }
@@ -1331,7 +1339,7 @@ if ($sslDaysLeft !== null) {
 // /home/ayzeta/.metrics_history dosyasına yazar (son 30 dk).
 // Sayfa bu geçmişle grafikleri açılışta doldurur; mail ekinde de
 // spike'a giden trend görünür.
-$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[]];
+$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[], 'topio'=>[]];
 $histFile = $HOME_DIR . '/.metrics_history';
 if (is_readable($histFile)) {
     foreach (@file($histFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
@@ -1351,6 +1359,7 @@ if (is_readable($histFile)) {
             $histSeed['mq'][]   = isset($p[11]) ? (int)$p[11] : 0;
             $histSeed['top'][]  = (isset($p[12]) && $p[12] !== '-') ? $p[12] : ''; // "comm:cpu[:user]" — eski satırlarda yok
             $histSeed['topr'][] = (isset($p[13]) && $p[13] !== '-') ? $p[13] : ''; // "comm:rss_mb:user" — 1.5.11+
+            $histSeed['topio'][] = (isset($p[14]) && $p[14] !== '-') ? $p[14] : ''; // "user:kbps" — 1.5.16+
         }
     }
     // Pencere NOKTA SAYISIYLA değil ZAMANLA tanımlı: son 30 dakika.
@@ -1432,6 +1441,9 @@ if (!empty($histSeed['t'])) {
         };
         $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
         $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
+        // IO wait faili: en cok disk I/O yapan hesap ("hesap:kbps", 1.5.16+). Eski
+        // satirlarda yoksa top-CPU surecine duser (eskisi gibi).
+        $sfxI = $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps') ?: $sfx;
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
                        tf('High load: %s (1m)%s', number_format($l1v, 2), $sfx),
@@ -1446,8 +1458,8 @@ if (!empty($histSeed['t'])) {
                        tf('RAM high: %s%%%s', $histSeed['ram'][$i], $sfxR),
                        tf('RAM back to normal: %s%%', $histSeed['ram'][$i])],
             'iow'  => [$histSeed['iow'][$i], $TH['iow_crit'], $TH['iow_warn'],
-                       tf('IO Wait critical: %s%%%s', $histSeed['iow'][$i], $sfx),
-                       tf('IO Wait high: %s%%%s', $histSeed['iow'][$i], $sfx),
+                       tf('IO Wait critical: %s%%%s', $histSeed['iow'][$i], $sfxI),
+                       tf('IO Wait high: %s%%%s', $histSeed['iow'][$i], $sfxI),
                        tf('IO Wait back to normal: %s%%', $histSeed['iow'][$i])],
         ];
         foreach ($chk as $k => [$v, $cr, $hi, $mErr, $mWarn, $mOk]) {
@@ -1754,9 +1766,9 @@ if (isset($_GET['json'])) {
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
-        'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1]), // top/topr yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
+        'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
-        'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct,
+        'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioSrc' => $ioSrc,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
         'dns'   => ['status' => $dnsStatus,   'checks' => $dnsChecks,   'ok' => $dnsOk,   'total' => $dnsTotal],
@@ -1890,7 +1902,9 @@ foreach (['l1' => $load1, 'l5' => $load5, 'l15' => $load15,
 function pcpuClass($v) { $v = (float)$v; return $v >= 50 ? 'hot' : ($v >= 20 ? 'warm' : ''); }
 function pmemClass($v) { $v = (float)$v; return $v >= 15 ? 'hot' : ($v >= 5 ? 'warm' : ''); }
 
-function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
+// Kart sirasi = yerlesim: ust satir CPU | RAM (genis tablolar, komut sutunu
+// okunsun), alt satir PHP | I/O | Disk ("hangi hesap?" uclusu). CSS .proc-row.
+function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct = [], $ioSrc = '') {
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
     $out = '<div class="proc-card"><div class="proc-title">' . t('Top processes · CPU') . '</div>'
@@ -1913,9 +1927,6 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
     }
     $out .= '</tbody></table></div>';
 
-    // 3. sütun: en dolu hesaplar (disk) — dikey tablo, diğerleriyle aynı stil.
-    $out .= renderDiskCard($diskAcct, $h);
-
     $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . ' <span class="proc-age">&middot; ' . t('active+idle') . '</span></div>'
           . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
@@ -1928,6 +1939,10 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
               . '<td class="num ' . $cls . '">' . (int)$p[1] . '</td></tr>' . "\n";
     }
     $out .= '</tbody></table></div>';
+
+    // Alt satir orta: hesap basina I/O; sag: en dolu hesaplar (disk).
+    $out .= renderIoCard($ioAcct, $ioSrc, $h);
+    $out .= renderDiskCard($diskAcct, $h);
 
     return $out;
 }
@@ -1958,6 +1973,39 @@ function renderDiskCard($diskAcct, $h) {
         $out .= '<tr><td class="proc-user">' . $h($p[0]) . '</td>'
               . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
               . '<td class="num ' . diskAcctCls($p[1], $diskTotalGB) . '">' . $gb . '</td></tr>' . "\n";
+    }
+    return $out . '</tbody></table></div>';
+}
+
+// KB/s -> "512 KB/s" / "1.3 MB/s". JS fmtKbps ile ayni yuvarlama (yarim yukari, 1 ondalik).
+function fmtKbps($kb) { return $kb >= 1024 ? round($kb / 1024, 1) . ' MB/s' : round($kb) . ' KB/s'; }
+// Hesap I/O rengi — PAYA gore (listelenen toplamin yuzdesi): mutlak esik diskin
+// turune baglidir (NVMe'de 10 MB/s hic, HDD'de cok). "I/O'yu bu hesap yapiyor"
+// sinyali: toplamin >=%60'i ve en az 1 MB/s kirmizi; >=%30 ve 512 KB/s turuncu.
+function ioAcctCls($kb, $sum) {
+    if ($sum <= 0) return '';
+    $sh = $kb / $sum;
+    return ($sh >= 0.6 && $kb >= 1024) ? 'hot' : (($sh >= 0.3 && $kb >= 512) ? 'warm' : '');
+}
+// Hesap basina disk I/O — dikey tablo (disk/PHP kartlariyla ayni stil), alt
+// satirin orta karti. Kaynak collector'dan gelir (io_src): LVE ya da /proc/io.
+function renderIoCard($ioAcct, $ioSrc, $h) {
+    $tip = $ioSrc === 'proc'
+         ? t('Per-account disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total')
+         : t('Per-account disk I/O (read+write), 1-minute average. Source: CloudLinux LVE — counts every process of the account, short-lived ones included. Color: red ≥60%, orange ≥30% of the listed total');
+    $out = '<div class="proc-card"><div class="proc-title">' . t('I/O · account')
+         . '<span class="proc-age" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">&middot; ' . t('read+write') . ($ioSrc === 'lve' ? ' &middot; LVE' : ($ioSrc === 'proc' ? ' &middot; /proc' : '')) . '</span></div>'
+         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
+    if (!$ioAcct) {
+        $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('I/O data pending') . '</td></tr>';
+    }
+    $mx = 0.1; $sum = 0;
+    foreach ($ioAcct as $p) { if ($p[1] > $mx) $mx = $p[1]; $sum += $p[1]; }
+    foreach ($ioAcct as $p) {
+        $w = round($p[1] / $mx * 100);
+        $out .= '<tr><td class="proc-user">' . $h($p[0]) . '</td>'
+              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . '<td class="num ' . ioAcctCls($p[1], $sum) . '"' . ($p[2] !== null ? ' title="' . $h($p[2]) . ' IOPS"' : '') . '>' . $h(fmtKbps($p[1])) . '</td></tr>' . "\n";
     }
     return $out . '</tbody></table></div>';
 }
@@ -2267,7 +2315,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .copy-btn.copied{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
 .sub-cmd-inline{font-size:10px;color:var(--muted);background:var(--cmd-bg);padding:2px 6px;border-radius:5px;font-family:'SFMono-Regular',Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
 
-.proc-row{display:grid;grid-template-columns:2.2fr 1.5fr 1fr 1fr;gap:8px;}
+.proc-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
+/* Iki satir: CPU | RAM yarim-yarim (genis tablolar, komut sutunu okunsun);
+   PHP | I/O | Disk uclu ("hangi hesap?" kartlari dar, 3'u yan yana sigar).
+   Siralama renderProcTables'tan gelir; mobil kural (680) span'leri sifirlar. */
+.proc-row .proc-card:nth-child(-n+2){grid-column:span 3;}
+.proc-row .proc-card:nth-child(n+3){grid-column:span 2;}
 .proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
 .proc-title{font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
 .proc-age{font-size:10px;color:var(--hint);font-weight:400;text-transform:none;letter-spacing:0;}
@@ -2392,7 +2445,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .resources-row{grid-template-columns:repeat(2,1fr);}
   .info-row{grid-template-columns:repeat(3,1fr);}
   .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
-  .proc-row{grid-template-columns:1fr 1fr;}
 }
 /* Header tek satırda kalsın (.hdr nowrap): geniş ekranda durum detayı sığmazsa
    "…"+tooltip ile kısalır. Dar ekranda (≤900) meta bilgileri gizlenir ki marka +
@@ -2428,6 +2480,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .sub-ver{display:none;}
   .svcs-row1,.svcs-row2{grid-template-columns:1fr;}
   .proc-row{grid-template-columns:1fr;}
+  .proc-row .proc-card:nth-child(n){grid-column:auto;} /* :nth-child(n) = temel span kurallarıyla aynı özgüllük, sonra geldiği için kazanır */
   /* Mobilde meta satırı sığmıyor: hostname/threads/uptime/updated gizlenir AMA
      en kritik bilgi — genel durum — kalır. Alt satıra taşmasın diye başlık tek
      satıra kilitlenir (uzunsa "…"), brand daralır, kompakt durum rozeti (renkli
@@ -2736,7 +2789,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <span class="proc-age<?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' stale' : ''?>" id="proc-age"><?=tf('root snapshot, %ss ago', $procAge)?><?=($procAge !== null && $procAge > $TH['snap_stale']) ? ' — ' . t('STALE (cron?)') : ''?></span>
   <span id="act-chips"><?php foreach ($actChips as $ac) echo '<span class="bk-chip">' . htmlspecialchars($ac) . '</span>'; ?></span>
 </div>
-<div class="proc-row" id="proc-row"><?=renderProcTables($procCpu, $procRam, $procPhp, $diskAcct)?></div>
+<div class="proc-row" id="proc-row"><?=renderProcTables($procCpu, $procRam, $procPhp, $diskAcct, $ioAcct, $ioSrc)?></div>
 <div class="proc-row-sql"><?=renderSqlTable($procSql, $sqlMinSec, $mysqlThr, $mysqlThrCol)?></div>
 <?php endif; ?>
 
@@ -2820,7 +2873,7 @@ function UPPER(s){return LANG_UI==='tr'
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
-const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1, 'topr' => 1]), JSON_PRETTY_PRINT)?>;
+const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), JSON_PRETTY_PRINT)?>;
 const init={l1:<?=json_encode($load1)?>,l5:<?=json_encode($load5)?>,l15:<?=json_encode($load15)?>,t:<?=(int)$coreCount?>,cpu:<?=(int)$cpuUsage?>,ram:<?=(int)$memUsagePercent?>,disk:<?=(int)$diskUsagePercent?>,iow:<?=(int)$ioWait?>,wrk:<?=(int)($lsphpTotal ?? 0)?>,rx:<?=(int)round(($rxRate ?? 0)/1024)?>,tx:<?=(int)round(($txRate ?? 0)/1024)?>,mq:<?=(int)($mailQ ?? 0)?>,time:'<?=date('H:i:s')?>'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
@@ -2970,6 +3023,7 @@ function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
   var z=function(n){return(n<10?'0':'')+n;};
   return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
+function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';} // PHP fmtKbps ile ayni
 
 // Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
 // alfa gerektigi icin var; getComputedStyle genelde rgb() dondurur ama hex de olabilir.
@@ -3428,6 +3482,14 @@ function renderProcs(data){
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
+  const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
+  if(io&&data.ioAcct&&data.ioAcct.length){
+    const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
+    io.innerHTML=data.ioAcct.map(p=>{
+      const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
+      const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
+      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
+  }
   const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')
   const sql=document.getElementById('pt-sql');
   if(sql&&data.procSql){
@@ -3502,6 +3564,9 @@ function checkAlerts(data){
   let topWrk='';
   if(data.procPhp&&data.procPhp.length) topWrk=suffix(data.procPhp[0][0]+' '+data.procPhp[0][1]);
   // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
+  // IO wait faili: en cok disk I/O yapan hesap; veri yoksa top-CPU surecine duser.
+  let topIo='';
+  if(data.ioAcct&&data.ioAcct.length) topIo=suffix(data.ioAcct[0][0]+' '+fmtKbps(data.ioAcct[0][1]));
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
     topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
@@ -3518,7 +3583,7 @@ function checkAlerts(data){
   transLog('ram',data.ram,TH.ram_crit,TH.ram_warn,
     tf('RAM critical: %s%%%s',data.ram,topRam),tf('RAM high: %s%%%s',data.ram,topRam),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
-    tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
+    tf('IO Wait critical: %s%%%s',data.iowait,topIo||top),tf('IO Wait high: %s%%%s',data.iowait,topIo||top),tf('IO Wait back to normal: %s%%',data.iowait),now);
   if(data.swapPct!=null)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
     tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
   // shmem AKILLI (PHP $shmemLevel ile birebir): yalnız bellek baskısı (available<%12

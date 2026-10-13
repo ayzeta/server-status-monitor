@@ -765,6 +765,120 @@ except Exception:
   fi
   cat "$DAC" 2>/dev/null
   echo
+  echo "--- Top IO accounts ---"
+  # Hesap basina DISK I/O (KB/s, okuma+yazma, son 1 dakikanin ortalamasi).
+  # KAYNAK 1 — CloudLinux LVE (lveinfo): cgroup duzeyinde sayar, tur arasinda
+  # bitmis kisa omurlu surecleri (lsphp istekleri) de kapsar; en dogru kaynak.
+  # KAYNAK 2 — LVE yoksa /proc/<pid>/io: kullanici bazinda read_bytes+write_bytes
+  # toplaminin bir onceki turla farki (.io_state, CPU'daki .cpu_state yontemi).
+  # Tur arasinda bitmis surecler sayilmaz, yani EKSIK sayar; yine de "hangi
+  # hesap" sorusuna cevap verir. Ilk turda (onceki ornek yok) bos kalir.
+  # Yalnizca cPanel hesaplari (/var/cpanel/users). Satir: "ioacct hesap kbps iops"
+  # (iops yalnizca LVE'de). "io_src lve|proc" karta kaynagi soyler. Hicbir kaynak
+  # yoksa bolum bos kalir ve kart "veri bekleniyor" der.
+  IO_OUT=""
+  if command -v lveinfo >/dev/null 2>&1; then
+    LVEJ="$DATA_DIR/.lve_io.json"
+    for IOP in 1m 5m; do
+      timeout 10 lveinfo --period="$IOP" --show-columns=ID,aIO,aIOPS --display-username --json > "$LVEJ" 2>/dev/null || true
+      IO_OUT=$(python3 -I - "$LVEJ" <<'PYEOF'
+import json, sys, os, pwd, re
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+def rows(o):
+    if isinstance(o, list) and o and isinstance(o[0], dict): return o
+    if isinstance(o, dict):
+        for v in o.values():
+            r = rows(v)
+            if r: return r
+    return []
+cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else None
+ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
+out = []
+for r in rows(d):
+    io = next((r[k] for k in ('aIO', 'IO', 'io', 'aio') if k in r), None)
+    iops = next((r[k] for k in ('aIOPS', 'IOPS', 'iops', 'aiops') if k in r), None)
+    try: io = float(io)
+    except (TypeError, ValueError): continue
+    name = str(r.get('ID', ''))
+    if name.isdigit():
+        try: name = pwd.getpwuid(int(name)).pw_name
+        except KeyError: continue
+    if not ok.match(name) or (cp is not None and name not in cp) or io <= 0: continue
+    try: iops = str(int(float(iops)))
+    except (TypeError, ValueError): iops = '-'
+    out.append((io, name, iops))
+out.sort(reverse=True)
+for io, name, iops in out[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
+PYEOF
+)
+      [ -n "$IO_OUT" ] && break
+    done
+    rm -f "$LVEJ"
+    [ -n "$IO_OUT" ] && echo "io_src lve"
+  fi
+  if [ -z "$IO_OUT" ]; then
+    IO_OUT=$(python3 -I - "$DATA_DIR/.io_state" <<'PYEOF'
+import os, sys, time, pwd, re
+state = sys.argv[1]; now = time.time()
+cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else set()
+ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
+cur = {}
+for pid in os.listdir('/proc'):
+    if not pid.isdigit(): continue
+    try:
+        uid = None
+        with open('/proc/%s/status' % pid) as f:
+            for ln in f:
+                if ln.startswith('Uid:'): uid = int(ln.split()[1]); break
+        if uid is None or uid < 1000: continue
+        rb = wb = 0
+        with open('/proc/%s/io' % pid) as f:
+            for ln in f:
+                if ln.startswith('read_bytes:'): rb = int(ln.split()[1])
+                elif ln.startswith('write_bytes:'): wb = int(ln.split()[1])
+        cur[uid] = cur.get(uid, 0) + rb + wb
+    except Exception:
+        continue
+prev = {}; pt = None
+try:
+    with open(state) as f:
+        for ln in f:
+            p = ln.split()
+            if len(p) != 2: continue
+            if p[0] == 't': pt = float(p[1])
+            else: prev[int(p[0])] = int(p[1])
+except Exception:
+    pass
+try:
+    with open(state + '.tmp', 'w') as f:
+        f.write('t %f\n' % now)
+        for u, b in cur.items(): f.write('%d %d\n' % (u, b))
+    os.chmod(state + '.tmp', 0o600); os.replace(state + '.tmp', state)
+except Exception:
+    pass
+if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)   # ilk tur / cok eski ornek
+dt = now - pt; out = []
+for u, b in cur.items():
+    if u not in prev: continue                 # ilk gorulen kullanici: omur boyu sayaci bu dakikaya yazma
+    d = b - prev[u]
+    if d <= 0: continue
+    try: name = pwd.getpwuid(u).pw_name
+    except KeyError: continue
+    if not ok.match(name) or (cp and name not in cp): continue
+    out.append((d / dt / 1024.0, name))
+out.sort(reverse=True)
+for kb, name in out[:15]: print("ioacct %s %.1f -" % (name, kb))
+PYEOF
+)
+    [ -n "$IO_OUT" ] && echo "io_src proc"
+  fi
+  [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
+  # Tarihce 15. kolonu icin: o dakikanin en cok I/O yapan hesabi "hesap:kbps".
+  TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" {printf "%s:%d", $2, int($3+0.5)}')
+  echo
   echo "--- MySQL queries ---"
   timeout 3 mysql -N -B -e "SELECT id, user, IFNULL(db,'-'), time, IFNULL(state,'-'), REPLACE(REPLACE(REPLACE(LEFT(info,150),'\n',' '),'\r',' '),'\t',' ') FROM information_schema.PROCESSLIST WHERE command <> 'Sleep' AND info IS NOT NULL AND time >= 5 AND id <> CONNECTION_ID() ORDER BY time DESC LIMIT 10" 2>/dev/null || true
 } > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"
@@ -815,7 +929,9 @@ TOPP=$(ps axo pcpu,user:32,comm --sort=-pcpu --no-headers | head -1 | awk '{u=$2
 # faili top-CPU sureci degildir; sayfa acilisinda tarihceden uretilen RAM satiri
 # bu sayede canli satirla ayni bilgiyi tasir ("— top: mariadbd · mysql 8.3 GB").
 TOPR=$(ps axo rss,user:32,comm --sort=-rss --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, int($1/1024), u}')
-echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--}" >> "$HIST"
+# 15. kolon: en cok I/O yapan HESAP "hesap:kbps" (Top IO accounts bolumunden).
+# IO wait uyarisinin faili top-CPU sureci degil, en cok disk I/O yapan hesaptir.
+echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}" >> "$HIST"
 tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"
 

@@ -74,6 +74,10 @@ header button (per-browser, cookie-based). The version shows in the footer.
   — and `line_mbps` replaces that denominator where the provider shapes the line
   below what the card can do. Shaping happens upstream and cannot be measured
   from the server, so nothing is guessed.
+- **Per-account tables** — top processes by CPU and RAM, then *which account*:
+  PHP workers, disk I/O and disk usage per cPanel account. I/O comes from
+  CloudLinux LVE where present (counts short-lived processes too) and from
+  `/proc/<pid>/io` deltas elsewhere; the IO-wait alarm names the top I/O account.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
@@ -108,7 +112,8 @@ header button (per-browser, cookie-based). The version shows in the footer.
 - PHP 7.4+ served for the web account (defaults work; no extensions required
   beyond `posix` for user auto-detect).
 - Optional tools are feature-detected: `smartctl`, `mdadm`/`/proc/mdstat`,
-  `imunify360-agent`, `csf`, `repquota`. Missing ones are silently skipped.
+  `imunify360-agent`, `csf`, `repquota`, `lveinfo`. Missing ones are silently
+  skipped. `python3` is used for the I/O and Ayzeta Backup readers.
 
 ## Where to host it
 
