@@ -2394,6 +2394,13 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    durum rozeti yatay taşmadan yan yana kalsın — meta asla 2. satıra düşmez. */
 @media(max-width:900px){ .hdr-meta .meta-item{display:none;} }
 @media(max-width:680px){
+  /* Süreçler başlığı: etiket + ince çizgi + "root anlık görüntüsü, 25 sn önce" +
+     aktivite çipleri tek flex satırındaydı; dar ekranda çizgi sıfıra iniyor, yaş
+     metni 3 satıra kırılıp çiplerin yanında dar bir sütun oluyordu. Sarmalı flex:
+     ilk satır etiket + çizgi + yaş, çipler kendi satırında tam genişlikte. */
+  .sec{flex-wrap:wrap;row-gap:6px;}
+  .sec-hair{min-width:12px;}
+  #act-chips{flex-basis:100%;margin-left:0;}
   /* Yeni kalıpta her kart bir mini grafik taşıyor: 390px'e üç load kartı sığmaz
      (etiket + büyük değer aynı satırda, kart min-content'in altına inemiyordu ve
      yatay taşma yapıyordu). Mobilde load tek sütun, grafikler alçak. */
