@@ -309,14 +309,21 @@ OUT="$HOME_DIR/.proc_snapshot"
   # gosterir. Tek pkgacct (elle tek hesap yedegi) ise tur yok, hesap yazilir.
   # HESAP YOKSA ne eslestigi yazilir (act_backup_k = programin adi, or. cpbackup_
   # transporter): "yedekleme basladi" tek basina neyin calistigini soylemiyordu.
+  # KENDINI ESLEME: bu awk'in kendi komut satiri da ps ciktisinda gorunur (ps ile
+  # awk ayni anda baslar, yaris). Programdaki HER desen koseli parantezli yazilir
+  # ([p]kgacct) ki metin olarak "pkgacct" gecmesin; ek guvence olarak komutu awk
+  # olan satirlar atlanir. Eskiden hesap deseni duz /pkgacct$/ idi ve yaris
+  # kaybedilince yasi 0, hesabi olmayan sahte "yedekleme basladi/bitti" ciftleri
+  # dusuyordu (takvim disi gunlerde gorulen anonim yedek satirlari).
   read A ABK AFULL < <(ps axo etimes=,args= | awk '
+    $2 ~ /(^|\/)awk$/ { next }
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
       if ($1 > m) { m = $1
-        for (i = 2; i <= NF; i++) if ($i ~ /pkgacct|cpbackup|cpanel\/bin\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
+        for (i = 2; i <= NF; i++) if ($i ~ /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
       if ($0 ~ /[c]pbackup( |$)|cpanel\/[b]in\/backup( |$)/) full = 1
       if ($0 ~ /[p]kgacct/)
         for (i = 2; i <= NF; i++)
-          if ($i ~ /pkgacct$/) {
+          if ($i ~ /[p]kgacct$/) {
             for (j = i + 1; j <= NF; j++)
               if ($j ~ /^[a-z][a-z0-9]{0,15}$/) { if (pm == "" || $1 < pm) { pm = $1; u = $j }; break }
             break
@@ -489,8 +496,8 @@ PYEOF
   # KURULU MU: root crontab'indaki satir. Durum dizini (/var/lib/csf_autogroup)
   # olcut DEGIL — kaldirilmis kurulumdan kalabiliyor. Crontab satiri ayrica
   # betigin tam yolunu veriyor; yol sabit degil, depo nereye klonlandiysa orada.
-  CAG_SH=$(awk '/csf_autogroup\.sh/ && $0 !~ /^[[:space:]]*#/ {
-      for (i = 1; i <= NF; i++) if ($i ~ /csf_autogroup\.sh$/) { print $i; exit } }' \
+  CAG_SH=$(awk '/[c]sf_autogroup\.sh/ && $0 !~ /^[[:space:]]*#/ {
+      for (i = 1; i <= NF; i++) if ($i ~ /[c]sf_autogroup\.sh$/) { print $i; exit } }' \
     /var/spool/cron/root 2>/dev/null)
   A=""
   if [ -n "$CAG_SH" ]; then
