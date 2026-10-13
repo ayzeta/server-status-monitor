@@ -121,14 +121,18 @@ ACT_NOW=$(date +%s); ACT_NEXT=""
 # Kampanya yeniden basladiginda eski bitis kaydi dusurulur: ayni etkinlik icin
 # ayni anda hem "basladi" hem "bitti" gostermek kafa karistirir.
 ACT_RETAIN=3600
-act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor) -> $ACT_AGE / $ACT_END
-  local k="$1" et="$2" pf pl pc age pe
-  ACT_AGE=""; ACT_END=""
-  read pf pl pc < <(awk -v k="$k" '$1==k{print $2, $3, $4; exit}' "$ACT_STATE" 2>/dev/null)
+# KAPSAM ($3, opsiyonel: o an gorulen hesap): kampanya boyunca TEK hesap
+# goruldiyse bitis kaydina tasinir ve "bitti" satirinda hesap adi yazilir
+# (elle baslatilan tek hesap yedegi). Birden fazla hesap goruldiyse "*" olur ve
+# bitiste ad yazilmaz — tam yedekte son paketlenen hesabi yazmak yaniltirdi.
+act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam -> $ACT_AGE / $ACT_END / $ACT_END_P
+  local k="$1" et="$2" sc="$3" pf pl pc ps age pe pes
+  ACT_AGE=""; ACT_END=""; ACT_END_P=""
+  read pf pl pc ps < <(awk -v k="$k" '$1==k{print $2, $3, $4, $5; exit}' "$ACT_STATE" 2>/dev/null)
   # Saglik kontrolu: bozuk/eski bicimli kayit (30 gunden yasli "baslangic") atilir.
   # Onceki surumun durum dosyasi 'anahtar ppid ilk son' bicimindeydi; alan kaymasi
   # PPID'yi baslangic epoch'u sanmaya ve 50+ yillik yas gostermeye yol acardi.
-  case "$pf" in ''|*[!0-9]*) pf=""; pl=""; pc="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; pc=""; };; esac
+  case "$pf" in ''|*[!0-9]*) pf=""; pl=""; pc=""; ps="";; *) [ $(( ACT_NOW - pf )) -gt 2592000 ] && { pf=""; pl=""; pc=""; ps=""; };; esac
   case "$pc" in ''|*[!0-9]*) pc=$pl;; esac                 # 3 alanli eski kayit
 
   # "?" = SONDA OKUYAMADI. "Is yok" ile ayni sey DEGIL ve hicbir sey cope atilmaz.
@@ -138,51 +142,55 @@ act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor) -> $ACT_AGE / $AC
   # gosterir, kor gecen sureyi degil. Gecis YAZILMAZ — kor sure ne baslatir ne bitirir.
   if [ "$et" = "?" ]; then
     if [ -n "$pf" ]; then
-      ACT_NEXT="$ACT_NEXT$k $pf $ACT_NOW $pc"$'\n'
+      ACT_NEXT="$ACT_NEXT$k $pf $ACT_NOW $pc $ps"$'\n'
       ACT_AGE=$(( ACT_NOW - pf ))
       return 0
     fi
-    pe=$(awk -v k="END:$k" '$1==k{print $2; exit}' "$ACT_STATE" 2>/dev/null)
+    read pe pes < <(awk -v k="END:$k" '$1==k{print $2, $3; exit}' "$ACT_STATE" 2>/dev/null)
     case "$pe" in ''|*[!0-9]*) return 0;; esac
     [ $(( ACT_NOW - pe )) -gt "$ACT_RETAIN" ] && return 0
-    ACT_NEXT="$ACT_NEXT""END:$k $pe"$'\n'
-    ACT_END=$pe
+    ACT_NEXT="$ACT_NEXT""END:$k $pe $pes"$'\n'
+    ACT_END=$pe; act_end_scope "$pes"
     return 0
   fi
 
   if [ -n "$et" ]; then                                   # surec goruldu
     if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
-      pf=$ACT_NOW                                         # yeni kampanya
+      pf=$ACT_NOW; ps=""                                  # yeni kampanya
     fi
     pl=$ACT_NOW; pc=$ACT_NOW
-    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc"$'\n'
+    case "$sc" in ''|-) ;; *) if [ -z "$ps" ]; then ps=$sc; elif [ "$ps" != "$sc" ]; then ps="*"; fi;; esac
+    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc $ps"$'\n'
     age=$(( ACT_NOW - pf )); [ "$et" -gt "$age" ] && age=$et
     ACT_AGE=$age
     return 0                                              # aktif: eski bitis dusurulur
   fi
 
   if [ -n "$pf" ] && [ $(( ACT_NOW - ${pl:-0} )) -le "$ACT_GRACE" ]; then
-    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc"$'\n'               # pencere icinde: suruyor say
+    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc $ps"$'\n'           # pencere icinde: suruyor say
     ACT_AGE=$(( ACT_NOW - pf ))
     return 0
   fi
 
   # Kampanya bitti (ya da hic yoktu): bitis anini kaydet/tasi
   if [ -n "$pc" ]; then
-    pe=$pc                                                # bitis = son DOGRULANMIS an
+    pe=$pc; pes=$ps                                       # bitis = son DOGRULANMIS an
   else
-    pe=$(awk -v k="END:$k" '$1==k{print $2; exit}' "$ACT_STATE" 2>/dev/null)
+    read pe pes < <(awk -v k="END:$k" '$1==k{print $2, $3; exit}' "$ACT_STATE" 2>/dev/null)
   fi
   case "$pe" in ''|*[!0-9]*) return 0;; esac
   [ $(( ACT_NOW - pe )) -gt "$ACT_RETAIN" ] && return 0   # saklama suresi doldu
-  ACT_NEXT="$ACT_NEXT""END:$k $pe"$'\n'
-  ACT_END=$pe
+  ACT_NEXT="$ACT_NEXT""END:$k $pe $pes"$'\n'
+  ACT_END=$pe; act_end_scope "$pes"
 }
+# Bitis kapsami: tek hesap ise yayinlanir; "*" (coklu) ve "-" (bilinmiyor) yayinlanmaz.
+act_end_scope() { case "$1" in ''|-|'*') ACT_END_P="";; *) ACT_END_P=$1;; esac; }
 # Cikti yardimcisi: yas ve/veya bitis satirini yazar.
 act_emit() {  # $1=anahtar  $2=etimes
   act_age "$1" "$2"
   [ -n "$ACT_AGE" ] && echo "$1 $ACT_AGE"
   [ -n "$ACT_END" ] && echo "${1}_end $ACT_END"
+  [ -n "$ACT_END_P" ] && echo "${1}_end_p $ACT_END_P"
   return 0
 }
 
@@ -304,9 +312,10 @@ OUT="$HOME_DIR/.proc_snapshot"
             break
           } } }
     END { if (m) print m, (u == "" ? "-" : u) }')
-  act_age act_backup "$A"
+  act_age act_backup "$A" "$ABK"
   [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; }
   [ -n "$ACT_END" ] && echo "act_backup_end $ACT_END"
+  [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
   A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
@@ -338,9 +347,10 @@ OUT="$HOME_DIR/.proc_snapshot"
             break
           } } }
     END { if (m) print m, (u == "" ? "-" : u) }')
-  act_age act_appdisc "$A"
+  act_age act_appdisc "$A" "$APD"
   [ -n "$ACT_AGE" ] && { echo "act_appdisc $ACT_AGE"; echo "act_appdisc_p ${APD:--}"; }
   [ -n "$ACT_END" ] && echo "act_appdisc_end $ACT_END"
+  [ -n "$ACT_END_P" ] && echo "act_appdisc_end_p $ACT_END_P"
   # ── Ayzeta Backup ───────────────────────────────────────────────
   # Kurulu degilse HICBIR SEY yayinlanmaz; pano da satiri hic gostermez.
   # OTORITER kaynak is kayitlari: ps sezgiseli burada yaniltir, cunku bir is
@@ -448,7 +458,7 @@ PYEOF
 )
     [ "$AYZ_AGE" = "-" ] && AYZ_AGE=""
     [ "$AYZ_FIN" = "-" ] && AYZ_FIN=""
-    act_age act_ayzbackup "$AYZ_AGE"
+    act_age act_ayzbackup "$AYZ_AGE" "$AYZ_P"
     [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; echo "act_ayzbackup_k ${AYZ_K:--}"; }
     if [ -n "$ACT_END" ]; then
       # OTORITER bitis varsa onu yaz. Guard IKI YONLU: damga bizim cikardigimiz
@@ -462,6 +472,7 @@ PYEOF
          && [ "$AYZ_FIN" -le $(( ACT_END + 120 )) ] \
          && [ "$AYZ_FIN" -le "$ACT_NOW" ]; then AYZ_END=$AYZ_FIN; fi
       echo "act_ayzbackup_end $AYZ_END"
+      [ -n "$ACT_END_P" ] && echo "act_ayzbackup_end_p $ACT_END_P"
     fi
   fi
   # ── csf-autogroup ───────────────────────────────────────────────
@@ -648,9 +659,10 @@ except Exception:
   if [ "$IMT" -eq 0 ] || [ "$IMC_AGE" -gt 300 ]; then
     if [ "$IMC_AGE" -le "$IM_BLIND_MAX" ]; then IM_AGE="?"; else IM_AGE=""; fi
   fi
-  act_age act_imunify "$IM_AGE"; IM_AGE=$ACT_AGE
+  act_age act_imunify "$IM_AGE" "$IM_P"; IM_AGE=$ACT_AGE
   [ -n "$IM_AGE" ] && { echo "act_imunify $IM_AGE"; echo "act_imunify_n $IM_N"; echo "act_imunify_p $IM_P"; }
   [ -n "$ACT_END" ] && echo "act_imunify_end $ACT_END"
+  [ -n "$ACT_END_P" ] && echo "act_imunify_end_p $ACT_END_P"
   # Threads_running: o an sorgu isleyen thread — "kisa ama cok sorgu" senaryosunu gosterir
   THR=$(timeout 3 mysqladmin extended-status 2>/dev/null | awk '$2=="Threads_running"{print $4}')
   [ -n "$THR" ] && echo "mysql_thr $THR"

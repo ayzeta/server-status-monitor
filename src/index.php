@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.9'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.10'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -89,10 +89,9 @@ $TR = [
     // Load / kaynak kartları
     'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
     'CPU' => 'İşlemci', 'RAM' => 'Bellek', 'run' => 'çalışan', 'R' => 'O', 'W' => 'Y',
-    'Load' => 'Yük', 'run' => 'çalışan', 'blk' => 'bloklu', 'used' => 'kullanımda', 'IO Wait' => 'IO Bekleme',
+    'Load' => 'Yük', 'run' => 'çalışan', 'IO Wait' => 'IO Bekleme',
     // Info şeridi
     'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
-    '%s%% of link' => 'hattın %%%s',
     // Kapasite config'ten mi karttan mı geldiğini metin söylüyor: sağlayıcı hattı
     // şekillendirmişse kart hızına göre oran yanıltır, ekranda hangisi olduğu yazsın.
     '%s%% · peak %s' => '%%%s · tepe %s',
@@ -114,7 +113,6 @@ $TR = [
     // Servis kartları + durum
     'Web server' => 'Web sunucusu', 'Mail services' => 'Mail servisleri', 'Security' => 'Güvenlik', 'Database' => 'Veritabanı',
     'Cache' => 'Önbellek', 'Operational' => 'Çalışıyor', 'Offline' => 'Çevrimdışı',
-    '%s/%s checks passed' => '%s/%s kontrol geçti', '%s verified active' => '%s aktif doğrulandı', '%s/%s active' => '%s/%s aktif',
     'checks passed' => 'kontrol geçti', 'verified active' => 'aktif doğrulandı', 'blocked' => 'bloklu', 'Disk I/O pressure' => 'Disk I/O baskısı', 'mismatch' => 'uyumsuz', 'FTP service' => 'FTP servisi', 'Kernel state' => 'Çekirdek durumu',
     // Birleşik sağlık modeli — tepe durum detay etiketleri (%s=değer, %%=literal %)
     'Load %s' => 'Yük %s', 'CPU %s%%' => 'İşlemci %%%s', 'RAM %s%%' => 'Bellek %%%s', 'IO wait %s%%' => 'IO Bekleme %%%s',
@@ -126,7 +124,7 @@ $TR = [
     'cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk' => 'Kotadan cPanel hesap disk kullanımı (saatlik). Renk: kırmızı >%3, turuncu >%1.5 toplam disk',
     'Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)' => 'Anlık görüntü anında sorgu çalıştıran iş parçacıkları; alttaki listenin göstermediği %s sn altı olanlar dahil (durum sorgusunun kendisi 1 sayılır)',
     'Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool' => 'Değer = aktif işçiler (R/D durumu); lsphp/hesap tablosu boştaki havuz dahil tüm süreçleri listeler',
-    'SSL %sd' => 'SSL %sg', 'MySQL %s running' => 'MySQL %s çalışan', 'Mail queue %s' => 'Mail kuyruğu %s', '%s PHP workers' => '%s PHP işçisi', 'Snapshot stale' => 'Anlık görüntü bayat',
+    'MySQL %s running' => 'MySQL %s çalışan', 'Mail queue %s' => 'Mail kuyruğu %s', '%s PHP workers' => '%s PHP işçisi', 'Snapshot stale' => 'Anlık görüntü bayat',
     'running' => 'çalışıyor', 'listening' => 'dinliyor', 'responding' => 'yanıt veriyor', 'alive' => 'ayakta',
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları
@@ -1410,7 +1408,7 @@ function logTsLabel($L) {
     if ($t === null) return $ts;
     $day = date('Y-m-d', $t);
     if ($day === date('Y-m-d')) return $ts;
-    if ($day === date('Y-m-d', time() - 86400)) return t('yesterday') . ' ' . $ts;
+    if ($day === date('Y-m-d', strtotime('-1 day'))) return t('yesterday') . ' ' . $ts; // takvim gunu (yaz/kis saati gununde 86400 sasar)
     return ($LANG_UI === 'tr' ? date('d.m', $t) : date('M j', $t)) . ' ' . $ts;
 }
 $seedLogs = [];
@@ -1485,12 +1483,17 @@ if (!empty($histSeed['t'])) {
 // "bitti" de aynı şekilde: collector kampanya bitince SON GÖRÜLME anını kaydediyor
 // (act_<key>_end) ve bir saat saklıyor. Damga gerçek bitiş anı — çipin söndüğü an
 // değil; kabul penceresi 10 dakika olduğu için ikisi arasında o kadar fark olabilir.
-$actEnds = []; $actEndsT = []; // H:i:s metni + epoch (JS olay kaydi gun etiketi icin)
+$actEnds = []; $actEndsT = []; $actEndsP = []; // H:i:s metni + epoch + bitis kapsami (hesap)
 foreach ($actDefs as $ai => $ad) {
     $aAge    = $acts[$ai] ?? null;
     $aEndRaw = $rootFresh ? ($procSec[$ad[1] . '_end'] ?? null) : null;
     $actEnds[$ai]  = is_numeric($aEndRaw) ? date('H:i:s', (int)$aEndRaw) : null;
     $actEndsT[$ai] = is_numeric($aEndRaw) ? (int)$aEndRaw : null;
+    // Bitis kapsami: collector kampanya boyunca TEK hesap gorduyse '<anahtar>_end_p'
+    // yayinlar — "yedekleme bitti · hesap" (elle baslatilan tek hesap yedegi).
+    // Tam yedekte (coklu hesap) yayinlanmaz; satir sade kalir.
+    $aEndP = $rootFresh ? preg_replace('/[^A-Za-z0-9_.,\-]/', '', (string)($procSec[$ad[1] . '_end_p'] ?? '')) : '';
+    $actEndsP[$ai] = ($aEndP !== '' && $aEndP !== '-' && $aEndP !== 'incremental') ? $aEndP : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
     // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
     // yayinlamiyor, o yuzden seed edilen 'bitti' satiri sade kalir.
@@ -1509,7 +1512,8 @@ foreach ($actDefs as $ai => $ad) {
         // biliniyor. Collector '<anahtar>_fb' yayinliyorsa bitis satirina eklenir.
         $aFb  = $rootFresh ? ($procSec[$ad[1] . '_fb'] ?? null) : null;
         $fDet = (is_numeric($aFb) && (int)$aFb > 0)
-              ? ' · +' . (int)$aFb . ' ' . t('blocks') : '';
+              ? ' · +' . (int)$aFb . ' ' . t('blocks')
+              : ($actEndsP[$ai] !== null ? ' · ' . $actEndsP[$ai] : '');
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished') . $fDet,
                        'ts'   => $actEnds[$ai], 't' => $actEndsT[$ai], 'x' => 1];
     }
@@ -1518,10 +1522,13 @@ foreach ($actDefs as $ai => $ad) {
 // Snapshot tazeliği — sistemin kendi kendini izlemesi: cron ölürse
 // bu da Event log'a düşer (mail ekinde de görünür), köşedeki STALE
 // etiketiyle sınırlı kalmaz.
+// Seviye WARN: baslik sagligi ('snap' => warn) ve kose etiketiyle ayni. Bayat
+// snapshot izleme kaybidir (root verisi gelmiyor), servis arizasi degil —
+// olay kaydinda kirmizi, baslikta turuncu gorunmesi tutarsizdi.
 $seedLvl['snap'] = 'ok';
 if ($procAge === null || $procAge > $TH['snap_stale']) {
-    $seedLvl['snap'] = 'err';
-    $seedLogs[] = ['type' => 'err',
+    $seedLvl['snap'] = 'warn';
+    $seedLogs[] = ['type' => 'warn',
         'msg'  => $procAge === null
                 ? t('Root snapshot missing — cron down?')
                 : tf('Root snapshot stale (%ss) — cron down?', $procAge),
@@ -1734,7 +1741,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
         'updRev' => $updRev, 'updRemote' => $updRemote, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -2891,9 +2898,9 @@ function lvlOf(v,cr,hi,cur){
   if((cur==='err'||cur==='warn')&&v>=hi*0.9)return'warn';
   return'ok';}
 function checkSnap(data,now){
-  const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'err':'ok';
+  const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'warn':'ok'; // PHP seed/baslik ile ayni seviye
   if(sl!==mlvl.snap){
-    if(sl==='err')addLog('err',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
+    if(sl==='warn')addLog('warn',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
     else addLog('ok',tf('Root snapshot fresh again (%ss)',data.procAge),now);
     mlvl.snap=sl;
   }
@@ -3349,10 +3356,14 @@ function renderProcs(data){
         const tE=basladi
           ? (ages[i]!=null?srvNow-ages[i]:srvNow)
           : ((data.actEndsT&&data.actEndsT[i]!=null)?data.actEndsT[i]:srvNow);
-        // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'), bitiste ise
-        // varsa is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel).
+        // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'); bitiste varsa
+        // is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel), yoksa
+        // collector'in bitis kapsami ('actEndsP': kampanya boyunca tek hesap
+        // goruldiyse o hesap). Baslangic ayrintisi bitise TASINMAZ: PHP tohumu
+        // onu bilemez ve tam yedekte ilk gorulen hesabi yazmak yaniltirdi.
         const fb=basladi?null:(data.actFbs&&data.actFbs[i]);
-        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(actDet[i]||'');
+        const endP=(!basladi&&data.actEndsP&&data.actEndsP[i])?' · '+data.actEndsP[i]:'';
+        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(basladi?(actDet[i]||''):endP);
         addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
                +det,ts,tE);});
       actWas=st;
@@ -3403,9 +3414,11 @@ function renderProcs(data){
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
 }
 
-// t: olayin epoch'u (sunucu saati). Verilmezse saat metninden turetilir — gece
-// yarisini asan geri hesaplamalarda (basladi = simdi - yas) dune duser.
-function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:tsEpoch(ts))});sortLogs();if(logs.length>30)logs.length=30;renderLog();saveLogs();}
+// t: olayin epoch'u (sunucu saati). Verilmezse "su an" sayilir (srvNow — bu
+// tick'in data.now'u; tum verilmeyen cagrilar ayni tick'in 'now' saatini gecer).
+// Saat metninden turetmek (tsEpoch) yalniz eski kayitlarin tasinmasinda kullanilir;
+// canli satirlarda saat dilimi hesabi yapilmaz (yaz/kis saati gecisinde sapmasin).
+function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:srvNow)});sortLogs();if(logs.length>30)logs.length=30;renderLog();saveLogs();}
 // Grup satirina dusen kontrolleri ekler. "Mail servisleri sorunlu" tek basina neyin
 // bozuldugunu soylemiyordu. En fazla iki etiket yazilir, kalan sayi olarak eklenir.
 // PHP tarafindaki seed ile ayni bicim.
