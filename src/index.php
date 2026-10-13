@@ -297,13 +297,11 @@ if (is_readable($procSnapFile)) {
 $whmServices  = [];
 $whmApiOk     = false;
 $whmAcctCount = null;
-$svcSrc       = 'none';
 $rootFresh    = ($procAge !== null && $procAge <= $TH['snap_stale']);
 
 if ($rootFresh && $rootSvc) {
     $whmServices = $rootSvc;
     $whmApiOk    = true;
-    $svcSrc      = 'root';
 }
 if ($rootFresh && isset($procSec['acct']) && is_numeric($procSec['acct'])) {
     $whmAcctCount = (int)$procSec['acct'];
@@ -351,8 +349,8 @@ function readCpuLine() {
 }
 function getNetStats() {
     $lines = @file('/proc/net/dev');
-    $rx = 0; $tx = 0; $if = []; // toplam (görüntü) + arayüz-başına (doygunluk)
-    if (!$lines) return ['rx' => 0, 'tx' => 0, 'if' => []];
+    $if = []; // arayüz-başına sayaçlar (doygunluk); toplam hesaplanmaz, kullanılmıyordu
+    if (!$lines) return ['if' => []];
     foreach ($lines as $line) {
         $line = trim($line);
         if (strpos($line, ':') === false) continue;
@@ -360,10 +358,9 @@ function getNetStats() {
         if (in_array($parts[0], ['lo', 'sit0'])) continue;
         $r = isset($parts[1]) ? (int)$parts[1] : 0;
         $t = isset($parts[9]) ? (int)$parts[9] : 0;
-        $rx += $r; $tx += $t;
         $if[$parts[0]] = ['rx' => $r, 'tx' => $t];
     }
-    return ['rx' => $rx, 'tx' => $tx, 'if' => $if];
+    return ['if' => $if];
 }
 
 // Disk R/W hızı: /proc/diskstats sektör sayaçları (×512 bayt). Sadece tam
@@ -534,7 +531,6 @@ $memUsedGB       = round($memUsed / 1024 / 1024, 1);
 // Swap: RAM %48 iken bile swap şişiyorsa load'un klasik gizli sebebi. Swap yoksa (total 0) gösterilmez.
 $swapTotalGB     = $swapTotal > 0 ? round($swapTotal / 1024 / 1024, 1) : 0;
 $swapUsedGB      = $swapTotal > 0 ? round(($swapTotal - $swapFree) / 1024 / 1024, 1) : 0;
-$swapUsedMB      = $swapTotal > 0 ? (int)round(($swapTotal - $swapFree) / 1024) : 0;
 // Shmem (tmpfs, /dev/shm, opcache paylaşımlı belleği): genelde geri kazanılamaz,
 // MemAvailable eksik sayar → % "sağlıklı yoğun" ile "opcache kaçağı"nı ayırmaz.
 // Kırılımı göstermek % rakamını yorumlanabilir kılar (76 GB shmem krizi dersi).
@@ -792,20 +788,20 @@ function svcCheck($label, $whmName, $port, $lp, $whmSvcs, $whmOk) {
             $lst  = $port ? isListening($port, $lp) : null;
             $note = $status ? 'running' : 'stopped';
             if ($port && $status) $note .= $lst ? ' · listening' : ' · not listening';
-            return ['label' => $label, 'ok' => $status, 'type' => 'check', 'note' => $note, 'source' => 'root'];
+            return ['label' => $label, 'ok' => $status, 'type' => 'check', 'note' => $note];
         }
     }
     if ($port) {
         $ok  = portOpen('127.0.0.1', $port);
         $lst = isListening($port, $lp);
         $n   = $ok ? 'responding' . ($lst ? ' · listening' : '') : 'no response';
-        return ['label' => $label, 'ok' => $ok, 'type' => 'check', 'note' => $n, 'source' => 'port'];
+        return ['label' => $label, 'ok' => $ok, 'type' => 'check', 'note' => $n];
     }
     // DOGRULANAMADI — 'kapali' DEGIL. Ne whmapi1 verisi var ne de bakilacak bir
     // port; ornegin cPanel lisansi dustugunde Imunify360/LFD boyle gorunur.
     // 'unknown' bayragi grup sayimindan dislar, 'ok' yalnizca gosterim icin false.
     return ['label' => $label, 'ok' => false, 'unknown' => true, 'type' => 'check',
-            'note' => 'unknown', 'source' => 'none'];
+            'note' => 'unknown'];
 }
 
 // Grup sayimi: dogrulanabilen kontroller uzerinden. Dogrulanamayanlar ne basarili
@@ -823,7 +819,7 @@ function svcTally($checks) {
 function chkPort($label, $port, $lp) {
     $ok  = portOpen('127.0.0.1', $port);
     $lst = isListening($port, $lp);
-    return ['label' => $label, 'ok' => $ok, 'type' => 'check', 'source' => 'port',
+    return ['label' => $label, 'ok' => $ok, 'type' => 'check',
             'note'  => $ok ? 'responding' . ($lst ? ' · listening' : '') : 'no response'];
 }
 
@@ -847,16 +843,16 @@ if ($httpdStatus === null) {
 }
 
 $webChecks = [
-    ['label' => $webServerLabel, 'ok' => $httpdStatus, 'type' => 'check', 'source' => $whmApiOk ? $svcSrc : 'port',
+    ['label' => $webServerLabel, 'ok' => $httpdStatus, 'type' => 'check',
      'note'  => $httpdStatus ? 'running' : 'stopped'],
-    ['label' => 'HTTPS (443)', 'ok' => $http443, 'type' => 'check', 'source' => 'port',
+    ['label' => 'HTTPS (443)', 'ok' => $http443, 'type' => 'check',
      'note'  => $http443 ? 'responding' . (isListening(443, $listeningPorts) ? ' · listening' : '') : 'no response'],
-    ['label' => 'HTTP (80)', 'ok' => $http80, 'type' => 'check', 'source' => 'port',
+    ['label' => 'HTTP (80)', 'ok' => $http80, 'type' => 'check',
      'note'  => $http80 ? 'responding' . (isListening(80, $listeningPorts) ? ' · listening' : '') : 'no response'],
     svcCheck('WHM (2087)',    'cpsrvd', 2087, $listeningPorts, $whmServices, $whmApiOk),
     svcCheck('cPanel (2083)', 'cpsrvd', 2083, $listeningPorts, $whmServices, $whmApiOk),
 ];
-[$webStatus, $webOk, $webTotal, $webUnknown] = svcTally($webChecks);
+[$webStatus, $webOk, $webTotal] = svcTally($webChecks);
 
 // ════════════════════════════════════════════════════════════════
 // MAIL
@@ -941,38 +937,35 @@ function fmtCount($n) {
     if ($n >= 1000)    return round($n / 1000) . 'k';
     return (string)(int)$n;
 }
-// 5. alan: kapsam (dosya sayısı) anahtarı — sadece imunify'da. Çipe "· N files"
-// eklenir; küçük N = artımlı/değişen-dosya taraması, büyük N = haftalık tam sweep.
 $actDefs = [
-    ['backup running',  'act_backup',  '/pkgacct|cpbackup/i',                            0,  null],
-    ['system update',   'act_update',  '/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i', 0, null],
-    ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15, null],
-    ['Imunify on-demand','act_imunify', '/im360\.run|aibolit|rustbolit/i',               15, 'act_imunify_n'],
+    ['backup running',  'act_backup',  '/pkgacct|cpbackup/i',                            0],
+    ['system update',   'act_update',  '/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i', 0],
+    ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15],
+    ['Imunify on-demand','act_imunify', '/im360\.run|aibolit|rustbolit/i',               15],
     // wappspector: cPanel'in uygulama-keşif taraması (WP Toolkit envanterini besler).
     // Hesap hesap kısa turlarla döner: süreç etimes'i kampanya yaşını VERMEZ, o yüzden
     // collector kampanya durumu tutar (bkz. collector.sh act_age).
-    ['app discovery',   'act_appdisc', '/wappspector/i',                                15, null],
+    ['app discovery',   'act_appdisc', '/wappspector/i',                                15],
     // Kendi araclarimiz. Sunucuda KURULU DEGILSE collector hicbir sey yayinlamaz,
     // dolayisiyla cip de olay kaydi da hic gorunmez. Siralama artik serbest: JS
     // tarafi Imunify'i ETIKETLE taniyor, eskiden sabit indise (i===3) bagliydi.
     // Yedek isi uzun surer, gercek baslangic/bitis damgasi is kaydindan gelir.
-    ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0,  null],
+    ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0],
     // csf-autogroup turlari saniyeler surer (cron ile periyodik): cogu tur
     // yakalanmaz, amac TAKILIP KALAN turu gostermek. Yakalanan turun bitisi tur
     // kaydindan gercek damgayi ve konan engel sayisini alir ('_fb').
-    ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0,  null],
+    ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0],
 ];
 // Guncelleme durumu — collector gunde bir uzaktaki surumu kontrol eder, yerel
 // revizyonu her turda okur. Hicbiri yoksa (git kopyasi yok) satirlar gorunmez.
 $updRev    = $rootFresh ? ($procSec['upd_rev'] ?? null) : null;
-$updRemote = $rootFresh ? ($procSec['upd_remote'] ?? null) : null;
 $updBehind = ($rootFresh && isset($procSec['upd_behind']) && is_numeric($procSec['upd_behind']))
            ? (int)$procSec['upd_behind'] : 0;
 $updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['upd_at']))
            ? (int)$procSec['upd_at'] : null;
 $updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
 $actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actImunifyN = null;
-foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu, $aScope]) {
+foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
     if ($mx === null) {
         foreach ($procCpu as $p) {
@@ -1044,17 +1037,17 @@ function lsphpCol($n, $cores) {
     $c = ($cores && $cores > 0) ? $cores : 1;
     return $n >= $c * $TH['wrk_crit_x'] ? 'var(--danger)' : ($n >= $c * $TH['wrk_warn_x'] ? 'var(--warn)' : 'var(--accent)');
 }
-[$mailStatus, $mailOk, $mailTotal, $mailUnknown] = svcTally($mailChecks);
+[$mailStatus, $mailOk, $mailTotal] = svcTally($mailChecks);
 
 // ════════════════════════════════════════════════════════════════
 // DNS
 // ════════════════════════════════════════════════════════════════
 $dnsChecks = [
     svcCheck('DNS TCP (53)', 'named', 53, $listeningPorts, $whmServices, $whmApiOk),
-    ['label' => 'DNS UDP (53)', 'ok' => isListening(53, $udpPorts), 'type' => 'check', 'source' => 'proc',
+    ['label' => 'DNS UDP (53)', 'ok' => isListening(53, $udpPorts), 'type' => 'check',
      'note'  => isListening(53, $udpPorts) ? 'listening' : 'not detected'],
 ];
-[$dnsStatus, $dnsOk, $dnsTotal, $dnsUnknown] = svcTally($dnsChecks);
+[$dnsStatus, $dnsOk, $dnsTotal] = svcTally($dnsChecks);
 
 // ════════════════════════════════════════════════════════════════
 // SECURITY
@@ -1065,16 +1058,16 @@ $csfTesting = ($procSec['csf_testing'] ?? '0') === '1';
 $secRoot = [];
 $secRoot[] = isset($procSec['csf'])
     ? ['label' => 'CSF firewall', 'ok' => ($procSec['csf'] === 'enabled' && !$csfTesting), 'type' => 'check',
-       'source' => 'root', 'note' => $procSec['csf'] . ($csfTesting ? ' · TESTING mode' : '')]
+       'note' => $procSec['csf'] . ($csfTesting ? ' · TESTING mode' : '')]
     : ['label' => 'CSF firewall', 'type' => 'cmd', 'cmd' => 'systemctl status csf'];
 $msVal = isset($procSec['modsec']) ? trim($procSec['modsec'], " \t\"'") : null; // cPanel değeri tırnaklı yazabiliyor
 $secRoot[] = $msVal !== null
     ? ['label' => 'ModSecurity', 'ok' => strcasecmp($msVal, 'on') === 0, 'type' => 'check',
-       'source' => 'root', 'note' => 'SecRuleEngine ' . $msVal]
+       'note' => 'SecRuleEngine ' . $msVal]
     : ['label' => 'ModSecurity', 'type' => 'cmd', 'cmd' => 'systemctl status httpd'];
 $secRoot[] = isset($procSec['cagefs'])
     ? ['label' => 'CageFS', 'ok' => stripos($procSec['cagefs'], 'enabled') !== false, 'type' => 'check',
-       'source' => 'root', 'note' => strtolower($procSec['cagefs'])] // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
+       'note' => strtolower($procSec['cagefs'])] // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
     : ['label' => 'CageFS', 'type' => 'cmd', 'cmd' => 'cagefsctl --cagefs-status'];
 
 $secChecks = array_merge([
@@ -1095,7 +1088,7 @@ if ($rootFresh && isset($procSec['mysql_ping'])) {
     $mysqlPing = $procSec['mysql_ping'] === '1';
     $dbChecks  = [
         $mysqlCheck,
-        ['label' => 'MySQL ping', 'ok' => $mysqlPing, 'type' => 'check', 'source' => 'root',
+        ['label' => 'MySQL ping', 'ok' => $mysqlPing, 'type' => 'check',
          'note'  => $mysqlPing ? 'alive' : 'no response'],
     ];
     // ping yetkilidir: cevap yoksa süreç ayakta bile olsa (hung) degraded
@@ -1104,7 +1097,7 @@ if ($rootFresh && isset($procSec['mysql_ping'])) {
     $mysqlSocket = anyExists(['/var/lib/mysql/mysql.sock', '/tmp/mysql.sock', '/var/run/mysqld/mysqld.sock']);
     $dbChecks    = [
         $mysqlCheck,
-        ['label' => 'MySQL socket', 'ok' => $mysqlSocket, 'type' => 'check', 'source' => 'file',
+        ['label' => 'MySQL socket', 'ok' => $mysqlSocket, 'type' => 'check',
          'note'  => $mysqlSocket ? 'found' : 'not found'],
     ];
     $dbStatus = ($mysqlCheck['ok'] || $mysqlSocket) ? 'operational' : 'offline';
@@ -1119,7 +1112,7 @@ $cacheChecks = [
     chkPort('Redis (6379)',       6379,  $listeningPorts),
     chkPort('Memcached (11211)', 11211,  $listeningPorts),
 ];
-[$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);
+[$cacheStatus, $cacheOk, $cacheTotal] = svcTally($cacheChecks);
 
 // ════════════════════════════════════════════════════════════════
 // FTP
@@ -1128,10 +1121,10 @@ $ftpCheck  = svcCheck('FTP service', 'ftpd', 21, $listeningPorts, $whmServices, 
 $ftpListen = isListening(21, $listeningPorts);
 $ftpChecks = [
     $ftpCheck,
-    ['label' => 'Kernel state', 'ok' => $ftpListen, 'type' => 'check', 'source' => 'proc',
+    ['label' => 'Kernel state', 'ok' => $ftpListen, 'type' => 'check',
      'note'  => $ftpListen ? 'port bound' : 'not bound'],
 ];
-[$ftpStatus, $ftpOk, $ftpTotal, $ftpUnknown] = svcTally($ftpChecks);
+[$ftpStatus, $ftpOk, $ftpTotal] = svcTally($ftpChecks);
 
 // ── Servis yaşları (root snapshot: svcage) ────────────────────
 // Ana daemon ne zamandır ayakta? Uzun uptime'lı sunucuda kısa etime =
@@ -1742,7 +1735,7 @@ if (isset($_GET['json'])) {
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
         'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
-        'updRev' => $updRev, 'updRemote' => $updRemote, 'updBehind' => $updBehind,
+        'updRev' => $updRev, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
@@ -1752,7 +1745,7 @@ if (isset($_GET['json'])) {
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
-        'hist'              => $histSeed, // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
+        'hist'              => array_diff_key($histSeed, ['top' => 1]), // 'top' yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
@@ -1804,7 +1797,7 @@ function renderChecks($checks) {
             $out .= '<div class="sub-check">'
                   . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : 'err') . '"></span>'
                   . '<span class="sub-lbl">' . htmlspecialchars($c['label']) . $ver . '</span>'
-                  . '<span class="sub-note' . (!empty($c['warn']) ? ' note-warn' : '') . '">' . $note . '</span>'
+                  . '<span class="sub-note">' . $note . '</span>'
                   . $age
                   . '</div>' . "\n";
         }
@@ -1907,7 +1900,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = []) {
         $mc = pmemClass($p[3]);
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
               . '<td class="num ' . $mc . '">' . $h($p[3]) . '</td><td class="num ' . $mc . '">' . $h($p[4]) . '</td>'
-              . '<td class="td-fill"><span class="proc-cmd proc-cmd-sm" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td></tr>' . "\n";
+              . '<td class="td-fill"><span class="proc-cmd" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td></tr>' . "\n";
     }
     $out .= '</tbody></table></div>';
 
@@ -1968,14 +1961,14 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     // göstergesi. Çekirdeğe oranlı renk (warn ≥ çekirdek / err ≥ 2×) — DB'de sorgu birikmesi.
     $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
          . '<span class="proc-age" id="sql-thr" title="' . htmlspecialchars(tf('Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)', (int)$sqlMinSec)) . '">'
-         . ($mysqlThr !== null ? ' &middot; Threads_running: <span id="sql-thr-n" style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
+         . ($mysqlThr !== null ? ' &middot; Threads_running: <span style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
          . '<table class="proc-table"><thead><tr><th>ID</th><th>' . upper(t('User')) . '</th><th>' . upper(t('DB')) . '</th><th>' . upper(t('Query')) . '</th><th class="num">' . upper(t('Time(s)')) . '</th><th>' . upper(t('State')) . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
         $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
     }
     foreach ($procSql as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
-              . '<td>' . $h($p[2]) . '</td><td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td>'
+              . '<td>' . $h($p[2]) . '</td><td class="td-fill"><span class="proc-cmd" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td>'
               . '<td class="num ' . sqlTimeClass($p[3]) . '">' . $h($p[3]) . '</td><td>' . $h($p[4]) . '</td></tr>' . "\n";
     }
     $out .= '</tbody></table></div>';
@@ -2256,7 +2249,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-dot.muted{background:var(--hint);}
 .sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmasın; sıkışınca önce sürüm kırpılır */
 .sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
-.sub-note.note-warn{color:var(--warn);font-weight:600;} /* yakın zamanda restart olmuş servis */
 /* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
@@ -2780,7 +2772,6 @@ function applyTheme(theme) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
   document.getElementById('theme-btn').addEventListener('click', function() {
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
@@ -2809,11 +2800,10 @@ function UPPER(s){return LANG_UI==='tr'
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
-const seed=<?=json_encode($histSeed, JSON_PRETTY_PRINT)?>;
+const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1]), JSON_PRETTY_PRINT)?>;
 const init={l1:<?=json_encode($load1)?>,l5:<?=json_encode($load5)?>,l15:<?=json_encode($load15)?>,t:<?=(int)$coreCount?>,cpu:<?=(int)$cpuUsage?>,ram:<?=(int)$memUsagePercent?>,disk:<?=(int)$diskUsagePercent?>,iow:<?=(int)$ioWait?>,wrk:<?=(int)($lsphpTotal ?? 0)?>,rx:<?=(int)round(($rxRate ?? 0)/1024)?>,tx:<?=(int)round(($txRate ?? 0)/1024)?>,mq:<?=(int)($mailQ ?? 0)?>,time:'<?=date('H:i:s')?>'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
-let lsphpIdle=<?=json_encode($lsphpIdle)?>; // anlık boşta worker (kart alt satırı için)
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
 // Canlı çekirdek/iş parçacığı sayısı. redrawSparks() eskiden açılış anındaki
 // init.t'yi kullanıyordu; canlı döngü ise data.threads'i kullanır. İkisi
@@ -3271,7 +3261,7 @@ function renderSvc(key,data){
       }
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${tnote(ch.note||'')}</span>${age}</div>`;
+      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }
@@ -3291,7 +3281,7 @@ function renderProcs(data){
   }
   const thr=document.getElementById('sql-thr');
   // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
-  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span id="sql-thr-n" style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
+  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
   const ac=document.getElementById('act-chips');
   if(ac&&data.procCpu){
     // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
@@ -3382,7 +3372,7 @@ function renderProcs(data){
     const mc=pmcls(p[3]);
     return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
     `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
-    `<td class="td-fill"><span class="proc-cmd proc-cmd-sm" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+    `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
   const php=document.getElementById('pt-php');
   if(php&&data.procPhp){
     const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
@@ -3407,7 +3397,7 @@ function renderProcs(data){
     sql.innerHTML=data.procSql.length?data.procSql.map(p=>{
       const c=parseInt(p[3])>=60?'hot':parseInt(p[3])>=10?'warm':'';
       return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td><td>${esc(p[2])}</td>`+
-        `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
+        `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
         `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td></tr>`;}).join('')
     :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">'+tf('No queries running longer than %ss at snapshot time',sqlMin)+'</td></tr>';
   }
@@ -3660,7 +3650,6 @@ function render(data){
     setFill('ic-mq',q/Math.max(b*TH.mailq_warn_x,1)*100,qc);
     push(hist.mq,q);
     spark('sp-mq',hist.mq,qc,0,0,[0,Math.max(b*TH.mailq_warn_x,Math.max.apply(null,hist.mq))]);}}
-  if(data.lsphpIdle!=null)lsphpIdle=data.lsphpIdle;
   {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
   {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*TH.wrk_crit_x?'var(--danger)':n>=c*TH.wrk_warn_x?'var(--warn)':'var(--accent)';}}
   {const n=data.lsphpTotal;if(n!=null){const cc=data.coreCount||1;

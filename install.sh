@@ -9,8 +9,31 @@ set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 CONF="$SRC/.install.conf"
 # -y / --yes : non-interactive re-deploy using saved answers (for update.sh).
-AUTO=0
-case "${1:-}" in -y|--yes) AUTO=1;; esac
+# --allow-ip <ip>…  : add IP(s) to the saved allowlist and redeploy (no prompts).
+# --remove-ip <ip>… : drop IP(s) from it. Both edit .install.conf, so the change
+#                     survives every later update.sh run (the managed .htaccess
+#                     block is REWRITTEN from .install.conf on each update — an
+#                     Allow line added by hand inside the markers is lost).
+AUTO=0; IP_ADD=""; IP_DEL=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y|--yes) AUTO=1; shift;;
+    --allow-ip|--remove-ip)
+      opt="$1"; shift
+      while [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; do
+        case "$1" in *[!0-9A-Fa-f:./]*|'') echo "ERROR: '$1' is not an IP/CIDR."; exit 1;; esac
+        if [ "$opt" = "--allow-ip" ]; then IP_ADD="$IP_ADD $1"; else IP_DEL="$IP_DEL $1"; fi
+        shift
+      done
+      [ -n "$IP_ADD$IP_DEL" ] || { echo "ERROR: $opt needs at least one IP."; exit 1; };;
+    -h|--help)
+      echo "Usage: bash install.sh                 interactive install / reconfigure"
+      echo "       bash install.sh --yes           redeploy with saved answers (update.sh)"
+      echo "       bash install.sh --allow-ip  IP…  add IP(s) to the .htaccess allowlist, permanently"
+      echo "       bash install.sh --remove-ip IP…  remove IP(s) from it"; exit 0;;
+    *) echo "ERROR: unknown option '$1' (see --help)."; exit 1;;
+  esac
+done
 
 [ "$(id -u)" -eq 0 ] || { echo "ERROR: run as root (needs cron + chown)."; exit 1; }
 [ -f "$SRC/src/index.php" ] && [ -f "$SRC/src/collector.sh" ] || { echo "ERROR: run from the repo root (src/ not found)."; exit 1; }
@@ -22,6 +45,29 @@ WEB_USER=""; WEB_SUBDIR="public_html/status"; DATA_DIR="/root/server-status-moni
 SITE_TITLE="Infrastructure Monitor"; SITE_SUBTITLE=""; LOGO_URL=""; FAVICON_URL=""
 ALLOW_IPS=""; ACCESS_KEY=""; LINE_MBPS=""; AUTO_UPDATE="0"
 [ -f "$CONF" ] && . "$CONF"
+
+save_conf() {
+  cat > "$CONF" <<EOF
+WEB_USER="$WEB_USER"; WEB_SUBDIR="$WEB_SUBDIR"; DATA_DIR="$DATA_DIR"
+SITE_TITLE="$SITE_TITLE"; SITE_SUBTITLE="$SITE_SUBTITLE"; LOGO_URL="$LOGO_URL"; FAVICON_URL="$FAVICON_URL"
+ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"; LINE_MBPS="$LINE_MBPS"; AUTO_UPDATE="$AUTO_UPDATE"
+EOF
+}
+
+# --allow-ip / --remove-ip: edit the SAVED allowlist, then fall through to the
+# non-interactive redeploy so the managed .htaccess block is rewritten from it.
+if [ -n "$IP_ADD$IP_DEL" ]; then
+  [ -f "$CONF" ] || { echo "ERROR: no saved config (.install.conf). Run 'bash install.sh' once interactively first."; exit 1; }
+  for ip in $IP_ADD; do
+    case " $ALLOW_IPS " in *" $ip "*) echo "Already allowed: $ip";; *) ALLOW_IPS="${ALLOW_IPS:+$ALLOW_IPS }$ip"; echo "Allowing: $ip";; esac
+  done
+  for ip in $IP_DEL; do
+    new=""; found=0
+    for a in $ALLOW_IPS; do if [ "$a" = "$ip" ]; then found=1; else new="${new:+$new }$a"; fi; done
+    ALLOW_IPS="$new"; [ $found -eq 1 ] && echo "Removing: $ip" || echo "Not in the list: $ip"
+  done
+  save_conf; AUTO=1
+fi
 
 # Enter = kayıtlı cevabı koru; '-' = kayıtlı cevabı TEMİZLE (boş kaydet).
 # (Boş girişle silmek imkânsızdı: Enter varsayılanı koruduğu için.)
@@ -98,11 +144,7 @@ else
   read -r -p "Proceed? [y/N]: " ok; case "${ok:-N}" in y|Y) ;; *) echo "Aborted."; exit 0;; esac
 
   # Save answers for re-runs / updates
-  cat > "$CONF" <<EOF
-WEB_USER="$WEB_USER"; WEB_SUBDIR="$WEB_SUBDIR"; DATA_DIR="$DATA_DIR"
-SITE_TITLE="$SITE_TITLE"; SITE_SUBTITLE="$SITE_SUBTITLE"; LOGO_URL="$LOGO_URL"; FAVICON_URL="$FAVICON_URL"
-ALLOW_IPS="$ALLOW_IPS"; ACCESS_KEY="$ACCESS_KEY"; LINE_MBPS="$LINE_MBPS"; AUTO_UPDATE="$AUTO_UPDATE"
-EOF
+  save_conf
 fi
 
 # ── Collector (root) ────────────────────────────────────────────
@@ -183,7 +225,9 @@ SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
     # LiteSpeed'in .htaccess işleyicisinde YOK SAYILIR — sayfa sessizce açık kalır.
     echo "# 2.2-style rules: LiteSpeed ignores 2.4 <RequireAny> in .htaccess."
     echo "# Loopback + the server's own IP stay allowed so CSF's high-load fetch works."
-    echo "# Polling ?raw=1 from WHMCS? Add the WHMCS server's IP as another Allow line."
+    echo "# This block is rewritten on every update from .install.conf — do not edit it by"
+    echo "# hand. Add/remove IPs with:  bash install.sh --allow-ip <ip>   /  --remove-ip <ip>"
+    echo "# (an 'Allow from' line placed OUTSIDE the markers also works and is left alone)."
     echo "Order deny,allow"
     echo "Deny from all"
     echo "Allow from 127.0.0.1"

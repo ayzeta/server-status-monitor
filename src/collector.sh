@@ -318,7 +318,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
-  A=$(ps axo etimes=,pcpu=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps axo etimes=,args= | awk '/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
   act_emit act_update "$A"
   # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
   # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
@@ -581,7 +581,7 @@ PYEOF
     read UPD_RREV UPD_BEH < <(cat "$UPD_CACHE" 2>/dev/null)
     case "${UPD_BEH:-0}" in ''|*[!0-9]*) UPD_BEH=0;; esac
     if [ "$UPD_BEH" -gt 0 ]; then
-      echo "upd_behind $UPD_BEH"; echo "upd_remote ${UPD_RREV:--}"
+      echo "upd_behind $UPD_BEH"
       # Otomatik uygulama: VARSAYILAN KAPALI, yalnizca config.env acikca 1 ise.
       # Ayrik surec (setsid): toplayici kendi turunu bitirir; install.sh dosyalari
       # atomik degistirdigi icin calisan betik etkilenmez. flock ust uste

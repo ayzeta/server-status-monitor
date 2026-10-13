@@ -122,9 +122,23 @@ account to use. That keeps your main site's home clean and the panel isolated.
 ## Securing the dashboard
 
 The page shows software versions, account names, and process commands — treat it
-as **admin-only**. The installer offers to write an IP allowlist during setup; to
-manage it yourself, drop a `.htaccess` next to `index.php` (works on both Apache
-and LiteSpeed):
+as **admin-only**. The installer offers to write an IP allowlist during setup, and
+you can change it later without the prompts:
+
+```bash
+cd server-status-monitor
+sudo bash install.sh --allow-ip 203.0.113.10          # add one or more IPs / CIDRs
+sudo bash install.sh --remove-ip 203.0.113.10         # take them out again
+```
+
+The list is stored in `.install.conf`, so it survives every `update.sh`. Do **not**
+add `Allow from` lines by hand *inside* the managed block of `.htaccess` (between the
+`BEGIN`/`END server-status-monitor` markers): that block is rewritten from
+`.install.conf` on each update and the line is lost. A line placed *outside* the
+markers is left alone.
+
+To manage access entirely yourself, drop a `.htaccess` next to `index.php` (works
+on both Apache and LiteSpeed):
 
 ```apacheconf
 Order deny,allow
