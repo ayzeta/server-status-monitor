@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.16'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.17'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -3566,7 +3566,7 @@ function checkAlerts(data){
   // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
   // IO wait faili: en cok disk I/O yapan hesap; veri yoksa top-CPU surecine duser.
   let topIo='';
-  if(data.ioAcct&&data.ioAcct.length) topIo=suffix(data.ioAcct[0][0]+' '+fmtKbps(data.ioAcct[0][1]));
+  if(data.ioAcct&&data.ioAcct.length&&data.ioAcct[0][1]>0) topIo=suffix(data.ioAcct[0][0]+' '+fmtKbps(data.ioAcct[0][1]));
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
     topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}

@@ -133,6 +133,11 @@ PS_SKIP2='$2 ~ /'"$PS_SKIP_RE"'/ { next }
 '
 PS_SKIP3='$3 ~ /'"$PS_SKIP_RE"'/ { next }
 '
+# IZ DOSYASI: ps-tabanli her tespit, ESLESTIGI komut satirini zaman damgasiyla
+# buraya yazar (.act_matches.log, son 300 satir). "Bu 'basladi' nereden cikti?"
+# sorusu artik tahminle degil kayitla cevaplanir:  tail /root/.../.act_matches.log
+# awk'lara -v tr=... -v ts=... ile gecer; eslesen blok 'print ts, anahtar, $0 >> tr' yapar.
+ACT_TRACE="$DATA_DIR/.act_matches.log"; ACT_TS="$(date '+%F %T')"
 # KAPSAM ($3, opsiyonel: o an gorulen hesap): kampanya boyunca TEK hesap
 # goruldiyse bitis kaydina tasinir ve "bitti" satirinda hesap adi yazilir
 # (elle baslatilan tek hesap yedegi). Birden fazla hesap goruldiyse "*" olur ve
@@ -327,8 +332,9 @@ OUT="$HOME_DIR/.proc_snapshot"
   # olan satirlar atlanir. Eskiden hesap deseni duz /pkgacct$/ idi ve yaris
   # kaybedilince yasi 0, hesabi olmayan sahte "yedekleme basladi/bitti" ciftleri
   # dusuyordu (takvim disi gunlerde gorulen anonim yedek satirlari).
-  read A ABK AFULL < <(ps axo etimes=,args= | awk "$PS_SKIP2"'
+  read A ABK AFULL < <(ps axo etimes=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
+      print ts, "act_backup", $0 >> tr
       if ($1 > m) { m = $1
         for (i = 2; i <= NF; i++) if ($i ~ /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
       if ($0 ~ /[c]pbackup( |$)|cpanel\/[b]in\/backup( |$)/) full = 1
@@ -346,7 +352,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
-  A=$(ps axo etimes=,args= | awk "$PS_SKIP2"'/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps axo etimes=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{print ts, "act_update", $0 >> tr; if($1>m)m=$1} END{if(m)print m}')
   act_emit act_update "$A"
   # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
   # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
@@ -357,7 +363,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # executor, 3.8 gunluk) — "execute-background-task" ikisinin de alt dizesi degil.
   # Ikinci sart parti disindaki WPT etkinligi icin eski sezgiseli korur: kalici
   # sw-engine-fpm havuzu bosta %0'da gezdigi icin CPU esigi onu eler.
-  A=$(ps axo etimes=,pcpu=,args= | awk "$PS_SKIP3"'/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){print ts, "act_wpt", $0 >> tr; if($1>m)m=$1} END{if(m)print m}')
   act_emit act_wpt "$A"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
@@ -365,8 +371,9 @@ OUT="$HOME_DIR/.proc_snapshot"
   # 'wappspector:inspect [<path>]' aliyor ve cPanel onu /home/<hesap>/... uzerinde
   # kosturuyor. /home2 gibi ikincil koklar da kabul edilir. Yalnizca cPanel
   # kullanici adi bicimine uyan jeton alinir; yol parcasi rozete cop basmasin.
-  read A APD < <(ps axo etimes=,pcpu=,args= | awk "$PS_SKIP3"'
+  read A APD < <(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
     $2 >= 15 && /[w]appspector/ {
+      print ts, "act_appdisc", $0 >> tr
       if ($1 > m) { m = $1; u = ""
         for (i = 3; i <= NF; i++)
           if ($i ~ /^\/home[0-9]*\/[^\/]+/) {
@@ -513,15 +520,15 @@ PYEOF
   A=""
   if [ -n "$CAG_SH" ]; then
     # CALISIYOR MU: yalnizca betigin GERCEKTEN calistirildigi bicim sayilir:
-    # '/bin/bash <yol>' (shebang), 'bash|sh <yol>' ya da dogrudan '<yol>', baska
-    # argumansiz (NF<=3). Gercek tur argumansiz kosar; '--status --json' (eklenti
+    # '/bin/bash <yol>' (shebang, NF=3) ya da argv[0] olarak '<yol>' (NF=2), baska
+    # argumansiz. Gercek tur argumansiz kosar; '--status --json' (eklenti
     # sayfasi), '--lookup', '--dry-run' tur degildir ve elenir. Kilide BAKILMAZ:
     # panelden yapilan elle islemler de ayni kilidi birkac saniye tutuyor.
     # ESKIDEN "yol ile biten her satir" sayiliyordu: 'vim <yol>', 'cat <yol>' ve
     # (ps satir sonunu ham basan surumlerde) bu awk'in kendi '-v sh=<yol>' argumani
     # da eslesiyor, takvim disi sahte "csf-autogroup basladi" dusuyordu.
-    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" "$PS_SKIP2"'
-      NF <= 3 && ($2 == sh || ($2 ~ /(^|\/)(bash|sh|dash)$/ && $3 == sh)) { if ($1 > m) m = $1 }
+    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
+      (NF <= 2 && $2 == sh) || (NF <= 3 && $2 ~ /(^|\/)(bash|sh|dash)$/ && $3 == sh) { print ts, "act_csfag", $0 >> tr; if ($1 > m) m = $1 }
       END { if (m) print m }')
     # SON TAMAMLANAN TUR: events.jsonl'in son '"type":"run"' satiri. Satir tur
     # BITINCE yazilir, yani 't' gercek bitis ani. Yarim yazilmis satira karsi tam
@@ -796,7 +803,7 @@ def rows(o):
     return []
 cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else None
 ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
-out = []
+out = []; zeros = []
 for r in rows(d):
     io = next((r[k] for k in ('aIO', 'IO', 'io', 'aio') if k in r), None)
     iops = next((r[k] for k in ('aIOPS', 'IOPS', 'iops', 'aiops') if k in r), None)
@@ -806,12 +813,13 @@ for r in rows(d):
     if name.isdigit():
         try: name = pwd.getpwuid(int(name)).pw_name
         except KeyError: continue
-    if not ok.match(name) or (cp is not None and name not in cp) or io <= 0: continue
+    if not ok.match(name) or (cp is not None and name not in cp): continue
     try: iops = str(int(float(iops)))
     except (TypeError, ValueError): iops = '-'
-    out.append((io, name, iops))
-out.sort(reverse=True)
-for io, name, iops in out[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
+    (out if io > 0 else zeros).append((io, name, iops))
+out.sort(reverse=True); zeros.sort(key=lambda r: r[1])
+# Diger kartlarla ayni boy: I/O yapan hesaplar once, 15'e kadar sifirlar adla sirali.
+for io, name, iops in (out + zeros)[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
 PYEOF
 )
       [ -n "$IO_OUT" ] && break
@@ -860,24 +868,24 @@ try:
 except Exception:
     pass
 if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)   # ilk tur / cok eski ornek
-dt = now - pt; out = []
+dt = now - pt; out = []; zeros = []
 for u, b in cur.items():
     if u not in prev: continue                 # ilk gorulen kullanici: omur boyu sayaci bu dakikaya yazma
-    d = b - prev[u]
-    if d <= 0: continue
+    d = max(0, b - prev[u])
     try: name = pwd.getpwuid(u).pw_name
     except KeyError: continue
     if not ok.match(name) or (cp and name not in cp): continue
-    out.append((d / dt / 1024.0, name))
-out.sort(reverse=True)
-for kb, name in out[:15]: print("ioacct %s %.1f -" % (name, kb))
+    (out if d > 0 else zeros).append((d / dt / 1024.0, name))
+out.sort(reverse=True); zeros.sort(key=lambda r: r[1])
+# Diger kartlarla ayni boy: I/O yapan hesaplar once, 15'e kadar sifirlar adla sirali.
+for kb, name in (out + zeros)[:15]: print("ioacct %s %.1f -" % (name, kb))
 PYEOF
 )
     [ -n "$IO_OUT" ] && echo "io_src proc"
   fi
   [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
   # Tarihce 15. kolonu icin: o dakikanin en cok I/O yapan hesabi "hesap:kbps".
-  TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" {printf "%s:%d", $2, int($3+0.5)}')
+  TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5)}')
   echo
   echo "--- MySQL queries ---"
   timeout 3 mysql -N -B -e "SELECT id, user, IFNULL(db,'-'), time, IFNULL(state,'-'), REPLACE(REPLACE(REPLACE(LEFT(info,150),'\n',' '),'\r',' '),'\t',' ') FROM information_schema.PROCESSLIST WHERE command <> 'Sleep' AND info IS NOT NULL AND time >= 5 AND id <> CONNECTION_ID() ORDER BY time DESC LIMIT 10" 2>/dev/null || true
@@ -889,6 +897,11 @@ chmod 640 "$OUT"
 # suresi dolanlar dosyadan dogal olarak dusmus olur. Root'a ozel (600) — web
 # kullanicisinin okumasina gerek yok, yaslar zaten .proc_snapshot'ta.
 printf '%s' "$ACT_NEXT" > "$ACT_STATE" 2>/dev/null && chmod 600 "$ACT_STATE" 2>/dev/null
+# Iz dosyasi: son 300 satir kalsin (dakikada en fazla birkac satir yazilir).
+if [ -f "$ACT_TRACE" ] && [ "$(wc -l < "$ACT_TRACE" 2>/dev/null || echo 0)" -gt 300 ]; then
+  tail -300 "$ACT_TRACE" > "$ACT_TRACE.tmp" 2>/dev/null && mv "$ACT_TRACE.tmp" "$ACT_TRACE"
+fi
+chmod 600 "$ACT_TRACE" 2>/dev/null
 
 # --- sparkline gecmisi (35 satir tampon) ---
 # CPU/IOW yukaridaki 60 sn ortalamasindan gelir (eskiden burada ayri bir 3 sn
