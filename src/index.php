@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.17'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.18'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -927,18 +927,15 @@ if ($rootFresh && $smartBad) {
 // O an sorgu işleyen MySQL thread'i (5sn+ sorgu tablosunun görmediği "kısa ama çok" senaryosu)
 $mysqlThr = ($rootFresh && isset($procSec['mysql_thr']) && is_numeric($procSec['mysql_thr']))
        ? (int)$procSec['mysql_thr'] : null;
-// ps etime → saniye: [[gün-]saat:]dk:sn
-function etimeSec($t) {
-    if (!preg_match('/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/', trim((string)$t), $m)) return null;
-    return (int)$m[1] * 86400 + (int)$m[2] * 3600 + (int)$m[3] * 60 + (int)$m[4];
-}
 // Aktivite çipleri: yoğun arka plan işleri — yük spike'larının olağan şüphelileri.
-// Süre birincil olarak cron'un act_* anahtarından gelir (TÜM süreç listesinde
-// en eski eşleşen; gerçek pencere süresi). Cron eski sürümse Top-15 CPU
-// taramasına düşülür — o değer "o anki görevin yaşı"dır, alt sınırdır
-// (pkgacct her hesap için yeniden doğar). Desenler JS'tekiyle senkron.
-// wpt/imunify'da minCpu eşiği: kalıcı daemon'ları (sw-engine-fpm havuzu,
-// rustbolit --resident) elemek için — eşiksiz desen çipi sonsuza dek yakıyordu.
+// Süre YALNIZCA collector'ın act_* anahtarından gelir (TÜM süreç listesinde,
+// kampanya durumu ve süzgeçleriyle). Eskiden collector anahtarı vermeyince
+// Top-15 CPU tablosu aynı desenlerle taranıyordu; bu yedek yol kaldırıldı:
+// desen metinde geçen her süreci iş sayıyordu (csf-autogroup WHM eklentisinin
+// '.../cgi/csf_autogroup/' yolundaki PHP'si ve '--status --json' çağrısı CPU
+// tablosuna girince takvim dışı sahte "csf-autogroup başladı/bitti" düşüyordu;
+// collector'ın iz dosyası boşken bile). Tek kaynak collector; o yoksa çip yok.
+// [etiket, anahtar] — sıra JS 'defs' ile birebir (JSON dizileri indisle eşleşir).
 // Kompakt sayı: 8→"8", 15051→"15k", 1500000→"1.5M". Imunify kapsamı için.
 function fmtCount($n) {
     if ($n >= 1000000) return round($n / 1000000, 1) . 'M';
@@ -946,23 +943,23 @@ function fmtCount($n) {
     return (string)(int)$n;
 }
 $actDefs = [
-    ['backup running',  'act_backup',  '/pkgacct|cpbackup/i',                            0],
-    ['system update',   'act_update',  '/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i', 0],
-    ['wp-toolkit task', 'act_wpt',     '/wordpress-toolkit|wp-toolkit/i',               15],
-    ['Imunify on-demand','act_imunify', '/im360\.run|aibolit|rustbolit/i',               15],
+    ['backup running',  'act_backup'],
+    ['system update',   'act_update'],
+    ['wp-toolkit task', 'act_wpt'],
+    ['Imunify on-demand','act_imunify'],
     // wappspector: cPanel'in uygulama-keşif taraması (WP Toolkit envanterini besler).
     // Hesap hesap kısa turlarla döner: süreç etimes'i kampanya yaşını VERMEZ, o yüzden
     // collector kampanya durumu tutar (bkz. collector.sh act_age).
-    ['app discovery',   'act_appdisc', '/wappspector/i',                                15],
+    ['app discovery',   'act_appdisc'],
     // Kendi araclarimiz. Sunucuda KURULU DEGILSE collector hicbir sey yayinlamaz,
     // dolayisiyla cip de olay kaydi da hic gorunmez. Siralama artik serbest: JS
     // tarafi Imunify'i ETIKETLE taniyor, eskiden sabit indise (i===3) bagliydi.
     // Yedek isi uzun surer, gercek baslangic/bitis damgasi is kaydindan gelir.
-    ['Ayzeta Backup',   'act_ayzbackup', '/ayzeta_backup\/worker\.php/i',               0],
+    ['Ayzeta Backup',   'act_ayzbackup'],
     // csf-autogroup turlari saniyeler surer (cron ile periyodik): cogu tur
     // yakalanmaz, amac TAKILIP KALAN turu gostermek. Yakalanan turun bitisi tur
     // kaydindan gercek damgayi ve konan engel sayisini alir ('_fb').
-    ['csf-autogroup',   'act_csfag',     '/csf_autogroup/i',                             0],
+    ['csf-autogroup',   'act_csfag'],
 ];
 // Guncelleme durumu — collector gunde bir uzaktaki surumu kontrol eder, yerel
 // revizyonu her turda okur. Hicbiri yoksa (git kopyasi yok) satirlar gorunmez.
@@ -973,16 +970,8 @@ $updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['up
            ? (int)$procSec['upd_at'] : null;
 $updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
 $actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actImunifyN = null;
-foreach ($actDefs as [$aLbl, $aKey, $aRe, $aMinCpu]) {
+foreach ($actDefs as [$aLbl, $aKey]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
-    if ($mx === null) {
-        foreach ($procCpu as $p) {
-            if ((float)$p[2] < $aMinCpu) continue;
-            if (!preg_match($aRe, $p[1] . ' ' . $p[5])) continue;
-            $s = etimeSec($p[4]);
-            if ($s !== null && ($mx === null || $s > $mx)) $mx = $s;
-        }
-    }
     // Imunify: artımlı taramalar SÜREKLI koşar (her değişen dosya) → çip hep
     // "1m" gösterir ve Event log'a geçiş düşmez (hiç sönmez). Bu gürültüyü
     // gizle; çipi SADECE gerçek hesap taramasında göster (path=/home/hesap →
@@ -3009,7 +2998,6 @@ function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
 function pmcls(v){v=parseFloat(v)||0;return v>=15?'hot':v>=5?'warm':'';}
-function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);return m?(+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]):null;}
 function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
 // Sunucu saatinden N saniye geri git ("YYYY-MM-DD HH:MM:SS" -> "HH:MM:SS").
 // Aktivite "started" kaydi icin: cip yasi zaten isin kac saniyedir surdugunu
@@ -3374,26 +3362,24 @@ function renderProcs(data){
   // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
   if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
   const ac=document.getElementById('act-chips');
-  if(ac&&data.procCpu){
-    // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
-    // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
-    // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
-    // [etiket, desen, minCpu, sessiz] — sessiz=true: çip görünür ama started/finished
+  if(ac&&data.acts){
+    // Etiket listesi PHP'deki $actDefs ile birebir sıralı; süre YALNIZCA data.acts'ten
+    // (collector). Top-15 CPU taraması yedeği kaldırıldı — bkz. PHP $actDefs notu.
+    // [etiket, sessiz] — sessiz=true: çip görünür ama started/finished
     // Event log'a YAZILMAZ. Eskiden wp-toolkit/imunify/wappspector sessizdi: hesap
     // hesap kısa süreçler doğurdukları için çip her hesap arasında sönüp yanıyor ve
     // log'u spam'liyordu. Kök sebep collector'da çözüldü (kampanya durumu + kabul
     // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
     // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
-    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false],['Ayzeta Backup',/ayzeta_backup\/worker\.php/i,0,false],['csf-autogroup',/csf_autogroup/i,0,false]];
+    const defs=[['backup running',false],['system update',false],['wp-toolkit task',false],['Imunify on-demand',false],['app discovery',false],['Ayzeta Backup',false],['csf-autogroup',false]];
     const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
-    const chips=defs.map(([lbl,re,minCpu],i)=>{
+    const chips=defs.map(([lbl],i)=>{
       // Imunify ETIKETLE taninir, indisle degil: liste sirasi degisince
       // yanlis cip gizlenmesin (PHP tarafi da anahtar adiyla bakiyor).
       const imu=(lbl==='Imunify on-demand');
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(imu&&data.actImunifyP==='incremental')return null;
-      let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
-      if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
+      const mx=(data.acts[i]!=null)?data.acts[i]:null;
       if(mx==null)return null;
       ages[i]=mx;
       let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
@@ -3414,7 +3400,7 @@ function renderProcs(data){
     const st=chips.map(c=>c!=null?'1':'0').join('');
     if(actWas===null)actWas=st;
     else if(st!==actWas){
-      defs.forEach(([lbl,,,silent],i)=>{
+      defs.forEach(([lbl,silent],i)=>{
         if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]===actWas[i])return;
         const basladi=st[i]==='1';
