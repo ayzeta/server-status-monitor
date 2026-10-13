@@ -81,11 +81,28 @@ header button (per-browser, cookie-based). The version shows in the footer.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
-  history from the last 30 minutes.
+  history from the last 30 minutes. Every entry carries a server epoch, so the
+  list is ordered by time (not by clock text), entries from before today read
+  `yesterday 17:53:26` / `Oct 12 17:53:26`, and *Clear* sticks across reloads
+  and tabs (what you cleared does not come back; new events do). The panel
+  sizes itself to its rows, up to eight, then scrolls; drag the grip for a fixed
+  height, double-click it to go back to automatic.
+- **Alerts name the culprit** — load/CPU/IO-wait lines carry the top process
+  with its account and script; RAM the top-RSS process; PHP-worker and MySQL
+  lines the busiest account / longest query; disk the fullest account; IO wait
+  the account doing the most disk I/O. Same text live, on first render and in
+  the mail attachment.
 - **Background jobs, named** — cPanel backups, `upcp`, WP Toolkit, Imunify
   scans and app discovery show as chips while they run and as `started` /
   `finished` lines in the event log. Both carry the real timestamps *and* what
-  the job was working on: the account being packaged, the account being scanned.
+  the job was working on: the account being packaged, the account being scanned,
+  the WP Toolkit task and the site it is on (`plugin update · krom`). A cPanel
+  full backup is named as such (`started · full backup`, `finished · all
+  accounts`); a single-account backup names the account. A job is detected
+  **only** from the collector's process list, with the collector's own `awk`,
+  editors, pagers and `grep` excluded and csf-autogroup accepted only in its
+  real run form — and every match is written to `.act_matches.log` (last 300
+  lines) so an unexpected `started` line can be traced to the exact command.
 - **Sister tools, when installed** —
   [Ayzeta Backup](https://github.com/ayzeta) jobs of every kind (a restore or an
   archive check works the server as hard as a backup), with the job type, the
@@ -99,7 +116,9 @@ header button (per-browser, cookie-based). The version shows in the footer.
   run and checks the remote once a day. The footer says when an update is
   waiting; the event log records the dashboard's own updates, including the ones
   applied by hand. Optional `AUTO_UPDATE=1` lets the root cron apply them — off
-  by default, with no button and nothing web-facing able to trigger it.
+  by default, with no button and nothing web-facing able to trigger it. Open
+  tabs reload themselves once when the served version changes, so no browser
+  keeps running yesterday's page code against today's feed.
 - **Mobile-friendly** and **light/dark** aware.
 - **Drop-in for CSF & WHMCS** — works as CSF's high-load status page on LiteSpeed
   servers (which have no Apache `mod_status`) and as a WHMCS *Server Status*
@@ -353,7 +372,13 @@ web account ── index.php ◀──────────────┘  r
 ```
 
 - The collector writes to the web user's home and `chown`s it, so the jailed PHP
-  can read it. No world-readable root files.
+  can read it. No world-readable root files. Its own state (`.act_state`,
+  `.io_state`, `.upd_state`, caches, `.act_matches.log`) stays root-only under
+  the collector directory.
+- **Per-account I/O** comes from CloudLinux LVE (`lveinfo`, 1-minute average,
+  short-lived processes included) and, where LVE is absent, from the per-process
+  `/proc/<pid>/io` counters diffed between runs (processes that end between two
+  samples are not counted — the card says which source it is using).
 - The dashboard renders server-side (also for the email attachment) and refreshes
   every 30 s via `?json=1`. The same thresholds live in PHP and JS, kept in sync.
 - **CPU, IO wait and network throughput are 60-second averages**, computed by the
@@ -404,6 +429,7 @@ render, the CSF mail attachment, and the live 30-second ticks alike.
 | Swap   | 10% used | 50% used |
 | Shared memory | 40% of RAM † | 55% of RAM † |
 | PHP workers | ≥ 1× cores | ≥ 2× cores |
+| I/O per account (colour only) | ≥ 30% of listed total and ≥ 512 KB/s | ≥ 60% and ≥ 1 MB/s |
 | MySQL `threads_running` | ≥ 1× cores | ≥ 2× cores |
 | Mail queue | ≥ 1× base ‡ | ≥ 3× base ‡ |
 | MySQL response | 30 ms | 100 ms |
@@ -444,7 +470,9 @@ The installer also keeps a marked block in `~USER/public_html/status/.htaccess`
 (the access rules and the any-path rewrite). Delete that block — everything
 between the `BEGIN`/`END server-status-monitor access control` markers — or the
 whole file if nothing else wrote to it. Caches and state (`.upd_state`,
-`.act_state`, …) live under the collector directory and go with it.
+`.act_state`, `.io_state`, `.act_matches.log`, …) live under the collector
+directory and go with it. The dashboard keeps nothing in the browser beyond the
+event log of the current tab and the *Clear* marker.
 
 ## Demo
 
