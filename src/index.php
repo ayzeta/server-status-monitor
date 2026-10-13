@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.19'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.20'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -181,7 +181,7 @@ $TR = [
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
-    'update available' => 'güncelleme var', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
+    'update available' => 'güncelleme var', 'Dashboard updated to v%s — reloading page' => 'Pano v%s sürümüne güncellendi — sayfa yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
 ];
@@ -1730,7 +1730,7 @@ if (isset($_GET['json'])) {
     header('Cache-Control: no-store'); // 30sn tick'i taze kalsın — ara proxy'ler önbelleklemesin
     echo json_encode([
         'hostname'          => gethostname(), 'threads' => $coreCount,
-        'time'              => date('Y-m-d H:i:s'), 'now' => time(), 'tz' => (int)date('Z'),
+        'time'              => date('Y-m-d H:i:s'), 'now' => time(), 'appVer' => APP_VERSION, 'tz' => (int)date('Z'),
         'overall'           => ['status' => $overallStatus, 'color' => $overallColorCss, 'detail' => $overallDetail],
         'cardCol'           => ['cpu' => $cpuCardCol, 'ram' => $ramCardCol, 'disk' => $diskCardCol, 'iow' => $iowCardCol],
         'load1'             => $load1, 'load5' => $load5, 'load15' => $load15,
@@ -2853,6 +2853,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 900 baytlık satır sınırını aşar ($TR/$histSeed de aynı sebeple böyle basılır.)
 const TH=<?=json_encode($TH, JSON_PRETTY_PRINT)?>;
 const LANG_UI=<?=json_encode($LANG_UI)?>;
+const PAGE_VER=<?=json_encode(APP_VERSION)?>; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
 function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
@@ -3810,6 +3811,21 @@ async function tick(){
 
   const now=data.time.split(' ')[1];
   if(data.now!=null){srvNow=+data.now;srvWall=Date.now();}if(data.tz!=null)TZOFF=+data.tz;
+  // SURUM DEGISTIYSE SAYFAYI YENILE. Acik sekme guncellemeden sonra ESKI JS ile
+  // calismaya devam ediyordu: sunucu yeni JSON gonderse de eski kod (or. kaldirilan
+  // Top-15 yedek taramasi) eski mantigiyla olay uretiyordu — "csf-autogroup basladi"
+  // 01:54:01 ve 01:59:24 boyle dustu. Olay kaydi sessionStorage'da, yenilemede
+  // korunur. Surum basina bir kez (dongu olmasin), kullanicinin islemi kesilmesin
+  // diye kisa gecikmeyle.
+  if(data.appVer&&data.appVer!==PAGE_VER){
+    let done=null;try{done=sessionStorage.getItem('az-reloaded-for');}catch(e){}
+    if(done!==data.appVer){
+      try{sessionStorage.setItem('az-reloaded-for',data.appVer);}catch(e){}
+      addLog('ok',tf('Dashboard updated to v%s — reloading page',data.appVer),now);
+      setTimeout(function(){location.reload();},1500);
+      return;
+    }
+  }
   checkSnap(data,now);
 
   // Bağlantı geri geldi — beslemeden AYRI mesaj. Eskiden ağ/403 dönüşünde de
