@@ -363,8 +363,30 @@ OUT="$HOME_DIR/.proc_snapshot"
   # executor, 3.8 gunluk) — "execute-background-task" ikisinin de alt dizesi degil.
   # Ikinci sart parti disindaki WPT etkinligi icin eski sezgiseli korur: kalici
   # sw-engine-fpm havuzu bosta %0'da gezdigi icin CPU esigi onu eler.
-  A=$(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'/[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/){print ts, "act_wpt", $0 >> tr; if($1>m)m=$1} END{if(m)print m}')
-  act_emit act_wpt "$A"
+  # HESAP ve IS TURU: partinin wp-cli cocugu "--path=/home/<hesap>/public_html
+  # plugin update" tasir (iz dosyasinda goruldu). En YENI wp-cli = o an islenen
+  # hesap; tur = --path'ten sonraki iki duz kelime ("plugin update"). Parti bircok
+  # hesabi dolasir: baslangic satirina hesap yazilmaz (cipte gorunur), bitiste
+  # kapsam "*" -> "birden fazla hesap"; tek hesaplik iste adi.
+  read A AWP AWK < <(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
+    /[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/) {
+      print ts, "act_wpt", $0 >> tr
+      if ($1 > m) m = $1
+      if ($0 ~ /[w]pt-wp-cli\.php/ && (pm == "" || $1 < pm))
+        for (i = 3; i <= NF; i++)
+          if ($i ~ /^--path=\/home[0-9]*\/[^\/]+/) {
+            split($i, p, "/")
+            if (p[3] ~ /^[a-z][a-z0-9]{0,15}$/) {
+              pm = $1; u = p[3]; k = ""
+              for (j = i + 1; j <= NF && j <= i + 2; j++) if ($j ~ /^[a-z][a-z0-9-]*$/) k = k (k == "" ? "" : "_") $j
+            }
+            break
+          } }
+    END { if (m) print m, (u == "" ? "-" : u), (k == "" ? "-" : k) }')
+  act_age act_wpt "$A" "$AWP"
+  [ -n "$ACT_AGE" ] && { echo "act_wpt $ACT_AGE"; echo "act_wpt_p ${AWP:--}"; [ "${AWK:--}" != "-" ] && echo "act_wpt_k $AWK"; }
+  [ -n "$ACT_END" ] && echo "act_wpt_end $ACT_END"
+  [ -n "$ACT_END_P" ] && echo "act_wpt_end_p $ACT_END_P"
   # appdisc: cPanel wappspector (uygulama kesfi, WP Toolkit envanterini besler) —
   # hesap hesap kisa turlarla doner; WPT gibi CPU esikli (pcpu>=15) surec sezgiseli.
   # Taranan hesap YOL argumanindan gelir: wappspector hesap adi almiyor,

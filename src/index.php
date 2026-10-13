@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.18'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.19'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -177,7 +177,7 @@ $TR = [
     'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
     'Mail' => 'Mail',
     'top:' => 'üst:', ' (snap %ss)' => ' (anlık %ssn)',
-    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'full backup' => 'tam yedek', 'all accounts' => 'tüm hesaplar', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya', 'blocks' => 'engel',
+    'started' => 'başladı', 'finished' => 'bitti', 'backup' => 'yedekleme', 'full backup' => 'tam yedek', 'all accounts' => 'tüm hesaplar', 'multiple accounts' => 'birden fazla hesap', 'plugin update' => 'eklenti güncelleme', 'theme update' => 'tema güncelleme', 'core update' => 'çekirdek güncelleme', 'plugin install' => 'eklenti kurulumu', 'core version' => 'çekirdek sürümü', 'system update' => 'sistem güncellemesi', 'wp-toolkit task' => 'wp-toolkit görevi', 'Imunify on-demand' => 'Imunify on-demand', 'app discovery' => 'uygulama keşfi', 'files' => 'dosya', 'blocks' => 'engel',
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
@@ -1486,7 +1486,7 @@ foreach ($actDefs as $ai => $ad) {
     // "*" = kampanyada birden fazla hesap goruldu (tam yedek, haftalik tarama):
     // "tum hesaplar" yazilir; tek hesap ise adi.
     $aEndRawP = (string)($procSec[$ad[1] . '_end_p'] ?? '');
-    $aEndP = $rootFresh ? ($aEndRawP === '*' ? t('all accounts') : preg_replace('/[^A-Za-z0-9_.,\-]/', '', $aEndRawP)) : '';
+    $aEndP = $rootFresh ? ($aEndRawP === '*' ? t($ad[1] === 'act_backup' ? 'all accounts' : 'multiple accounts') : preg_replace('/[^A-Za-z0-9_.,\-]/', '', $aEndRawP)) : '';
     $actEndsP[$ai] = ($aEndP !== '' && $aEndP !== '-' && $aEndP !== 'incremental') ? $aEndP : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
     // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
@@ -1496,7 +1496,8 @@ foreach ($actDefs as $ai => $ad) {
     $aSc  = $rootFresh ? ($procSec[$ad[1] . '_p'] ?? '') : '';
     if ($aKd !== '' && $aKd !== '-') $aDet .= ' · ' . t(str_replace('_', ' ', $aKd));
     // Tam yedekte hesap "o an paketlenen"dir, baslangic satirina yazilmaz (cipte kalir).
-    if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental' && $aKd !== 'full_backup') $aDet .= ' · ' . $aSc;
+    // Tam yedek ve wp-toolkit partisinde hesap "o an islenen"dir: baslangic satirina yazilmaz, cipte kalir.
+    if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental' && $aKd !== 'full_backup' && $ad[1] !== 'act_wpt') $aDet .= ' · ' . $aSc;
     if ($aAge !== null) {
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
                        'ts'   => date('H:i:s', time() - (int)$aAge),
@@ -3410,7 +3411,7 @@ function renderProcs(data){
                    :(data.actScopes&&data.actScopes[i]);
           let d='';
           if(kd&&kd!=='-')d+=' · '+t(kd.replace(/_/g,' '));
-          if(sc&&sc!=='-'&&sc!=='incremental'&&kd!=='full_backup')d+=' · '+sc; // tam yedekte hesap = o an paketlenen, baslangica yazilmaz
+          if(sc&&sc!=='-'&&sc!=='incremental'&&kd!=='full_backup'&&lbl!=='wp-toolkit task')d+=' · '+sc; // tam yedek / wpt partisi: hesap = o an islenen, baslangica yazilmaz
           actDet[i]=d;
         }
         // Damga her iki yonde de GERCEK an: baslangic = sunucu saati - cip yasi,
