@@ -313,7 +313,7 @@ OUT="$HOME_DIR/.proc_snapshot"
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
       if ($1 > m) { m = $1
         for (i = 2; i <= NF; i++) if ($i ~ /pkgacct|cpbackup|cpanel\/bin\/backup/) { n = split($i, a, "/"); prog = a[n]; gsub(/[^A-Za-z0-9_.-]/, "_", prog); break } }
-      if ($0 ~ /[c]pbackup |cpanel\/[b]in\/backup( |$)/) full = 1
+      if ($0 ~ /[c]pbackup( |$)|cpanel\/[b]in\/backup( |$)/) full = 1
       if ($0 ~ /[p]kgacct/)
         for (i = 2; i <= NF; i++)
           if ($i ~ /pkgacct$/) {
