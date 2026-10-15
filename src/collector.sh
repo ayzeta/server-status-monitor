@@ -239,7 +239,68 @@ OUT="$HOME_DIR/.proc_snapshot"
   echo
   echo "--- Root checks ---"
   echo "acct $(find /var/cpanel/users -maxdepth 1 -type f ! -name system 2>/dev/null | wc -l)"
-  echo "mailq $(exim -bpc 2>/dev/null || echo -1)"
+  MQN=$(exim -bpc 2>/dev/null || echo -1)
+  echo "mailq $MQN"
+  # KUYRUGU KIM DOLDURUYOR: yalnizca kuyruk >= 25 iken (en dusuk uyari esigi;
+  # normal gunde hic calismaz), 5 dk onbellek, en fazla 500 baslik dosyasi.
+  # Exim spool'undaki -H dosyalarinda "-auth_id" (SMTP kimligi: posta adresi ya
+  # da hesap) ve "-ident" (yerel gonderen uid, PHP mail()) var. Hesaba cevrilir:
+  # adres -> /etc/userdomains, uid -> kullanici adi; cPanel hesabi olmayan
+  # (uzaktan gelen, bounce) "other". Satirlar: "mailq_acct hesap sayi" (ilk 3),
+  # "mailq_sampled N" (ornek buyuklugu — pay buna gore).
+  MQC="$DATA_DIR/.mailq_cache"
+  if [ "${MQN:-0}" -ge 25 ] 2>/dev/null; then
+    if [ ! -s "$MQC" ] || [ $(( ACT_NOW - $(stat -c %Y "$MQC" 2>/dev/null || echo 0) )) -gt 300 ]; then
+      python3 -I - <<'PYEOF' > "$MQC.tmp" 2>/dev/null && mv "$MQC.tmp" "$MQC"
+import os, re, pwd, collections
+spool = '/var/spool/exim/input'
+files = []
+for root, dirs, fs in os.walk(spool):
+    for f in fs:
+        if f.endswith('-H'): files.append(os.path.join(root, f))
+    if len(files) >= 500: break
+files = files[:500]
+dom = {}
+try:
+    for ln in open('/etc/userdomains', errors='replace'):
+        if ':' in ln:
+            d, u = ln.split(':', 1); dom[d.strip().lower()] = u.strip()
+except Exception:
+    pass
+cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else set()
+ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
+cnt = collections.Counter(); n = 0
+for p in files:
+    auth = ident = None
+    try:
+        with open(p, errors='replace') as f:
+            for i, ln in enumerate(f):
+                if i > 80: break
+                ln = ln.strip()
+                if ln.startswith('-auth_id '):
+                    a = ln[9:].strip().lower()
+                    if '@' in a: auth = dom.get(a.split('@', 1)[1])
+                    elif ok.match(a): auth = a
+                elif ln.startswith('-ident '):
+                    v = ln[7:].strip()
+                    if v.isdigit():
+                        try: ident = pwd.getpwuid(int(v)).pw_name if int(v) >= 1000 else None   # sistem kullanicisi (root, mailnull) hesap degil
+                        except KeyError: ident = None
+                    elif ok.match(v): ident = v
+    except Exception:
+        continue
+    acct = auth or ident
+    if acct and cp and acct not in cp: acct = None
+    n += 1
+    cnt[acct or 'other'] += 1
+for a, c in cnt.most_common(3): print('mailq_acct %s %d' % (a, c))
+print('mailq_sampled %d' % n)
+PYEOF
+    fi
+    cat "$MQC" 2>/dev/null
+  else
+    rm -f "$MQC"
+  fi
   echo "mysql_ping $(timeout 3 mysqladmin ping >/dev/null 2>&1 && echo 1 || echo 0)"
   echo "websrv $(pgrep -x litespeed >/dev/null 2>&1 && echo litespeed || echo apache)"
   # Inode kullanimi (%): disk ALANI bos olsa da inode tukenince sunucu coker

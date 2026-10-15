@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.21'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.22'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -163,7 +163,7 @@ $TR = [
     'MySQL threads_running elevated: %s%s' => 'MySQL threads_running yükseldi: %s%s', 'MySQL threads_running back to normal' => 'MySQL threads_running normale döndü',
     'PHP workers very high: %s%s' => 'PHP işçileri çok yüksek: %s%s', 'PHP workers elevated: %s%s' => 'PHP işçileri yükseldi: %s%s', 'PHP workers back to normal' => 'PHP işçileri normale döndü',
     'Disk critically full: %s%%%s' => 'Disk kritik doldu: %s%%%s', 'Disk usage high: %s%%%s' => 'Disk kullanımı yüksek: %s%%%s', 'Disk usage back to normal: %s%%' => 'Disk kullanımı normale döndü: %s%%',
-    'Mail queue very high: %s messages' => 'Mail kuyruğu çok yüksek: %s mesaj', 'Mail queue elevated: %s messages' => 'Mail kuyruğu yükseldi: %s mesaj', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
+    'Mail queue very high: %s messages%s' => 'Mail kuyruğu çok yüksek: %s mesaj%s', 'Mail queue elevated: %s messages%s' => 'Mail kuyruğu yükseldi: %s mesaj%s', 'other senders' => 'diğer göndericiler', 'Mail queue back to normal' => 'Mail kuyruğu normale döndü',
     'SSL expires in %s days!' => 'SSL %s günde doluyor!', 'SSL expires in %s days' => 'SSL %s günde doluyor',
     // Disk büyüme projeksiyonu — hf = hafta, ay = ay (kısaltmalar fmtAgeShort ile aynı ruhta)
     '+%s GB/wk' => '+%s GB/hf', '<1wk' => '<1hf', '2+ yr' => '2+ yıl', '%smo' => '%say', '%swk' => '%shf', '80%% in %s' => '%%80\'e %s',
@@ -211,7 +211,7 @@ function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (stri
 // root yazıp web kullanıcısına chown eder). Dosya yoksa bölüm görünmez.
 $procSnapFile = $HOME_DIR . '/.proc_snapshot';
 $sqlMinSec = 5; // cron'daki 'time >= N' ile aynı olmalı; placeholder metni de bunu kullanır
-$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioSrc = ''; $smartBad = []; $netSpeed = []; $procAge = null;
+$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioSrc = ''; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -266,6 +266,10 @@ if (is_readable($procSnapFile)) {
                 $p = preg_split('/\s+/', trim($ln), 2); // key value
                 if (count($p) !== 2) continue;
                 if ($p[0] === 'smart_bad') { $smartBad[] = trim($p[1]); } // birden çok disk olabilir
+                elseif ($p[0] === 'mailq_acct') { // "mailq_acct hesap sayi" — kuyrugu dolduran hesaplar (ilk 3)
+                    $ma = preg_split('/\s+/', trim($p[1]));
+                    if (count($ma) === 2 && is_numeric($ma[1])) $mailqTop[] = [$ma[0], (int)$ma[1]];
+                }
                 elseif ($p[0] === 'netspeed') { // "netspeed eth0 1000" — arayüz başına Mbps
                     $ns = preg_split('/\s+/', trim($p[1]));
                     if (count($ns) === 2 && is_numeric($ns[1])) $netSpeed[$ns[0]] = (int)$ns[1];
@@ -879,6 +883,17 @@ $mailChecks = [
 // Mail queue ve toplam lsphp: System Info şeridinde kendi kartları (root snapshot'tan)
 $mailQ = ($rootFresh && isset($procSec['mailq']) && is_numeric($procSec['mailq']) && (int)$procSec['mailq'] >= 0)
        ? (int)$procSec['mailq'] : null;
+// Kuyrugu dolduran hesap (collector, kuyruk >= 25 iken; ornekleme en fazla 500).
+// Pay = hesap / orneklenen. "other" = cPanel hesabina baglanamayan (uzak/bounce).
+$mailqSampled = ($rootFresh && isset($procSec['mailq_sampled']) && is_numeric($procSec['mailq_sampled'])) ? (int)$procSec['mailq_sampled'] : 0;
+if (!$rootFresh) $mailqTop = [];
+function mailqTopTxt($top, $sampled) {
+    if (!$top) return '';
+    $name = $top[0][0] === 'other' ? t('other senders') : $top[0][0];
+    $pct  = $sampled > 0 ? ' (' . (int)round($top[0][1] / $sampled * 100) . '%)' : '';
+    return $name . ' ' . $top[0][1] . $pct;
+}
+$mailqTopTxt = mailqTopTxt($mailqTop, $mailqSampled);
 $lsphpTotal = ($rootFresh && isset($procSec['lsphp_total']) && is_numeric($procSec['lsphp_total']))
        ? (int)$procSec['lsphp_total'] : null;
 $lsphpIdle = ($rootFresh && isset($procSec['lsphp_idle']) && is_numeric($procSec['lsphp_idle']))
@@ -1661,10 +1676,10 @@ if ($sslDaysLeft !== null && $sslDaysLeft <= $TH['ssl_crit']) {
 $seedLvl['mailq'] = 'ok';
 if ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_crit_x']) {
     $seedLvl['mailq'] = 'err';
-    $seedLogs[] = ['type' => 'err', 'msg' => tf('Mail queue very high: %s messages', $mailQ), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'err', 'msg' => tf('Mail queue very high: %s messages%s', $mailQ, $mailqTopTxt !== '' ? ' — ' . t('top:') . ' ' . $mailqTopTxt : ''), 'ts' => date('H:i')];
 } elseif ($mailQ !== null && $mailQ >= $mqBase * $TH['mailq_warn_x']) {
     $seedLvl['mailq'] = 'warn';
-    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Mail queue elevated: %s messages', $mailQ), 'ts' => date('H:i')];
+    $seedLogs[] = ['type' => 'warn', 'msg' => tf('Mail queue elevated: %s messages%s', $mailQ, $mailqTopTxt !== '' ? ' — ' . t('top:') . ' ' . $mailqTopTxt : ''), 'ts' => date('H:i')];
 }
 
 // Servis grupları — metrikler seed ediliyordu ama gruplar edilmiyordu: sorun aktifken
@@ -1755,7 +1770,7 @@ if (isset($_GET['json'])) {
         'mysqlResponseTime' => $mysqlResponseTime,
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
         'whmApiOk'          => $whmApiOk,
-        'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
+        'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'mailqTop' => $mailqTop, 'mailqSampled' => $mailqSampled, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
         'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioSrc' => $ioSrc,
@@ -2692,7 +2707,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="info-card has-fill" id="ic-mq" style="--c:<?=$mqColV = mqCol($mailQ, $mqBase)?>;--fill:<?=$mailQ !== null ? min((int)round($mailQ/max($mqBase * $TH['mailq_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($mqColV)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('mail')?></span><span class="res-name"><?=t('Mail Queue')?></span></div><span class="res-val" id="iv-mailq" style="color:<?=$mqColV?>"><?=$mailQ !== null ? $mailQ : '—'?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['mq'], 260, 52, $mqColV, 'ssr-mq', [0, sparkTop($ssr['mq'], $mqBase * $TH['mailq_warn_x'])])?><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
-      <div class="res-meta"><?=t('messages queued')?></div>
+      <div class="res-meta" id="iv-mailq-sub"><?=t('messages queued')?><?=$mailqTopTxt !== '' ? ' &middot; ' . t('top:') . ' ' . htmlspecialchars($mailqTopTxt, ENT_QUOTES, 'UTF-8') : ''?></div>
     </div>
   <div class="info-card" id="ic-web" style="--c:<?=$webRtCol = rtCol($webResponseTime, $TH['webrt_warn'], $TH['webrt_crit'])?><?=cardBorderCss($webRtCol)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? vu($webResponseTime, 'ms') : '—'?></span></div>
@@ -3014,6 +3029,9 @@ function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
   return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';} // PHP fmtKbps ile ayni
+// Kuyrugu dolduran hesap metni: "pergo 1180 (95%)" — PHP mailqTopTxt ile ayni.
+function mailqTopTxt(top,sampled){if(!top||!top.length)return '';const n=top[0][0]==='other'?t('other senders'):top[0][0];
+  return n+' '+top[0][1]+(sampled>0?' ('+Math.round(top[0][1]/sampled*100)+'%)':'');}
 
 // Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
 // alfa gerektigi icin var; getComputedStyle genelde rgb() dondurur ama hex de olabilir.
@@ -3552,6 +3570,9 @@ function checkAlerts(data){
   let topWrk='';
   if(data.procPhp&&data.procPhp.length) topWrk=suffix(data.procPhp[0][0]+' '+data.procPhp[0][1]);
   // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
+  // Mail kuyrugu faili: collector'in ornekledigi en kalabalik gonderen hesap (PHP mailqTopTxt ile ayni).
+  const mqTxt=mailqTopTxt(data.mailqTop,data.mailqSampled);
+  const topMq=mqTxt?suffix(mqTxt):'';
   // IO wait faili: en cok disk I/O yapan hesap; veri yoksa top-CPU surecine duser.
   let topIo='';
   if(data.ioAcct&&data.ioAcct.length&&data.ioAcct[0][1]>0) topIo=suffix(data.ioAcct[0][0]+' '+fmtKbps(data.ioAcct[0][1]));
@@ -3602,7 +3623,7 @@ function checkAlerts(data){
     tf('Disk critically full: %s%%%s',data.disk,topDisk),tf('Disk usage high: %s%%%s',data.disk,topDisk),tf('Disk usage back to normal: %s%%',data.disk),now);
   // Mail kuyruğu — hesap sayısına oranlı (warn ≥ hesap / crit ≥ 3×); header sağlığıyla aynı.
   if(data.mailQ!=null){const b=data.acctForMailq||50;
-    transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
+    transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages%s',data.mailQ,topMq),tf('Mail queue elevated: %s messages%s',data.mailQ,topMq),t('Mail queue back to normal'),now);}
   if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
     if(rl!==mlvl.raid){
       if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);
@@ -3749,6 +3770,7 @@ function render(data){
     push(hist.mq,q);
     spark('sp-mq',hist.mq,qc,0,0,[0,Math.max(b*TH.mailq_warn_x,Math.max.apply(null,hist.mq))]);}}
   {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
+  {const s=document.getElementById('iv-mailq-sub');if(s){const m=mailqTopTxt(data.mailqTop,data.mailqSampled);s.textContent=t('messages queued')+(m?' · '+t('top:')+' '+m:'');}}
   {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*TH.wrk_crit_x?'var(--danger)':n>=c*TH.wrk_warn_x?'var(--warn)':'var(--accent)';}}
   {const n=data.lsphpTotal;if(n!=null){const cc=data.coreCount||1;
     const wc=n>=cc*TH.wrk_crit_x?'var(--danger)':n>=cc*TH.wrk_warn_x?'var(--warn)':'var(--accent)';

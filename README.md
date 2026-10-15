@@ -90,7 +90,9 @@ header button (per-browser, cookie-based). The version shows in the footer.
 - **Alerts name the culprit** — load/CPU/IO-wait lines carry the top process
   with its account and script; RAM the top-RSS process; PHP-worker and MySQL
   lines the busiest account / longest query; disk the fullest account; IO wait
-  the account doing the most disk I/O. Same text live, on first render and in
+  the account doing the most disk I/O; the mail-queue line the account behind
+  most of the queue (`— top: pergo 1180 (95%)`), read from Exim's spool headers
+  only while the queue is high. Same text live, on first render and in
   the mail attachment.
 - **Background jobs, named** — cPanel backups, `upcp`, WP Toolkit, Imunify
   scans and app discovery show as chips while they run and as `started` /
@@ -432,6 +434,7 @@ render, the CSF mail attachment, and the live 30-second ticks alike.
 | I/O per account (colour only) | ≥ 30% of listed total and ≥ 512 KB/s | ≥ 60% and ≥ 1 MB/s |
 | MySQL `threads_running` | ≥ 1× cores | ≥ 2× cores |
 | Mail queue | ≥ 1× base ‡ | ≥ 3× base ‡ |
+| Mail queue top sender (info) | shown once the queue reaches 25: the account behind most queued messages, from Exim spool headers (`-auth_id` / `-ident`), 500-message sample, 5-minute cache | |
 | MySQL response | 30 ms | 100 ms |
 | Web response | 500 ms | 2000 ms |
 | SSL expiry | 30 days left | 7 days left |
