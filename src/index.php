@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.23'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.24'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -181,7 +181,7 @@ $TR = [
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
-    'update available' => 'güncelleme var', 'Dashboard updated to v%s — reloading page' => 'Pano v%s sürümüne güncellendi — sayfa yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
+    'update available' => 'güncelleme var', 'Page was loaded as v%s, server is v%s — reloading' => 'Sayfa v%s ile yüklenmişti, sunucu v%s — yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
 ];
@@ -3858,7 +3858,7 @@ async function tick(){
     let done=null;try{done=sessionStorage.getItem('az-reloaded-for');}catch(e){}
     if(done!==data.appVer){
       try{sessionStorage.setItem('az-reloaded-for',data.appVer);}catch(e){}
-      addLog('ok',tf('Dashboard updated to v%s — reloading page',data.appVer),now);
+      addLog('ok',tf('Page was loaded as v%s, server is v%s — reloading',PAGE_VER,data.appVer),now);
       setTimeout(function(){location.reload();},1500);
       return;
     }
