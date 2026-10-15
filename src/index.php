@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.24'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.25'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -169,7 +169,7 @@ $TR = [
     '+%s GB/wk' => '+%s GB/hf', '<1wk' => '<1hf', '2+ yr' => '2+ yıl', '%smo' => '%say', '%swk' => '%shf', '80%% in %s' => '%%80\'e %s',
     'Root snapshot missing — cron down?' => 'Root anlık görüntüsü yok — cron kapalı mı?', 'Root snapshot stale (%ss) — cron down?' => 'Root anlık görüntüsü bayat (%s sn) — cron kapalı mı?', 'Root snapshot fresh again (%ss)' => 'Root anlık görüntüsü tekrar taze (%s sn)',
     '%s went offline' => '%s kapandı', '%s restored' => '%s geri geldi', '%s degraded' => '%s sorunlu',
-    'Server unreachable' => 'Sunucuya ulaşılamıyor', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
+    'Server unreachable' => 'Sunucuya ulaşılamıyor', '%s ago' => '%s önce', 'Not refreshing — last data %s ago' => 'Yenilenemiyor — son veri %s önce', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
     'Access forbidden (403) — IP blocked?' => 'Erişim yasak (403) — IP engellenmiş olabilir', 'Authentication required (401)' => 'Kimlik doğrulaması gerekiyor (401)',
     'Server responded with error (%s)' => 'Sunucu hata döndürdü (%s)', 'Connection restored' => 'Bağlantı geri geldi',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
@@ -2442,6 +2442,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .spark-tip .tip-v{display:block;font-size:11px;font-weight:700;}
 .spark-tip .tip-t{display:block;font-size:9px;font-weight:500;opacity:.65;margin-top:1px;}
 .static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
+/* Veri BAYAT (fetch basarisiz): baslik ve footer'daki yesil nokta turuncuya doner,
+   animasyon durur, saat turuncu ve yaninda "N dk once". Eskiden son basarili
+   saat yesil noktayla duruyor, yalniz olay kaydina satir dusuyordu — basliga
+   bakan kisi veriyi guncel saniyordu. */
+.feed-stale .dot{background:var(--warn);animation:none;}
+.feed-stale #time-val,.feed-stale #footer-mode-txt{color:var(--warn);}
 [data-theme="dark"] .spark-tip{background:var(--card2);color:var(--text);border:1px solid var(--border);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;position:relative;}
@@ -3709,7 +3715,8 @@ function applyMetrics(data){
   document.getElementById('hostname').textContent=data.hostname;
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
-  document.getElementById('time-val').textContent=data.time.split(' ')[1];
+  lastGoodTime=data.time.split(' ')[1];lastFetchOk=Date.now();
+  document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
   document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
@@ -3810,6 +3817,18 @@ let prevUpdAt;
 // null: hic yanit alinamadi (ag/DNS/servis kapali). Sayi: sunucu yanit verdi ama
 // HTTP durumu ok degil — 403 tipik olarak IP degisiminden sonra CSF/guvenlik duvari.
 let lastHttpStatus=null;
+// Bayat veri isareti: son basarili veri saati + ne kadar eski oldugu. Her
+// basarisiz tick'te yenilenir (30 sn), basarili tick'te kaldirilir.
+let lastGoodTime='';
+function markStale(on){
+  const b=document.body,tv=document.getElementById('time-val'),fm=document.getElementById('footer-mode-txt');
+  if(!on){b.classList.remove('feed-stale');if(fm)fm.textContent=t('Auto-refresh every 30 seconds');if(tv&&lastGoodTime)tv.textContent=lastGoodTime;return;}
+  b.classList.add('feed-stale');
+  const age=ageShort(Math.max(60,Math.round((Date.now()-lastFetchOk)/1000)));
+  if(tv&&lastGoodTime)tv.textContent=lastGoodTime+' · '+tf('%s ago',age);
+  if(fm)fm.textContent=tf('Not refreshing — last data %s ago',age);
+}
+let lastFetchOk=Date.now();
 
 async function fetchWithRetry(url, retries=2, delay=2000){
   lastHttpStatus=null;
@@ -3843,8 +3862,10 @@ async function tick(){
                   :             t('Server unreachable'),
              hmsOf(srvClock()),srvClock()); // sunucu yanit vermedi: yurutulen sunucu saati (tarayici saati degil)
     }
+    markStale(true);
     return;
   }
+  markStale(false);
 
   const now=data.time.split(' ')[1];
   if(data.now!=null){srvNow=+data.now;srvWall=Date.now();}if(data.tz!=null)TZOFF=+data.tz;
