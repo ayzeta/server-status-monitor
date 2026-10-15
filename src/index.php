@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.22'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.23'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -2094,11 +2094,24 @@ ob_start(function ($html) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<?php /* TEMA ILK BOYAMADAN ONCE: data-theme sabit "light" ile geliyor ve tema betigi
+   eskiden sayfanin en sonundaydi — 190 KB'lik sayfa akarken tarayici once acik
+   temayla boyuyor, betik gelince koyuya donuyordu (koyu modda beyaz parlama).
+   Simdi <style>'dan once, <html> var olur olmaz calisir; ilk boyama dogru temada.
+   Mail ekinde (betik yok) acik tema kalir, eskisi gibi. */ ?>
+<script>(function(){try{var s=localStorage.getItem('az-theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));}catch(e){}})();</script>
 <title><?=htmlspecialchars($SITE_TITLE, ENT_QUOTES, 'UTF-8')?></title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <?php if ($FAVICON_URL): ?><link rel="icon" type="image/png" href="<?=htmlspecialchars($FAVICON_URL, ENT_QUOTES, 'UTF-8')?>"><?php endif; ?>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
+/* Kaydirma cubugu olugu HER ZAMAN ayrilir: icerik margin:auto ile ortali; ilk
+   boyamada sayfa kisa oldugundan dikey cubuk yokken, icerik tamamlaninca cubuk
+   belirip genisligi 15px daraltiyor ve ortali icerik yana kayiyordu. Pano zaten
+   her zaman kaydirilacak kadar uzun, oluk gorunur bir maliyet degil.
+   html arka plani: body'nin 16px dolgusu disinda kalan alan da tema renginde. */
+html{background:var(--bg);overflow-y:scroll;scrollbar-gutter:stable;}
 :root,[data-theme="light"]{
   --brand:       #1b3f8b;
   --accent:      #2563eb;
@@ -2830,10 +2843,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 
 <script>
 (function(){
-  const saved  = localStorage.getItem('az-theme');
-  const system = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-  const theme  = saved || system;
-  document.documentElement.setAttribute('data-theme', theme);
+  // Ilk tema <head>'deki satir-ici betikte secildi (ilk boyamadan once);
+  // burada yalniz sistem temasi degisimini dinlemek kaldi.
   if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addListener(function(e) {
       if (!localStorage.getItem('az-theme')) {
