@@ -1,6 +1,6 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.20'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.21'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -3657,11 +3657,15 @@ function checkAlerts(data){
   });
   // Panonun KENDI guncellemesi. updAt degisince yazilir; ilk tick yalnizca
   // taban kurar, cunku sunucu render'i onu zaten seed etmis olabilir.
-  if(prevUpdAt===undefined){prevUpdAt=data.updAt||null;}
-  else if((data.updAt||null)!==prevUpdAt){
-    prevUpdAt=data.updAt||null;
-    if(data.updAt&&data.updFrom&&data.updRev)
-      addLog('ok',tf('Dashboard updated: %s → %s',data.updFrom,data.updRev),now);
+  // updAt YOKSA (bir tur git okunamadi, snapshot bayat) taban DEGISMEZ: eskiden
+  // null'a cekilip bir sonraki turda ayni guncelleme ikinci kez yaziliyordu
+  // ("Pano guncellendi: a52a9d3 -> 025816c" 03:11 ve yine 03:34).
+  if(data.updAt){
+    if(prevUpdAt===undefined)prevUpdAt=data.updAt;
+    else if(data.updAt!==prevUpdAt){
+      prevUpdAt=data.updAt;
+      if(data.updFrom&&data.updRev)addLog('ok',tf('Dashboard updated: %s → %s',data.updFrom,data.updRev),now);
+    }
   }
 }
 

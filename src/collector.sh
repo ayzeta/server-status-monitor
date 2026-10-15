@@ -607,9 +607,9 @@ PYEOF
     # guncelleme ELLE de yapilabildigi icin degisimi yakalamanin tek guvenilir
     # yolu bu; dosya tarihine bakmak config yeniden yazilinca da tetiklenirdi.
     LREV=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)
+    read SREV SAT SOLD < <(cat "$UPD_STATE" 2>/dev/null)
     if [ -n "$LREV" ]; then
       echo "upd_rev $LREV"
-      read SREV SAT SOLD < <(cat "$UPD_STATE" 2>/dev/null)
       if [ -z "$SREV" ]; then
         # Ilk calisma: taban kaydedilir, guncelleme olayi URETILMEZ.
         printf '%s %s\n' "$LREV" "$ACT_NOW" > "$UPD_STATE"
@@ -618,11 +618,17 @@ PYEOF
         SAT=$ACT_NOW; SOLD=$SREV
       fi
       chmod 600 "$UPD_STATE" 2>/dev/null
-      # Son guncelleme ACT_RETAIN (1 sa) icindeyse olay kaydina dussun: sayfayi
-      # sonradan acan da gorsun, act_*_end ile ayni mantik.
-      if [ -n "${SOLD:-}" ] && [ $(( ACT_NOW - ${SAT:-0} )) -le "$ACT_RETAIN" ]; then
-        echo "upd_at $SAT"; echo "upd_from $SOLD"
-      fi
+    else
+      # git bir tur okunamadi (update.sh calisirken index.lock, gecici hata):
+      # kayitli durumdan yayinlamaya devam. Eskiden bu turda upd_at hic
+      # yayinlanmiyor, sayfa "guncelleme yok" sayip bir sonraki turda AYNI
+      # guncellemeyi ikinci kez yaziyordu.
+      [ -n "${SREV:-}" ] && echo "upd_rev $SREV"
+    fi
+    # Son guncelleme ACT_RETAIN (1 sa) icindeyse olay kaydina dussun: sayfayi
+    # sonradan acan da gorsun, act_*_end ile ayni mantik.
+    if [ -n "${SOLD:-}" ] && [ $(( ACT_NOW - ${SAT:-0} )) -le "$ACT_RETAIN" ]; then
+      echo "upd_at $SAT"; echo "upd_from $SOLD"
     fi
     # Uzaktaki surum: GUNDE BIR (tek ag erisimi). Basarisiz olursa eski cache
     # korunur; "guncel" diye yanlis bilgi vermektense bayat bilgi daha iyi.
