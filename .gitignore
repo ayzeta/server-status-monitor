@@ -7,6 +7,7 @@ config.env
 .proc_snapshot
 .metrics_history
 .disk_history
+.diskacct_history
 .ver_cache
 .diskacct_cache
 .imunify_cache

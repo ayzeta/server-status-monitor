@@ -88,6 +88,18 @@ header button (per-browser, cookie-based). The version shows in the footer.
   briefly has no chain while it reloads. The state names match
   [csf-autogroup](https://github.com/ayzeta/csf-autogroup), so the two tools
   never call the same situation by different names.
+- **Which account is *growing*, not just which is big** — the disk-by-account
+  card has a second view: growth over the last 30 days, ranked. The biggest
+  account is rarely news; the one that quietly gained 20 GB this month is. A
+  per-account size is recorded once a day, and the card compares the newest
+  reading with the oldest one still inside the window, so an account that creeps
+  up half a gigabyte a week becomes visible instead of hiding under the
+  threshold of a short window, while a one-off migration drops out after 30 days
+  instead of sitting at the top for months. Accounts with no reading at the
+  start of the window are not hidden — a new account that uploaded 80 GB is
+  exactly what you want to see — they are tagged `new` so the number explains
+  itself. Growth under 1 GB is not listed. Until a month of history exists the
+  card uses the longest span it has and says what that span is.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
@@ -149,7 +161,11 @@ header button (per-browser, cookie-based). The version shows in the footer.
   that browser, not in the server config: the same dashboard can stay lit on a
   wall screen and sleep normally on a laptop. `keep_awake` in `config.php` only
   sets the default for a browser that has not chosen. The button is not drawn at
-  all where the browser has no Wake Lock API.
+  all where the browser has no Wake Lock API. It lights only while a lock is
+  actually held — a browser can refuse one, and a page that reloads itself in a
+  background tab cannot take one until you look at it again — so the button
+  never claims to be keeping a screen awake that is free to sleep. Your choice
+  is remembered either way; clicking a dark button asks for the lock again.
 
   *Second line of defence, in the browser itself:* a page cannot switch off a
   browser's **efficiency mode** / **sleeping tabs** — there is no web API for it,

@@ -225,6 +225,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .badge-err {background:var(--danger-bg);color:var(--danger-txt);}
 .svc-checks{border-top:1px solid var(--border);padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px;flex:1;}
 .sub-check{display:flex;align-items:center;gap:7px;min-height:20px;}
+/* Disk kart&#305; iki g&#246;r&#252;n&#252;m: hangi tbody g&#246;r&#252;necek kart&#305;n s&#305;n&#305;f&#305; belirler. &#304;kisi de
+   bas&#305;l&#305; durur &#8212; canl&#305; tik ikisini de g&#252;nceller, ge&#231;i&#351; a&#287; beklemeden olur. */
+.dk-tabs{display:inline-flex;gap:6px;align-items:center;}
+.dk-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
+  font:inherit;opacity:.5;transition:opacity .15s;}
+.dk-tab:hover{opacity:.8;}
+.dk-size .dk-t-size,.dk-grow .dk-t-grow{opacity:1;text-decoration:underline;
+  text-underline-offset:3px;}
+.dk-size #pt-diskgrow,.dk-grow #pt-disk{display:none;}
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
@@ -516,7 +525,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3">Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2048ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3">Web 2048ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -526,7 +535,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">12:44:24</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">22:33:50</span></div></div>
   </div>
 </div>
 
@@ -614,11 +623,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2028</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2048</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>5</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>3</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -729,21 +738,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2028ms</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2048ms</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">22:33</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">12:44</span></div>
+<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">22:33</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -751,7 +760,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.28">v1.5.28</span> &middot; 2026-10-19 12:44:24</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.30">v1.5.30</span> &middot; 2026-10-19 22:33:50</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -830,7 +839,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.28"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.30"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1047,6 +1056,13 @@ const TR={
     "disabled (csf.disable)": "devre dışı (csf.disable)",
     "rules not loaded": "kurallar yüklü değil",
     "no iptables": "iptables yok",
+    "growth": "artış",
+    "%sd growth": "%sg artış",
+    "new": "yeni",
+    "growth data is building up": "artış verisi birikiyor",
+    "no account grew by 1 GB": "1 GB büyüyen hesap yok",
+    "No record at the start of the window — account is new or was not yet measured": "Pencerenin başında kaydı yok — hesap yeni ya da o gün henüz ölçülmemişti",
+    "Growth over the window, from the daily per-account record. Accounts under 1 GB of growth are not listed.": "Pencere boyunca artış; hesap başına günlük kayıttan. 1 GB altında büyüyen hesaplar listelenmez.",
     "Page not found (404) — install moved?": "Sayfa bulunamadı (404) — kurulum taşınmış olabilir",
     "Server backend not responding (%s)": "Sunucu arka ucu yanıt vermiyor (%s)",
     "Web response time high: %sms": "Web yanıt süresi yüksek: %sms",
@@ -1108,7 +1124,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:44:24'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'22:33:50'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1135,55 +1151,55 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "err",
         "msg": "\u00d6nbellek kapand\u0131 \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "err",
         "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2028ms",
-        "ts": "12:44",
-        "t": 1792413864
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2048ms",
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     },
     {
         "type": "warn",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "12:44",
-        "t": 1792413864
+        "ts": "22:33",
+        "t": 1792449230
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1792413864,TZOFF=0;
+let srvNow=1792449230,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1766,6 +1782,24 @@ function renderProcs(data){
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
+  // Büyüme gövdesi — PHP diskGrowRows() ikizi. Gizliyken de güncellenir ki
+  // sekmeye geçildiğinde bayat veri görünmesin.
+  const dgr=document.getElementById('pt-diskgrow');
+  if(dgr&&data.acctGrow!==undefined){
+    const g=data.acctGrow;
+    if(g===null)dgr.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('growth data is building up')}</td></tr>`;
+    else if(!g.length)dgr.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no account grew by 1 GB')}</td></tr>`;
+    else{
+      const mx=Math.max(0.1,...g.map(r=>r[1]));
+      dgr.innerHTML=g.map(r=>{
+        const w=Math.round(r[1]/mx*100);
+        const n=(''+(Math.round(r[1]*10)/10)).replace(/\.0$/,'');
+        const yeni=r[2]?`<span class="sub-ver" title="${esc(t('No record at the start of the window — account is new or was not yet measured'))}">${t('new')}</span>`:'';
+        return `<tr><td class="proc-user">${esc(r[0])}${yeni}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num">+${n}</td></tr>`;}).join('');
+    }
+    const gt=document.querySelector('.dk-t-grow');
+    if(gt)gt.textContent=data.acctGrowSpan>0?tf('%sd growth',data.acctGrowSpan):t('growth');
+  }
   const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
   if(io&&data.ioAcct&&data.ioAcct.length){
     const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
@@ -1980,7 +2014,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.28 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.30 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -2339,22 +2373,50 @@ if(location.protocol==='file:'){
   // config'teki keep_awake yalnizca hic secim yapilmamis tarayici icin varsayilan.
   // Dugmeye tiklamak ayrica bazi tarayicilarin istedigi kullanici hareketidir;
   // kilit bu yuzden sessizce reddedilmek yerine guvenilir sekilde veriliyor.
+  // Disk kartı görünüm seçicisi. Olay DELEGE edilir: kart sunucu render'ından
+  // geliyor, ileride yeniden kurulsa da dinleyici kaybolmasın. Seçim tarayıcıda
+  // hatırlanır — hangi görünümü istediği kişisel tercih, sunucu ayarı değil.
+  const dkCard=document.getElementById('disk-card');
+  if(dkCard){
+    const dkSet=v=>{dkCard.classList.toggle('dk-grow',v==='grow');
+      dkCard.classList.toggle('dk-size',v!=='grow');};
+    try{const v=localStorage.getItem('az-disk-view');if(v)dkSet(v);}catch(e){}
+    document.addEventListener('click',e=>{
+      const b=e.target.closest&&e.target.closest('.dk-tab');
+      if(!b)return;
+      const v=b.getAttribute('data-dk');
+      dkSet(v); try{localStorage.setItem('az-disk-view',v);}catch(e){}
+    });
+  }
+
   const awBtn=document.getElementById('awake-btn');
   if(awBtn&&navigator.wakeLock&&navigator.wakeLock.request){
     let wl=null,on=KEEP_AWAKE;
     try{const v=localStorage.getItem('az-awake');if(v!==null)on=(v==='1');}catch(e){}
-    const paint=()=>{awBtn.classList.toggle('on',on);awBtn.setAttribute('aria-pressed',on?'true':'false');};
-    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;};
+    // Dugme TUTULAN kilidi gosterir, niyeti degil. Tercih acikken kilit her zaman
+    // alinamiyor: sekme ARKA PLANDAYKEN yenilenirse (guncelleme sayfayi kendi
+    // yeniliyor) belge gorunur olmadigi icin istek yapilmaz, tarayici da redde-
+    // debilir. O durumda yanik gorunmek yalan olurdu — ekran uyurken dugme
+    // "aciksin" derdi. Tercih (localStorage) korunur, gosterilen sey gercektir.
+    const paint=()=>{awBtn.classList.toggle('on',!!wl);
+      awBtn.setAttribute('aria-pressed',on?'true':'false');};
+    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;paint();};
     const acq=async()=>{
       if(!on||document.visibilityState!=='visible'||wl)return;
-      try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;});}
+      try{wl=await navigator.wakeLock.request('screen');
+          wl.addEventListener('release',()=>{wl=null;paint();});}
       catch(e){wl=null;}   // reddedilirse sessiz: pano calismaya devam eder
+      paint();
     };
     awBtn.hidden=false; paint(); acq();
     awBtn.addEventListener('click',()=>{
+      // Tercih acik ama kilit yoksa tiklama KAPATMAZ, yeniden dener. Yoksa
+      // kullanici "acmak icin" basar, kod ise tercihi kapatirdi. Tiklama ayrica
+      // bazi tarayicilarin istedigi kullanici hareketini de saglar.
+      if(on&&!wl){acq();return;}
       on=!on;
       try{localStorage.setItem('az-awake',on?'1':'0');}catch(e){}
-      paint(); if(on)acq(); else rel();
+      if(on)acq(); else rel();
     });
     // Sekme gizlenince tarayici kilidi KENDISI birakir; geri gelince yeniden alinir.
     document.addEventListener('visibilitychange',acq);

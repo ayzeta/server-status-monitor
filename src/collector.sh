@@ -906,11 +906,33 @@ except Exception:
   DAC=$DATA_DIR/.diskacct_cache
   if [ ! -s "$DAC" ] || [ $(( $(date +%s) - $(stat -c %Y "$DAC" 2>/dev/null || echo 0) )) -gt 3600 ]; then
     ls /var/cpanel/users/ 2>/dev/null > "$DAC.users"
+    # TUM hesaplar once ara dosyaya: ayni gecisten hem ilk 15'lik cip listesi hem
+    # de gunluk buyume kaydi cikiyor, repquota ikinci kez kosmuyor.
     repquota -a -O csv 2>/dev/null | awk -F, '
       NR==FNR{cp[$1]=1; next}
       FNR>1 && ($1 in cp) && $4+0>0 {printf "%d %s\n", $4, $1}
-    ' "$DAC.users" - | sort -rn | head -15 | awk '{printf "diskacct %s %.1f\n", $2, $1/1048576}' > "$DAC.tmp" && mv "$DAC.tmp" "$DAC"
-    rm -f "$DAC.users"
+    ' "$DAC.users" - | sort -rn > "$DAC.all"
+    head -15 "$DAC.all" | awk '{printf "diskacct %s %.1f\n", $2, $1/1048576}' > "$DAC.tmp" \
+      && mv "$DAC.tmp" "$DAC"
+
+    # --- Hesap basina buyume gecmisi (GUNDE bir satir) -----------------------
+    # Bicim: "YYYY-MM-DD hesap:gb hesap:gb ..." — gunde TEK satir, cunku pano her
+    # render'da yalnizca IKI satir okuyacak (en yeni + pencerenin basi); hesap
+    # basina satir yazsak 371 hesap x 40 gun = 15 bin satir ayristirmak gerekirdi.
+    # ALT SINIR YOK, kucuk hesaplar da yazilir: 0.05 GB'den 30 GB'ye firlayan
+    # hesap tam da yakalanmasi gereken sey, listede yoksa "yeni" sanilip elenirdi.
+    # Kota kapali sunucuda repquota bos/sifir doner — o zaman HIC YAZILMAZ:
+    # sahte sifirlarla "kimse buyumuyor" demektense veri yok demek dogru.
+    DAH="$HOME_DIR/.diskacct_history"
+    DAHTODAY=$(date +%F)
+    if [ -s "$DAC.all" ] \
+       && [ "$(tail -1 "$DAH" 2>/dev/null | awk '{print $1}')" != "$DAHTODAY" ]; then
+      awk -v d="$DAHTODAY" '{printf "%s%s:%.1f", (NR==1?d FS:FS), $2, $1/1048576}
+                            END{if (NR) print ""}' "$DAC.all" >> "$DAH"
+      tail -40 "$DAH" > "$DAH.tmp" && mv "$DAH.tmp" "$DAH"   # 30 gunluk pencere + pay
+      chown "$WEB_USER:$WEB_USER" "$DAH"; chmod 640 "$DAH"
+    fi
+    rm -f "$DAC.users" "$DAC.all"
   fi
   cat "$DAC" 2>/dev/null
   echo

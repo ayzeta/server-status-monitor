@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.28'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.30'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -179,6 +179,13 @@ $TR = [
     'Keep screen awake' => 'Ekranı uyanık tut',
     'not installed' => 'kurulu değil', 'disabled (csf.disable)' => 'devre dışı (csf.disable)',
     'rules not loaded' => 'kurallar yüklü değil', 'no iptables' => 'iptables yok',
+    'growth' => 'artış', '%sd growth' => '%sg artış', 'new' => 'yeni',
+    'growth data is building up' => 'artış verisi birikiyor',
+    'no account grew by 1 GB' => '1 GB büyüyen hesap yok',
+    'No record at the start of the window — account is new or was not yet measured'
+        => 'Pencerenin başında kaydı yok — hesap yeni ya da o gün henüz ölçülmemişti',
+    'Growth over the window, from the daily per-account record. Accounts under 1 GB of growth are not listed.'
+        => 'Pencere boyunca artış; hesap başına günlük kayıttan. 1 GB altında büyüyen hesaplar listelenmez.',
     'Page not found (404) — install moved?' => 'Sayfa bulunamadı (404) — kurulum taşınmış olabilir', 'Server backend not responding (%s)' => 'Sunucu arka ucu yanıt vermiyor (%s)',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
@@ -637,6 +644,67 @@ if ($diskTotalGB > 0 && is_readable($dhFile)) {
         }
     }
 }
+
+// ── Hesap başına büyüme ───────────────────────────────────────
+// Kaynak: collector'ın günde bir yazdığı tek satır ("YYYY-MM-DD hesap:gb ...").
+// Yalnız İKİ satır ayrıştırılır — en yeni ve pencerenin başı.
+//
+// Neden 30 günlük FARK, hesabın eğimi değil: haftada 0,5 GB büyüyen sessiz hesap
+// 7 günde 0,5 GB eder ve eşiğin altında kalır, görünmez; 30 günde 2 GB eder ve
+// görünür. Eğim (60 günlük regresyon) ise tek seferlik 80 GB'lik bir taşınmayı
+// iki ay boyunca listenin tepesinde tutardı — olay bitmiş, kart hâlâ onu gösterir.
+// Diskin tamamında regresyon kullanılıyor ($diskGrow) çünkü ORADA sorun
+// çözünürlüktü (tam GB'ye yuvarlanmış değerde günlük ~0,1 GB'lik büyüme gürültüye
+// gömülüyordu); hesap başına 0,1 GB çözünürlükle sakladığımız için o sorun yok.
+//
+// Pencere başında KAYDI OLMAYAN hesap elenmez, 'yeni' işaretlenir: 80 GB yükleyen
+// yeni bir hesap tam da görülmesi gereken şey. Rutin yeni site (1-2 GB) zaten
+// sıralamada aşağıda kalır, elemeye gerek yok.
+$acctGrowSpan = 0; $acctGrow = null;   // null = yeterli geçmiş yok
+function diskGrowth($file, $maxDays = 30, $minGB = 1.0, $limit = 15) {
+    if (!is_readable($file)) return [0, null];
+    $days = [];
+    foreach (@file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
+        $sp = strpos($ln, ' ');
+        if ($sp === false) continue;
+        $d = substr($ln, 0, $sp);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) continue;   // bozuk satır atlanır
+        $days[] = [strtotime($d), $ln];
+    }
+    if (count($days) < 2) return [0, null];
+    $newest = end($days);
+    // Pencerenin başı: en yeni günden en fazla $maxDays geride olan EN ESKİ satır.
+    // Geçmiş kısaysa eldeki en uzun aralık kullanılır; kart kaç gün olduğunu yazar,
+    // böylece "30 günlük" diye yanlış bir şey iddia edilmez.
+    $start = null;
+    foreach ($days as $d) {
+        if (($newest[0] - $d[0]) / 86400 <= $maxDays) { $start = $d; break; }
+    }
+    if ($start === null || $start[0] >= $newest[0]) return [0, null];
+    $span  = (int)round(($newest[0] - $start[0]) / 86400);
+    $parse = function ($ln) {
+        $out = [];
+        foreach (array_slice(preg_split('/\s+/', trim($ln)), 1) as $tok) {
+            $c = strrpos($tok, ':');
+            if ($c === false) continue;
+            $u = substr($tok, 0, $c); $v = substr($tok, $c + 1);
+            if ($u !== '' && is_numeric($v)) $out[$u] = (float)$v;
+        }
+        return $out;
+    };
+    $was = $parse($start[1]); $now = $parse($newest[1]);
+    if (!$now) return [0, null];
+    $rows = [];
+    foreach ($now as $u => $gb) {
+        $yeni = !isset($was[$u]);
+        $d    = $yeni ? $gb : $gb - $was[$u];
+        if ($d < $minGB) continue;              // eşik altı: kuyruğu dalgalanma doldurmasın
+        $rows[] = [$u, round($d, 1), $yeni];
+    }
+    usort($rows, fn($x, $y) => $y[1] <=> $x[1]);
+    return [$span, array_slice($rows, 0, $limit)];
+}
+[$acctGrowSpan, $acctGrow] = diskGrowth($HOME_DIR . '/.diskacct_history');
 
 // ── Uptime ────────────────────────────────────────────────────
 $uptime_text = @file_get_contents('/proc/uptime');
@@ -1850,6 +1918,7 @@ if (isset($_GET['json'])) {
         'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioSrc' => $ioSrc,
+        'acctGrow' => $acctGrow, 'acctGrowSpan' => $acctGrowSpan,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
         'dns'   => ['status' => $dnsStatus,   'checks' => $dnsChecks,   'ok' => $dnsOk,   'total' => $dnsTotal],
@@ -2043,11 +2112,40 @@ function diskAcctCls($gb, $totalGB) {
     $pct = $gb / $totalGB * 100;
     return $pct >= 3 ? 'hot' : ($pct >= 1 ? 'warm' : '');
 }
+// Büyüme satırları — iki renderer'ın (PHP/JS) AYNI gövdeyi üretmesi için tek yerde.
+function diskGrowRows($rows, $h) {
+    if ($rows === null) {
+        return '<tr><td colspan="3" style="color:var(--hint)">' . t('growth data is building up') . '</td></tr>';
+    }
+    if (!$rows) {
+        return '<tr><td colspan="3" style="color:var(--hint)">' . t('no account grew by 1 GB') . '</td></tr>';
+    }
+    $mx = 0.1;
+    foreach ($rows as $r) if ($r[1] > $mx) $mx = $r[1];
+    $out = '';
+    foreach ($rows as [$u, $gb, $yeni]) {
+        $w = round($gb / $mx * 100);
+        $n = rtrim(rtrim(number_format($gb, 1), '0'), '.');
+        $out .= '<tr><td class="proc-user">' . $h($u)
+              . ($yeni ? '<span class="sub-ver" title="' . htmlspecialchars(t('No record at the start of the window — account is new or was not yet measured')) . '">' . t('new') . '</span>' : '')
+              . '</td><td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . '<td class="num">+' . $n . '</td></tr>' . "\n";
+    }
+    return $out;
+}
 function renderDiskCard($diskAcct, $h) {
-    global $diskTotalGB;
-    $out = '<div class="proc-card"><div class="proc-title">' . t('Top disk · account')
-         . '<span class="proc-age" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">&middot; ' . t('GB used') . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">GB</th></tr></thead><tbody id="pt-disk">' . "\n";
+    global $diskTotalGB, $acctGrow, $acctGrowSpan;
+    // İki görünüm AYNI kartta: başlıktaki ipucu seçiciye dönüştü. Her iki gövde de
+    // basılır, görünen olanı CSS seçer — böylece canlı tik ikisini de güncel tutar
+    // ve geçiş ağ beklemeden olur.
+    $spanLbl = $acctGrowSpan > 0 ? tf('%sd growth', $acctGrowSpan) : t('growth');
+    $out = '<div class="proc-card dk-size" id="disk-card"><div class="proc-title">' . t('Top disk · account')
+         . '<span class="proc-age dk-tabs">'
+         . '<button type="button" class="dk-tab dk-t-size" data-dk="size" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">' . t('GB used') . '</button>'
+         . '<button type="button" class="dk-tab dk-t-grow" data-dk="grow" title="' . htmlspecialchars(t('Growth over the window, from the daily per-account record. Accounts under 1 GB of growth are not listed.')) . '">' . $spanLbl . '</button>'
+         . '</span></div>'
+         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">GB</th></tr></thead>'
+         . '<tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
     }
@@ -2060,6 +2158,7 @@ function renderDiskCard($diskAcct, $h) {
               . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
               . '<td class="num ' . diskAcctCls($p[1], $diskTotalGB) . '">' . $gb . '</td></tr>' . "\n";
     }
+    $out .= '</tbody><tbody id="pt-diskgrow">' . "\n" . diskGrowRows($acctGrow, $h);
     return $out . '</tbody></table></div>';
 }
 
@@ -2403,6 +2502,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .badge-err {background:var(--danger-bg);color:var(--danger-txt);}
 .svc-checks{border-top:1px solid var(--border);padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px;flex:1;}
 .sub-check{display:flex;align-items:center;gap:7px;min-height:20px;}
+/* Disk kartı iki görünüm: hangi tbody görünecek kartın sınıfı belirler. İkisi de
+   basılı durur — canlı tik ikisini de günceller, geçiş ağ beklemeden olur. */
+.dk-tabs{display:inline-flex;gap:6px;align-items:center;}
+.dk-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
+  font:inherit;opacity:.5;transition:opacity .15s;}
+.dk-tab:hover{opacity:.8;}
+.dk-size .dk-t-size,.dk-grow .dk-t-grow{opacity:1;text-decoration:underline;
+  text-underline-offset:3px;}
+.dk-size #pt-diskgrow,.dk-grow #pt-disk{display:none;}
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
@@ -3599,6 +3707,24 @@ function renderProcs(data){
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
+  // Büyüme gövdesi — PHP diskGrowRows() ikizi. Gizliyken de güncellenir ki
+  // sekmeye geçildiğinde bayat veri görünmesin.
+  const dgr=document.getElementById('pt-diskgrow');
+  if(dgr&&data.acctGrow!==undefined){
+    const g=data.acctGrow;
+    if(g===null)dgr.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('growth data is building up')}</td></tr>`;
+    else if(!g.length)dgr.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no account grew by 1 GB')}</td></tr>`;
+    else{
+      const mx=Math.max(0.1,...g.map(r=>r[1]));
+      dgr.innerHTML=g.map(r=>{
+        const w=Math.round(r[1]/mx*100);
+        const n=(''+(Math.round(r[1]*10)/10)).replace(/\.0$/,'');
+        const yeni=r[2]?`<span class="sub-ver" title="${esc(t('No record at the start of the window — account is new or was not yet measured'))}">${t('new')}</span>`:'';
+        return `<tr><td class="proc-user">${esc(r[0])}${yeni}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num">+${n}</td></tr>`;}).join('');
+    }
+    const gt=document.querySelector('.dk-t-grow');
+    if(gt)gt.textContent=data.acctGrowSpan>0?tf('%sd growth',data.acctGrowSpan):t('growth');
+  }
   const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
   if(io&&data.ioAcct&&data.ioAcct.length){
     const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
@@ -4172,22 +4298,50 @@ if(location.protocol==='file:'){
   // config'teki keep_awake yalnizca hic secim yapilmamis tarayici icin varsayilan.
   // Dugmeye tiklamak ayrica bazi tarayicilarin istedigi kullanici hareketidir;
   // kilit bu yuzden sessizce reddedilmek yerine guvenilir sekilde veriliyor.
+  // Disk kartı görünüm seçicisi. Olay DELEGE edilir: kart sunucu render'ından
+  // geliyor, ileride yeniden kurulsa da dinleyici kaybolmasın. Seçim tarayıcıda
+  // hatırlanır — hangi görünümü istediği kişisel tercih, sunucu ayarı değil.
+  const dkCard=document.getElementById('disk-card');
+  if(dkCard){
+    const dkSet=v=>{dkCard.classList.toggle('dk-grow',v==='grow');
+      dkCard.classList.toggle('dk-size',v!=='grow');};
+    try{const v=localStorage.getItem('az-disk-view');if(v)dkSet(v);}catch(e){}
+    document.addEventListener('click',e=>{
+      const b=e.target.closest&&e.target.closest('.dk-tab');
+      if(!b)return;
+      const v=b.getAttribute('data-dk');
+      dkSet(v); try{localStorage.setItem('az-disk-view',v);}catch(e){}
+    });
+  }
+
   const awBtn=document.getElementById('awake-btn');
   if(awBtn&&navigator.wakeLock&&navigator.wakeLock.request){
     let wl=null,on=KEEP_AWAKE;
     try{const v=localStorage.getItem('az-awake');if(v!==null)on=(v==='1');}catch(e){}
-    const paint=()=>{awBtn.classList.toggle('on',on);awBtn.setAttribute('aria-pressed',on?'true':'false');};
-    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;};
+    // Dugme TUTULAN kilidi gosterir, niyeti degil. Tercih acikken kilit her zaman
+    // alinamiyor: sekme ARKA PLANDAYKEN yenilenirse (guncelleme sayfayi kendi
+    // yeniliyor) belge gorunur olmadigi icin istek yapilmaz, tarayici da redde-
+    // debilir. O durumda yanik gorunmek yalan olurdu — ekran uyurken dugme
+    // "aciksin" derdi. Tercih (localStorage) korunur, gosterilen sey gercektir.
+    const paint=()=>{awBtn.classList.toggle('on',!!wl);
+      awBtn.setAttribute('aria-pressed',on?'true':'false');};
+    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;paint();};
     const acq=async()=>{
       if(!on||document.visibilityState!=='visible'||wl)return;
-      try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;});}
+      try{wl=await navigator.wakeLock.request('screen');
+          wl.addEventListener('release',()=>{wl=null;paint();});}
       catch(e){wl=null;}   // reddedilirse sessiz: pano calismaya devam eder
+      paint();
     };
     awBtn.hidden=false; paint(); acq();
     awBtn.addEventListener('click',()=>{
+      // Tercih acik ama kilit yoksa tiklama KAPATMAZ, yeniden dener. Yoksa
+      // kullanici "acmak icin" basar, kod ise tercihi kapatirdi. Tiklama ayrica
+      // bazi tarayicilarin istedigi kullanici hareketini de saglar.
+      if(on&&!wl){acq();return;}
       on=!on;
       try{localStorage.setItem('az-awake',on?'1':'0');}catch(e){}
-      paint(); if(on)acq(); else rel();
+      if(on)acq(); else rel();
     });
     // Sekme gizlenince tarayici kilidi KENDISI birakir; geri gelince yeniden alinir.
     document.addEventListener('visibilitychange',acq);
