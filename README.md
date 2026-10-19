@@ -87,6 +87,18 @@ header button (per-browser, cookie-based). The version shows in the footer.
   and tabs (what you cleared does not come back; new events do). The panel
   sizes itself to its rows, up to eight, then scrolls; drag the grip for a fixed
   height, double-click it to go back to automatic.
+- **Says *why* it lost the server, not just that it did** — the viewer's own
+  network dropping is not a server outage, and the log no longer reads like one.
+  A failed poll is sorted into: no internet on this device (the browser reports
+  it, and the exact moment it went is recorded), `403` (IP blocked?), `401`,
+  `404` (install moved?), `502/503/504` (host answers, backend does not), any
+  other HTTP code, a timeout (nothing came back before the deadline — a silently
+  dropped route looks like this), or a refused connection. Requests carry a
+  deadline and never overlap, so a black-holed route cannot pile up polls. The
+  deadline is not a fixed number: the server times how long it takes to build a
+  response, keeps the worst of the last 24 hours, and derives the window from
+  that (15s floor, 30s ceiling). A slow server widens its own window instead of
+  being mislabelled as unreachable, and no hand-tallied constant can go stale.
 - **Alerts name the culprit** — load/CPU/IO-wait lines carry the top process
   with its account and script; RAM the top-RSS process; PHP-worker and MySQL
   lines the busiest account / longest query; disk the fullest account; IO wait
@@ -122,6 +134,23 @@ header button (per-browser, cookie-based). The version shows in the footer.
   tabs reload themselves once when the served version changes, so no browser
   keeps running yesterday's page code against today's feed.
 - **Mobile-friendly** and **light/dark** aware.
+- **Left open on a wall display** — a header button holds a screen wake lock
+  while the tab is visible, so the display does not sleep. The choice lives in
+  that browser, not in the server config: the same dashboard can stay lit on a
+  wall screen and sleep normally on a laptop. `keep_awake` in `config.php` only
+  sets the default for a browser that has not chosen. The button is not drawn at
+  all where the browser has no Wake Lock API.
+
+  *Second line of defence, in the browser itself:* a page cannot switch off a
+  browser's **efficiency mode** / **sleeping tabs** — there is no web API for it,
+  and any page that claimed to would be lying. If tabs are being suspended, add
+  the dashboard to the browser's own exception list (Edge: Settings → System and
+  performance; Chrome: Settings → Performance → Memory Saver). Worth doing even
+  with the wake lock on, since the two cover different things: the wake lock
+  keeps the *screen* up, the exception keeps the *tab* running.
+
+  Either way the page recovers on its own: it redraws from memory and refetches
+  the moment the tab comes back.
 - **Drop-in for CSF & WHMCS** — works as CSF's high-load status page on LiteSpeed
   servers (which have no Apache `mod_status`) and as a WHMCS *Server Status*
   endpoint. See [Integrations](#integrations).
@@ -144,6 +173,11 @@ jailed/unprivileged) the root collector must drop its feed into that account's h
 **dedicated account or subdomain** (e.g. `status.example.com` or a small
 `monitor` cPanel user) rather than your live site — the installer asks which
 account to use. That keeps your main site's home clean and the panel isolated.
+
+More than one install on the same server is fine: the short-lived caches the
+page keeps in the temp directory are named per account, so two dashboards never
+read or overwrite each other's measurements — including on a server without
+CageFS, where `/tmp` is shared.
 
 ## Securing the dashboard
 

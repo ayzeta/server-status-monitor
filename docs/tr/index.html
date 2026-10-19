@@ -3,10 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>(function(){try{var s=localStorage.getItem('az-theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));}catch(e){}})();</script>
 <title>Server Status Monitor</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
+/* Kaydirma cubugu olugu HER ZAMAN ayrilir: icerik margin:auto ile ortali; ilk
+   boyamada sayfa kisa oldugundan dikey cubuk yokken, icerik tamamlaninca cubuk
+   belirip genisligi 15px daraltiyor ve ortali icerik yana kayiyordu. Pano zaten
+   her zaman kaydirilacak kadar uzun, oluk gorunur bir maliyet degil.
+   html arka plani: body'nin 16px dolgusu disinda kalan alan da tema renginde. */
+html{background:var(--bg);overflow-y:scroll;scrollbar-gutter:stable;}
 :root,[data-theme="light"]{
   --brand:       #1b3f8b;
   --accent:      #2563eb;
@@ -122,6 +130,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .bk-chip{font-size:9px;font-weight:700;background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;}
 .theme-btn{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;transition:background .2s;}
 .theme-btn:hover{background:rgba(255,255,255,.2);}
+/* Acik durum: ayni dugme, daha belirgin zemin. Renk DEGISTIRILMEZ &#8212; baslik
+   seridi koyu, ikonlar beyaz; vurgu rengi orada okunmuyor. */
+.theme-btn.on{background:rgba(255,255,255,.34);}
+.theme-btn[hidden]{display:none;}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);}}
 /* Bolum etiketi: yazi solda, ince cizgi arayi doldurur, aralik sagda.
@@ -219,7 +231,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-dot.muted{background:var(--hint);}
 .sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmas&#305;n; s&#305;k&#305;&#351;&#305;nca &#246;nce s&#252;r&#252;m k&#305;rp&#305;l&#305;r */
 .sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
-.sub-note.note-warn{color:var(--warn);font-weight:600;} /* yak&#305;n zamanda restart olmu&#351; servis */
 /* Ya&#351; s&#252;tunu: her sat&#305;rda sabit geni&#351;lik &#8594; sa&#287; kenarda dikey hizal&#305;, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* S&#252;r&#252;m &#8212; etiketin yan&#305;nda silik; dar pencerede yaln&#305;z o k&#305;rp&#305;l&#305;r (tamam&#305; hover'da) */
@@ -229,7 +240,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .copy-btn.copied{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
 .sub-cmd-inline{font-size:10px;color:var(--muted);background:var(--cmd-bg);padding:2px 6px;border-radius:5px;font-family:'SFMono-Regular',Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
 
-.proc-row{display:grid;grid-template-columns:2.2fr 1.5fr 1fr 1fr;gap:8px;}
+.proc-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
+/* Iki satir: CPU | RAM yarim-yarim (genis tablolar, komut sutunu okunsun);
+   PHP | I/O | Disk uclu ("hangi hesap?" kartlari dar, 3'u yan yana sigar).
+   Siralama renderProcTables'tan gelir; mobil kural (680) span'leri sifirlar. */
+.proc-row .proc-card:nth-child(-n+2){grid-column:span 3;}
+.proc-row .proc-card:nth-child(n+3){grid-column:span 2;}
 .proc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:12px 14px;overflow:hidden;transition:background .3s,border-color .3s;}
 .proc-title{font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
 .proc-age{font-size:10px;color:var(--hint);font-weight:400;text-transform:none;letter-spacing:0;}
@@ -269,10 +285,14 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .log-hdr-title{font-size:12px;font-weight:600;flex:1;}
 .log-clear{font-size:10px;color:var(--muted);cursor:pointer;padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:transparent;transition:background .15s;}
 .log-clear:hover{background:var(--card2);}
-/* Y&#252;kseklik s&#252;r&#252;kleyerek ayarlan&#305;r (textarea gibi): olay &#246;rg&#252;s&#252;n&#252; izlerken 140px
-   pencerede kayd&#305;r&#305;p durmak yorucu. resize'&#305;n &#231;al&#305;&#351;mas&#305; i&#231;in overflow'un visible
-   olmamas&#305; gerekiyor, zaten auto. min-height listeyi hi&#231;e indirmeyi engeller. */
-.log-list{display:flex;flex-direction:column;gap:4px;height:140px;min-height:56px;
+/* Y&#252;kseklik &#304;&#199;ER&#304;&#286;E g&#246;re: 1 sat&#305;r varsa 1 sat&#305;rl&#305;k, 8 sat&#305;ra kadar uzar, sonras&#305;
+   kayd&#305;rmal&#305; (max-height). Eskiden sabit 140px'ti: 2 sat&#305;rda bo&#351; alan, 10 sat&#305;rda
+   kayd&#305;rma. Tutamakla s&#252;r&#252;klenirse sabit y&#252;kseklik verilir (max-height kalkar),
+   tutama&#287;a &#231;ift t&#305;klama otomati&#287;e d&#246;nd&#252;r&#252;r. --log-rows sat&#305;r say&#305;s&#305;d&#305;r:
+   sat&#305;r &#8776; 30px (6px dolgu &#215;2 + 18px metin) + 4px aral&#305;k. min-height "Hen&#252;z olay
+   yok" sat&#305;r&#305;n&#305; korur. */
+.log-list{display:flex;flex-direction:column;gap:4px;height:auto;min-height:32px;
+  --log-rows:8;max-height:calc(var(--log-rows) * 34px - 4px);
   overflow-y:auto;overflow-x:hidden;}
 /* Boyutland&#305;rma tutama&#287;&#305; KEND&#304; tutama&#287;&#305;m&#305;z, taray&#305;c&#305;n&#305;n resize'&#305; de&#287;il. Sebep iki:
    (1) yerel tutamak ::-webkit-resizer ile boyanm&#305;yor, koyu temada beyaz bir kare
@@ -329,6 +349,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .spark-tip .tip-v{display:block;font-size:11px;font-weight:700;}
 .spark-tip .tip-t{display:block;font-size:9px;font-weight:500;opacity:.65;margin-top:1px;}
 .static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
+/* Veri BAYAT (fetch basarisiz): baslik ve footer'daki yesil nokta turuncuya doner,
+   animasyon durur, saat turuncu ve yaninda "N dk once". Eskiden son basarili
+   saat yesil noktayla duruyor, yalniz olay kaydina satir dusuyordu &#8212; basliga
+   bakan kisi veriyi guncel saniyordu. */
+.feed-stale .dot{background:var(--warn);animation:none;}
+.feed-stale #time-val,.feed-stale #footer-mode-txt{color:var(--warn);}
 [data-theme="dark"] .spark-tip{background:var(--card2);color:var(--text);border:1px solid var(--border);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--hint);flex-wrap:wrap;gap:6px;padding:0 2px;position:relative;}
@@ -350,13 +376,19 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .resources-row{grid-template-columns:repeat(2,1fr);}
   .info-row{grid-template-columns:repeat(3,1fr);}
   .svcs-row1,.svcs-row2{grid-template-columns:repeat(2,1fr);}
-  .proc-row{grid-template-columns:1fr 1fr;}
 }
 /* Header tek sat&#305;rda kals&#305;n (.hdr nowrap): geni&#351; ekranda durum detay&#305; s&#305;&#287;mazsa
    "&#8230;"+tooltip ile k&#305;sal&#305;r. Dar ekranda (&#8804;900) meta bilgileri gizlenir ki marka +
    durum rozeti yatay ta&#351;madan yan yana kals&#305;n &#8212; meta asla 2. sat&#305;ra d&#252;&#351;mez. */
 @media(max-width:900px){ .hdr-meta .meta-item{display:none;} }
 @media(max-width:680px){
+  /* S&#252;re&#231;ler ba&#351;l&#305;&#287;&#305;: etiket + ince &#231;izgi + "root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 25 sn &#246;nce" +
+     aktivite &#231;ipleri tek flex sat&#305;r&#305;ndayd&#305;; dar ekranda &#231;izgi s&#305;f&#305;ra iniyor, ya&#351;
+     metni 3 sat&#305;ra k&#305;r&#305;l&#305;p &#231;iplerin yan&#305;nda dar bir s&#252;tun oluyordu. Sarmal&#305; flex:
+     ilk sat&#305;r etiket + &#231;izgi + ya&#351;, &#231;ipler kendi sat&#305;r&#305;nda tam geni&#351;likte. */
+  .sec{flex-wrap:wrap;row-gap:6px;}
+  .sec-hair{min-width:12px;}
+  #act-chips{flex-basis:100%;margin-left:0;}
   /* Yeni kal&#305;pta her kart bir mini grafik ta&#351;&#305;yor: 390px'e &#252;&#231; load kart&#305; s&#305;&#287;maz
      (etiket + b&#252;y&#252;k de&#287;er ayn&#305; sat&#305;rda, kart min-content'in alt&#305;na inemiyordu ve
      yatay ta&#351;ma yap&#305;yordu). Mobilde load tek s&#252;tun, grafikler al&#231;ak. */
@@ -379,6 +411,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .sub-ver{display:none;}
   .svcs-row1,.svcs-row2{grid-template-columns:1fr;}
   .proc-row{grid-template-columns:1fr;}
+  .proc-row .proc-card:nth-child(n){grid-column:auto;} /* :nth-child(n) = temel span kurallar&#305;yla ayn&#305; &#246;zg&#252;ll&#252;k, sonra geldi&#287;i i&#231;in kazan&#305;r */
   /* Mobilde meta sat&#305;r&#305; s&#305;&#287;m&#305;yor: hostname/threads/uptime/updated gizlenir AMA
      en kritik bilgi &#8212; genel durum &#8212; kal&#305;r. Alt sat&#305;ra ta&#351;mas&#305;n diye ba&#351;l&#305;k tek
      sat&#305;ra kilitlenir (uzunsa "&#8230;"), brand daral&#305;r, kompakt durum rozeti (renkli
@@ -472,6 +505,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <button class="theme-btn" id="theme-btn" title="Karanl&#305;k modu de&#287;i&#351;tir">
       <svg class="ic ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" /></svg><svg class="ic ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" /></svg>    </button>
     <button class="theme-btn" id="lang-btn" title="Dil" style="font-size:11px;font-weight:700;letter-spacing:.02em;">EN</button>
+    <!-- Ekran&#305; uyan&#305;k tut. 'hidden' ba&#351;lang&#305;&#231;: taray&#305;c&#305; Wake Lock desteklemiyorsa
+         hi&#231; g&#246;r&#252;nmez, &#246;l&#252; kontrol &#231;izilmez. JS destek varsa a&#231;ar. -->
+    <button class="theme-btn" id="awake-btn" hidden aria-pressed="false" title="Ekran&#305; uyan&#305;k tut">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z" /><path d="M7 20h10" /><path d="M9 16v4" /><path d="M15 16v4" /></svg>    </button>
   </div>
   <div class="hdr-meta">
     <div class="hdr-status has-detail" id="hdr-status">
@@ -479,7 +516,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; Veritaban&#305; &#199;evrimd&#305;&#351;&#305; &#183; +4">Web 2023ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; Veritaban&#305; &#199;evrimd&#305;&#351;&#305; &#183; +4</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2035ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3">Web 2035ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -489,7 +526,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">17:22:13</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:06:42</span></div></div>
   </div>
 </div>
 
@@ -532,15 +569,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:67%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:1%">
     <div class="res-top">
       <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><b>67</b><u>%</u></span>
+      <span class="res-val" id="rv-disk"><b>1</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">159 / 236 GB</div>
+    <div class="res-meta" id="rm-disk">12 / 894 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
@@ -574,14 +611,14 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="info-card has-fill" id="ic-mq" style="--c:var(--muted);--fill:0%">
       <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg></span><span class="res-name">Mail Kuyru&#287;u</span></div><span class="res-val" id="iv-mailq" style="color:var(--muted)">&#8212;</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
-      <div class="res-meta">kuyruktaki mesaj</div>
+      <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2023</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2035</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)">&#8212;</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -654,10 +691,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></div>
-      <div class="svc-info"><div class="svc-name">Veritaban&#305;</div><div class="svc-count" id="sk-db">0/2 kontrol ge&#231;ti</div></div>
-      <div class="badge badge-err" id="bd-db">&#199;evrimd&#305;&#351;&#305;</div>
+      <div class="svc-info"><div class="svc-name">Veritaban&#305;</div><div class="svc-count" id="sk-db">1/2 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-ok" id="bd-db">&#199;al&#305;&#351;&#305;yor</div>
     </div>
-    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yan&#305;t veriyor</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">bulunamad&#305;</span><span class="sub-age"></span></div>
 </div>
   </div>
@@ -688,43 +725,41 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="log-card">
   <div class="log-hdr">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="font-size:15px;color:var(--hint)"><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></svg>    <span class="log-hdr-title">Son alarmlar ve durum de&#287;i&#351;iklikleri</span>
-    <button class="log-clear" id="log-clear-btn">Temizle</button>
+    <button class="log-clear" id="log-clear-btn" title="Kayd&#305; temizle; temizlenen olaylar yenilemede geri gelmez">Temizle</button>
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">12:06</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">12:06</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Veritaban&#305; kapand&#305; &#183; MySQL (3306), MySQL socket</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">12:06</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">12:06</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">12:06</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">17:22</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2023ms</span><span class="log-ts">17:22</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">17:22</span></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2035ms</span><span class="log-ts">12:06</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">12:06</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">12:06</span></div>
   </div>
-  <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r"></div>
+  <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
 
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.9">v1.5.9</span> &middot; 2026-10-04 17:22:13</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.27">v1.5.27</span> &middot; 2026-10-19 12:06:42</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
-  const saved  = localStorage.getItem('az-theme');
-  const system = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-  const theme  = saved || system;
-  document.documentElement.setAttribute('data-theme', theme);
+  // Ilk tema <head>'deki satir-ici betikte secildi (ilk boyamadan once);
+  // burada yalniz sistem temasi degisimini dinlemek kaldi.
   if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addListener(function(e) {
       if (!localStorage.getItem('az-theme')) {
@@ -741,7 +776,6 @@ function applyTheme(theme) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
   document.getElementById('theme-btn').addEventListener('click', function() {
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     if(typeof redrawSparks==='function')redrawSparks(); // tepe noktası dolgusu yeni temanın --card'ıyla çizilsin
@@ -796,6 +830,10 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
+const PAGE_VER="1.5.27"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+// Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
+// ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
+const KEEP_AWAKE=false;
 const TR={
     "All systems operational": "Tüm sistemler çalışıyor",
     "Degraded": "Sorunlu",
@@ -823,14 +861,11 @@ const TR={
     "R": "O",
     "W": "Y",
     "Load": "Yük",
-    "blk": "bloklu",
-    "used": "kullanımda",
     "IO Wait": "IO Bekleme",
     "Network IN": "Ağ GİRİŞ",
     "Network OUT": "Ağ ÇIKIŞ",
     "incoming traffic": "gelen trafik",
     "outgoing traffic": "giden trafik",
-    "%s%% of link": "hattın %%%s",
     "%s%% · peak %s": "%%%s · tepe %s",
     "%s%%<span class=\"nm-x\"> of line<\/span> · peak %s%% (%s)<span class=\"nm-x\"> · %s<\/span>": "<span class=\"nm-x\">hattın <\/span>%%%s · tepe %%%s (%s)<span class=\"nm-x\"> · %s<\/span>",
     "%s%%<span class=\"nm-x\"> of NIC speed<\/span> · peak %s%% (%s)<span class=\"nm-x\"> · %s<\/span>": "<span class=\"nm-x\">kart hızının <\/span>%%%s · tepe %%%s (%s)<span class=\"nm-x\"> · %s<\/span>",
@@ -856,9 +891,6 @@ const TR={
     "Cache": "Önbellek",
     "Operational": "Çalışıyor",
     "Offline": "Çevrimdışı",
-    "%s\/%s checks passed": "%s\/%s kontrol geçti",
-    "%s verified active": "%s aktif doğrulandı",
-    "%s\/%s active": "%s\/%s aktif",
     "checks passed": "kontrol geçti",
     "verified active": "aktif doğrulandı",
     "blocked": "bloklu",
@@ -882,7 +914,6 @@ const TR={
     "cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk": "Kotadan cPanel hesap disk kullanımı (saatlik). Renk: kırmızı >%3, turuncu >%1.5 toplam disk",
     "Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)": "Anlık görüntü anında sorgu çalıştıran iş parçacıkları; alttaki listenin göstermediği %s sn altı olanlar dahil (durum sorgusunun kendisi 1 sayılır)",
     "Value = active workers (R\/D state); the lsphp\/account table lists all processes incl. the idle pool": "Değer = aktif işçiler (R\/D durumu); lsphp\/hesap tablosu boştaki havuz dahil tüm süreçleri listeler",
-    "SSL %sd": "SSL %sg",
     "MySQL %s running": "MySQL %s çalışan",
     "Mail queue %s": "Mail kuyruğu %s",
     "%s PHP workers": "%s PHP işçisi",
@@ -898,6 +929,11 @@ const TR={
     "Top processes · CPU": "En yüklü süreçler · İşlemci",
     "Top processes · RAM": "En yüklü süreçler · Bellek",
     "Top disk · account": "En dolu disk · hesap",
+    "I\/O · account": "I\/O · hesap",
+    "I\/O data pending": "I\/O verisi bekleniyor",
+    "read+write": "okuma+yazma",
+    "Per-account disk I\/O (read+write), 1-minute average. Source: CloudLinux LVE — counts every process of the account, short-lived ones included. Color: red ≥60%, orange ≥30% of the listed total": "Hesap başına disk I\/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: CloudLinux LVE — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu",
+    "Per-account disk I\/O (read+write), 1-minute average. Source: \/proc\/<pid>\/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total": "Hesap başına disk I\/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: \/proc\/<pid>\/io farkları — iki örnek arasında biten süreçler sayılmaz (eksik sayar). Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu",
     "PHP · account": "PHP · hesap",
     "GB used": "GB dolu",
     "active+idle": "aktif+boşta",
@@ -927,8 +963,10 @@ const TR={
     "STALE (cron?)": "BAYAT (cron?)",
     "Recent alerts & status changes": "Son alarmlar ve durum değişiklikleri",
     "Clear": "Temizle",
+    "yesterday": "dün",
+    "Clear the log; cleared events do not come back on refresh": "Kaydı temizle; temizlenen olaylar yenilemede geri gelmez",
+    "Drag to resize · double-click for automatic height": "Sürükleyerek boyutlandır · çift tıkla: otomatik yükseklik",
     "No events yet.": "Henüz olay yok.",
-    "Drag to resize": "Sürükleyerek boyutlandır",
     "Auto-refresh every 30 seconds": "30 saniyede bir yenilenir",
     "Static snapshot (mail attachment)": "Statik anlık görüntü (mail eki)",
     "Static snapshot (mail attachment) — live refresh disabled": "Statik anlık görüntü (mail eki) — canlı yenileme kapalı",
@@ -940,9 +978,7 @@ const TR={
     "CPU critical: %s%%%s": "CPU kritik: %s%%%s",
     "CPU high: %s%%%s": "CPU yüksek: %s%%%s",
     "CPU back to normal: %s%%": "CPU normale döndü: %s%%",
-    "RAM critical: %s%%": "RAM kritik: %s%%",
     "RAM critical: %s%%%s": "RAM kritik: %s%%%s",
-    "RAM high: %s%%": "RAM yüksek: %s%%",
     "RAM high: %s%%%s": "RAM yüksek: %s%%%s",
     "RAM back to normal: %s%%": "RAM normale döndü: %s%%",
     "IO Wait critical: %s%%%s": "IO Bekleme kritik: %s%%%s",
@@ -969,19 +1005,17 @@ const TR={
     "Network load back to normal": "Ağ yükü normale döndü",
     "MySQL threads_running very high: %s (query pileup)": "MySQL threads_running çok yüksek: %s (sorgu birikmesi)",
     "MySQL threads_running very high: %s (query pileup)%s": "MySQL threads_running çok yüksek: %s (sorgu birikmesi)%s",
-    "MySQL threads_running elevated: %s": "MySQL threads_running yükseldi: %s",
     "MySQL threads_running elevated: %s%s": "MySQL threads_running yükseldi: %s%s",
     "MySQL threads_running back to normal": "MySQL threads_running normale döndü",
-    "PHP workers very high: %s": "PHP işçileri çok yüksek: %s",
     "PHP workers very high: %s%s": "PHP işçileri çok yüksek: %s%s",
-    "PHP workers elevated: %s": "PHP işçileri yükseldi: %s",
     "PHP workers elevated: %s%s": "PHP işçileri yükseldi: %s%s",
     "PHP workers back to normal": "PHP işçileri normale döndü",
-    "Disk critically full: %s%%": "Disk kritik doldu: %s%%",
-    "Disk usage high: %s%%": "Disk kullanımı yüksek: %s%%",
+    "Disk critically full: %s%%%s": "Disk kritik doldu: %s%%%s",
+    "Disk usage high: %s%%%s": "Disk kullanımı yüksek: %s%%%s",
     "Disk usage back to normal: %s%%": "Disk kullanımı normale döndü: %s%%",
-    "Mail queue very high: %s messages": "Mail kuyruğu çok yüksek: %s mesaj",
-    "Mail queue elevated: %s messages": "Mail kuyruğu yükseldi: %s mesaj",
+    "Mail queue very high: %s messages%s": "Mail kuyruğu çok yüksek: %s mesaj%s",
+    "Mail queue elevated: %s messages%s": "Mail kuyruğu yükseldi: %s mesaj%s",
+    "other senders": "diğer göndericiler",
     "Mail queue back to normal": "Mail kuyruğu normale döndü",
     "SSL expires in %s days!": "SSL %s günde doluyor!",
     "SSL expires in %s days": "SSL %s günde doluyor",
@@ -998,12 +1032,19 @@ const TR={
     "%s restored": "%s geri geldi",
     "%s degraded": "%s sorunlu",
     "Server unreachable": "Sunucuya ulaşılamıyor",
+    "%s ago": "%s önce",
+    "Not refreshing — last data %s ago": "Yenilenemiyor — son veri %s önce",
     "Service feed unavailable (root snapshot stale?)": "Servis beslemesi yok (root anlık görüntüsü bayat mı?)",
     "Service feed restored": "Servis beslemesi geri geldi",
     "Access forbidden (403) — IP blocked?": "Erişim yasak (403) — IP engellenmiş olabilir",
     "Authentication required (401)": "Kimlik doğrulaması gerekiyor (401)",
     "Server responded with error (%s)": "Sunucu hata döndürdü (%s)",
     "Connection restored": "Bağlantı geri geldi",
+    "No internet connection": "İnternet bağlantısı yok",
+    "Server did not respond (timeout)": "Sunucu yanıt vermedi (zaman aşımı)",
+    "Keep screen awake": "Ekranı uyanık tut",
+    "Page not found (404) — install moved?": "Sayfa bulunamadı (404) — kurulum taşınmış olabilir",
+    "Server backend not responding (%s)": "Sunucu arka ucu yanıt vermiyor (%s)",
     "Web response time high: %sms": "Web yanıt süresi yüksek: %sms",
     "Web response time normal: %sms": "Web yanıt süresi normal: %sms",
     "MySQL response time high: %sms": "MySQL yanıt süresi yüksek: %sms",
@@ -1016,6 +1057,14 @@ const TR={
     "started": "başladı",
     "finished": "bitti",
     "backup": "yedekleme",
+    "full backup": "tam yedek",
+    "all accounts": "tüm hesaplar",
+    "multiple accounts": "birden fazla hesap",
+    "plugin update": "eklenti güncelleme",
+    "theme update": "tema güncelleme",
+    "core update": "çekirdek güncelleme",
+    "plugin install": "eklenti kurulumu",
+    "core version": "çekirdek sürümü",
     "system update": "sistem güncellemesi",
     "wp-toolkit task": "wp-toolkit görevi",
     "Imunify on-demand": "Imunify on-demand",
@@ -1025,6 +1074,7 @@ const TR={
     "Service feed unavailable": "Servis beslemesi yok",
     "%s unknown": "%s bilinmiyor",
     "update available": "güncelleme var",
+    "Page was loaded as v%s, server is v%s — reloading": "Sayfa v%s ile yüklenmişti, sunucu v%s — yenileniyor",
     "Dashboard updated: %s → %s": "Pano güncellendi: %s → %s",
     "restore": "geri yükleme",
     "archive check": "arşiv denetimi",
@@ -1052,13 +1102,11 @@ const seed={
     "wrk": [],
     "rx": [],
     "tx": [],
-    "mq": [],
-    "top": []
+    "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:67,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'17:22:13'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:06:42'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
-let lsphpIdle=null; // anlık boşta worker (kart alt satırı için)
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
 // Canlı çekirdek/iş parçacığı sayısı. redrawSparks() eskiden açılış anındaki
 // init.t'yi kullanıyordu; canlı döngü ise data.threads'i kullanır. İkisi
@@ -1079,81 +1127,145 @@ function trimHist(nowStr){
 }
 function updRange(){const mr=document.getElementById('metrics-range');if(mr&&histT.length)mr.textContent='\u00b7 '+histT[0].slice(0,5)+' \u2013 '+histT[histT.length-1].slice(0,5);}
 let prev={},logs=[];
-const seedLogs=[
+let seedLogs=[
     {
         "type": "err",
-        "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "17:22"
-    },
-    {
-        "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2023ms",
-        "ts": "17:22"
-    },
-    {
-        "type": "err",
-        "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
-        "ts": "17:22"
-    },
-    {
-        "type": "err",
-        "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "17:22"
-    },
-    {
-        "type": "err",
-        "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "17:22"
-    },
-    {
-        "type": "err",
-        "msg": "Veritaban\u0131 kapand\u0131 \u00b7 MySQL (3306), MySQL socket",
-        "ts": "17:22"
+        "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
+        "ts": "12:06",
+        "t": 1792411602
     },
     {
         "type": "err",
         "msg": "\u00d6nbellek kapand\u0131 \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "17:22"
+        "ts": "12:06",
+        "t": 1792411602
     },
     {
         "type": "err",
-        "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "17:22"
+        "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
+        "ts": "12:06",
+        "t": 1792411602
+    },
+    {
+        "type": "err",
+        "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
+        "ts": "12:06",
+        "t": 1792411602
+    },
+    {
+        "type": "err",
+        "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
+        "ts": "12:06",
+        "t": 1792411602
+    },
+    {
+        "type": "err",
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2035ms",
+        "ts": "12:06",
+        "t": 1792411602
+    },
+    {
+        "type": "warn",
+        "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
+        "ts": "12:06",
+        "t": 1792411602
+    },
+    {
+        "type": "warn",
+        "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
+        "ts": "12:06",
+        "t": 1792411602
     }
 ];
+// Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
+// Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
+let srvNow=1792411602,TZOFF=0;
+let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
+function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
+function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
+  return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
+function dayIdx(t){return Math.floor((t+TZOFF)/86400);}
+// "H:i[:s]" -> epoch (sunucu gunu). Sonuc simdiden ilerideyse dune aittir.
+function tsEpoch(ts){var m=String(ts||'').split(':');if(m.length<2)return srvNow;
+  var e=srvNow-(((srvNow+TZOFF)%86400)+86400)%86400+(+m[0])*3600+(+m[1])*60+(+(m[2]||0));
+  if(e>srvNow+120)e-=86400;return e;}
+// Damga etiketi: bugun sade saat, dun "dun 17:53:26", daha eski "12.10 17:53:26".
+function fmtLogTs(l){if(l.t==null)return l.ts||'';var d=dayIdx(srvNow)-dayIdx(l.t);
+  if(d<=0)return l.ts;if(d===1)return t('yesterday')+' '+l.ts;
+  var D=new Date((l.t+TZOFF)*1000),z=function(n){return(n<10?'0':'')+n;};
+  return(LANG_UI==='tr'?z(D.getUTCDate())+'.'+z(D.getUTCMonth()+1)
+    :['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][D.getUTCMonth()]+' '+D.getUTCDate())+' '+l.ts;}
+function logKey(m){return String(m||'').split(' \u2014 ')[0].split(' \u00b7 ')[0];}
+function sortLogs(){logs.sort(function(a,b){return (b.t||0)-(a.t||0)||(b.ts||'').localeCompare(a.ts||'');});}
 // Olay kaydını SEKME oturumu boyunca sakla: dil geçişi ve F5 reload'unda
 // birikmiş canlı alarmlar kaybolmasın (reload sunucudan yalnız anlık durumu
 // seed'ler). Kayıt varsa onu kullan; yoksa sunucu seed'iyle başla. Yeni sekme
 // = temiz başlangıç (sessionStorage sekmeye özel).
 const LOG_KEY='az-logs';
 function saveLogs(){try{sessionStorage.setItem(LOG_KEY,JSON.stringify(logs));}catch(e){}}
+// "Temizle" KALICI: yalnizca sekmedeki listeyi silmek yetmiyordu — F5'te sunucu
+// son 35 dakikanin gecislerini ve suren isleri yeniden tohumluyor, temizlendigini
+// bilmiyordu. Temizleme ani (sunucu epoch'u) ve o an silinen temel mesajlar
+// localStorage'da tutulur (tarayici geneli: yeni sekmede de geri gelmez).
+// Yenilemede tohum elenir: kesin olay anli (x) tohum temizlemeden eskiyse;
+// "render ani" damgali (aktif sorun) tohum, temizlenen mesajlar arasindaysa.
+// Temizlemeden SONRA baslayan/degisen her sey normal dusmeye devam eder.
+const CLR_KEY='az-logs-clear';
+function loadClear(){try{var c=JSON.parse(localStorage.getItem(CLR_KEY));if(c&&c.t)return c;}catch(e){}return null;}
+// Mesaj listesi 24 saat gecerli: bir hafta sonra yeniden kapanan servis, eski
+// temizlemede silindi diye sonsuza dek gizlenmesin. Olay anli (x) sinir kalici.
+function seedAllowed(s,c){if(!c)return true;
+  if(s.x)return (s.t||0)>c.t;
+  if(srvNow-c.t>86400)return true;
+  return (c.k||[]).indexOf(logKey(s.msg))<0;}
 (function(){var r=null;try{r=JSON.parse(sessionStorage.getItem(LOG_KEY));}catch(e){}
+  var clr=loadClear();
+  if(clr&&seedLogs&&seedLogs.length)seedLogs=seedLogs.filter(function(s){return seedAllowed(s,clr);});
   if(r&&r.length){
     logs=r;
+    // Eski surumden kalan kayitlarda epoch yok: saatten turet (bugun/dun varsayimi).
+    logs.forEach(function(l){if(l.t==null)l.t=tsEpoch(l.ts);});
     // Sayfa zaten sorun aktifken açıldıysa: sunucunun seed'lediği güncel alarmlardan
     // saklı log'da OLMAYANLARI da ekle (yoksa o an aktif sorun hiç görünmez), sonra
     // yeni→eski sırala ve 30'la sınırla.
+    // Esleme: ayni TEMEL mesaj + (tohum "render ani" damgaliysa her zaman | kesin
+    // olay aniysa 15 dk icinde). Boylece dun bitip bugun yine biten bir yedekleme
+    // iki ayri satir olur, ama suren bir servis arizasi her F5'te tekrar dusmez.
+    // Temel mesaj = " — top: ..." fail eki ve " · ayrinti" atilmis hali: canli
+    // satir ek tasir ("CPU high: 85% — top: lsphp · acct · index.php 76.0% (snap 30s)",
+    // "yedekleme bitti · backup · acct"), tohum tasimaz; tam esitlik hic tutmuyor
+    // ve ayni olay her yenilemede ikinci kez dusuyordu.
     if(seedLogs&&seedLogs.length){
-      var have={};logs.forEach(function(l){have[l.msg]=1;});
-      seedLogs.forEach(function(s){if(!have[s.msg])logs.push(s);});
-      logs.sort(function(a,b){return (b.ts||'').localeCompare(a.ts||'');});
+      seedLogs.forEach(function(s){
+        var sk=logKey(s.msg);
+        var dup=logs.some(function(l){return logKey(l.msg)===sk&&(!s.x||Math.abs((l.t||0)-s.t)<900);});
+        if(!dup)logs.push(s);});
+      sortLogs();
       if(logs.length>30)logs.length=30;
     }
     renderLog();saveLogs();
-  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice().reverse();})();
-const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"err","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"err","ssl":"ok","mailq":"ok"});
+  } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice();})();
+const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"warn","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"err","ssl":"ok","mailq":"ok"});
 const mpend={};
-function lvlOf(v,cr,hi){return v>=cr?'err':(v>=hi?'warn':'ok');}
+// PHP lvlHyst'in ikizi: seviyeye giris normal esikten, cikis %10 altindan.
+// Eskiden JS'te histerezis yoktu: sayfa 0.9×esik bandinda acilinca PHP 'warn'
+// tohumluyor, JS 'ok' goruyor ve ~60 sn sonra sahte "normale dondu" yaziliyordu.
+function lvlOf(v,cr,hi,cur){
+  if(v>=cr)return'err';
+  if(cur==='err'&&v>=cr*0.9)return'err';
+  if(v>=hi)return'warn';
+  if((cur==='err'||cur==='warn')&&v>=hi*0.9)return'warn';
+  return'ok';}
 function checkSnap(data,now){
-  const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'err':'ok';
+  const sl=(data.procAge==null||data.procAge>TH.snap_stale)?'warn':'ok'; // PHP seed/baslik ile ayni seviye
   if(sl!==mlvl.snap){
-    if(sl==='err')addLog('err',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
+    if(sl==='warn')addLog('warn',data.procAge==null?t('Root snapshot missing — cron down?'):tf('Root snapshot stale (%ss) — cron down?',data.procAge),now);
     else addLog('ok',tf('Root snapshot fresh again (%ss)',data.procAge),now);
     mlvl.snap=sl;
   }
 }
 function transLog(key,v,cr,hi,mErr,mWarn,mOk,now){
-  const nl=lvlOf(v,cr,hi);
+  const nl=lvlOf(v,cr,hi,mlvl[key]);
   if(nl===mlvl[key]){mpend[key]=null;return;}          // mevcut seviyede — beklemede bir şey varsa iptal
   if(!mpend[key]||mpend[key].lvl!==nl){mpend[key]={lvl:nl,n:1};return;} // yeni aday seviye — 1. gözlem
   if(++mpend[key].n<2)return;                          // henüz doğrulanmadı
@@ -1176,7 +1288,6 @@ function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function pcls(v){v=parseFloat(v)||0;return v>=50?'hot':v>=20?'warm':'';}
 function pmcls(v){v=parseFloat(v)||0;return v>=15?'hot':v>=5?'warm':'';}
-function etimeS(t){const m=String(t||'').match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);return m?(+(m[1]||0))*86400+(+(m[2]||0))*3600+(+m[3])*60+(+m[4]):null;}
 function ageShort(s){var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];return s>=86400?Math.floor(s/86400)+u[0]:s>=3600?Math.floor(s/3600)+u[1]:Math.max(1,Math.floor(s/60))+u[2];}
 // Sunucu saatinden N saniye geri git ("YYYY-MM-DD HH:MM:SS" -> "HH:MM:SS").
 // Aktivite "started" kaydi icin: cip yasi zaten isin kac saniyedir surdugunu
@@ -1190,6 +1301,10 @@ function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
   var z=function(n){return(n<10?'0':'')+n;};
   return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
+function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';} // PHP fmtKbps ile ayni
+// Kuyrugu dolduran hesap metni: "pergo 1180 (95%)" — PHP mailqTopTxt ile ayni.
+function mailqTopTxt(top,sampled){if(!top||!top.length)return '';const n=top[0][0]==='other'?t('other senders'):top[0][0];
+  return n+' '+top[0][1]+(sampled>0?' ('+Math.round(top[0][1]/sampled*100)+'%)':'');}
 
 // Rengi rgba'ya cevir (hex veya rgb()/rgba() gelebilir). Degrade duraklarinda
 // alfa gerektigi icin var; getComputedStyle genelde rgb() dondurur ama hex de olabilir.
@@ -1518,7 +1633,7 @@ function renderSvc(key,data){
       }
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note${ch.warn?' note-warn':''}">${tnote(ch.note||'')}</span>${age}</div>`;
+      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }
@@ -1538,28 +1653,26 @@ function renderProcs(data){
   }
   const thr=document.getElementById('sql-thr');
   // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
-  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span id="sql-thr-n" style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
+  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
   const ac=document.getElementById('act-chips');
-  if(ac&&data.procCpu){
-    // Desen listesi PHP'deki $actDefs ile senkron; süre birincil olarak
-    // data.acts'ten (cron, tüm süreç listesi), yoksa Top-15 taramasından.
-    // minCpu: kalıcı daemon'ları eler (yoksa çip hiç sönmez).
-    // [etiket, desen, minCpu, sessiz] — sessiz=true: çip görünür ama started/finished
+  if(ac&&data.acts){
+    // Etiket listesi PHP'deki $actDefs ile birebir sıralı; süre YALNIZCA data.acts'ten
+    // (collector). Top-15 CPU taraması yedeği kaldırıldı — bkz. PHP $actDefs notu.
+    // [etiket, sessiz] — sessiz=true: çip görünür ama started/finished
     // Event log'a YAZILMAZ. Eskiden wp-toolkit/imunify/wappspector sessizdi: hesap
     // hesap kısa süreçler doğurdukları için çip her hesap arasında sönüp yanıyor ve
     // log'u spam'liyordu. Kök sebep collector'da çözüldü (kampanya durumu + kabul
     // penceresi: çip tur boyunca kesintisiz yanar), o yüzden üçü de artık loglanır.
     // Yine spam görülürse tek dönüşü var: bu üçünün son alanını true yapmak.
-    const defs=[['backup running',/pkgacct|cpbackup/i,0,false],['system update',/upcp|updatenow|dnf (upgrade|update)|yum (upgrade|update)/i,0,false],['wp-toolkit task',/wordpress-toolkit|wp-toolkit/i,15,false],['Imunify on-demand',/im360\.run|aibolit|rustbolit/i,15,false],['app discovery',/wappspector/i,15,false],['Ayzeta Backup',/ayzeta_backup\/worker\.php/i,0,false],['csf-autogroup',/csf_autogroup/i,0,false]];
+    const defs=[['backup running',false],['system update',false],['wp-toolkit task',false],['Imunify on-demand',false],['app discovery',false],['Ayzeta Backup',false],['csf-autogroup',false]];
     const ages=[];   // cip basina yas (sn) — "started" damgasini geri hesaplamak icin
-    const chips=defs.map(([lbl,re,minCpu],i)=>{
+    const chips=defs.map(([lbl],i)=>{
       // Imunify ETIKETLE taninir, indisle degil: liste sirasi degisince
       // yanlis cip gizlenmesin (PHP tarafi da anahtar adiyla bakiyor).
       const imu=(lbl==='Imunify on-demand');
       // imunify artımlı = sürekli gürültü, gizle (sadece hesap taramasında göster)
       if(imu&&data.actImunifyP==='incremental')return null;
-      let mx=(data.acts&&data.acts[i]!=null)?data.acts[i]:null;
-      if(mx==null)for(const p of data.procCpu){if((parseFloat(p[2])||0)<minCpu)continue;if(!re.test((p[1]||'')+' '+(p[5]||'')))continue;const s=etimeS(p[4]);if(s!=null&&(mx==null||s>mx))mx=s;}
+      const mx=(data.acts[i]!=null)?data.acts[i]:null;
       if(mx==null)return null;
       ages[i]=mx;
       let c=t(lbl.replace(' running',''))+' · '+ageShort(mx);
@@ -1580,7 +1693,7 @@ function renderProcs(data){
     const st=chips.map(c=>c!=null?'1':'0').join('');
     if(actWas===null)actWas=st;
     else if(st!==actWas){
-      defs.forEach(([lbl,,,silent],i)=>{
+      defs.forEach(([lbl,silent],i)=>{
         if(silent)return; // sessiz çip: log'a düşmez (kısa turlu işlerin spam'i)
         if(st[i]===actWas[i])return;
         const basladi=st[i]==='1';
@@ -1590,7 +1703,7 @@ function renderProcs(data){
                    :(data.actScopes&&data.actScopes[i]);
           let d='';
           if(kd&&kd!=='-')d+=' · '+t(kd.replace(/_/g,' '));
-          if(sc&&sc!=='-'&&sc!=='incremental')d+=' · '+sc;
+          if(sc&&sc!=='-'&&sc!=='incremental'&&kd!=='full_backup'&&lbl!=='wp-toolkit task')d+=' · '+sc; // tam yedek / wpt partisi: hesap = o an islenen, baslangica yazilmaz
           actDet[i]=d;
         }
         // Damga her iki yonde de GERCEK an: baslangic = sunucu saati - cip yasi,
@@ -1600,12 +1713,19 @@ function renderProcs(data){
         const ts=basladi
           ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
           : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
-        // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'), bitiste ise
-        // varsa is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel).
+        const tE=basladi
+          ? (ages[i]!=null?srvNow-ages[i]:srvNow)
+          : ((data.actEndsT&&data.actEndsT[i]!=null)?data.actEndsT[i]:srvNow);
+        // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'); bitiste varsa
+        // is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel), yoksa
+        // collector'in bitis kapsami ('actEndsP': kampanya boyunca tek hesap
+        // goruldiyse o hesap). Baslangic ayrintisi bitise TASINMAZ: PHP tohumu
+        // onu bilemez ve tam yedekte ilk gorulen hesabi yazmak yaniltirdi.
         const fb=basladi?null:(data.actFbs&&data.actFbs[i]);
-        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(actDet[i]||'');
+        const endP=(!basladi&&data.actEndsP&&data.actEndsP[i])?' · '+data.actEndsP[i]:'';
+        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(basladi?(actDet[i]||''):endP);
         addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
-               +det,ts);});
+               +det,ts,tE);});
       actWas=st;
     }
   }
@@ -1622,7 +1742,7 @@ function renderProcs(data){
     const mc=pmcls(p[3]);
     return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
     `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
-    `<td class="td-fill"><span class="proc-cmd proc-cmd-sm" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+    `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
   const php=document.getElementById('pt-php');
   if(php&&data.procPhp){
     const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
@@ -1641,20 +1761,32 @@ function renderProcs(data){
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
+  const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
+  if(io&&data.ioAcct&&data.ioAcct.length){
+    const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
+    io.innerHTML=data.ioAcct.map(p=>{
+      const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
+      const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
+      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
+  }
   const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')
   const sql=document.getElementById('pt-sql');
   if(sql&&data.procSql){
     sql.innerHTML=data.procSql.length?data.procSql.map(p=>{
       const c=parseInt(p[3])>=60?'hot':parseInt(p[3])>=10?'warm':'';
       return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td><td>${esc(p[2])}</td>`+
-        `<td class="td-fill"><span class="proc-cmd proc-cmd-sql" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
+        `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td>`+
         `<td class="num ${c}">${esc(p[3])}</td><td>${esc(p[4])}</td></tr>`;}).join('')
     :'<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">'+tf('No queries running longer than %ss at snapshot time',sqlMin)+'</td></tr>';
   }
   reapplySort(); // tbody yeniden kurulunca kullanıcının seçtiği sıralamayı koru
 }
 
-function addLog(type,msg,ts){logs.unshift({type,msg,ts});if(logs.length>30)logs.pop();renderLog();saveLogs();}
+// t: olayin epoch'u (sunucu saati). Verilmezse "su an" sayilir (srvNow — bu
+// tick'in data.now'u; tum verilmeyen cagrilar ayni tick'in 'now' saatini gecer).
+// Saat metninden turetmek (tsEpoch) yalniz eski kayitlarin tasinmasinda kullanilir;
+// canli satirlarda saat dilimi hesabi yapilmaz (yaz/kis saati gecisinde sapmasin).
+function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:srvNow)});sortLogs();if(logs.length>30)logs.length=30;renderLog();saveLogs();}
 // Grup satirina dusen kontrolleri ekler. "Mail servisleri sorunlu" tek basina neyin
 // bozuldugunu soylemiyordu. En fazla iki etiket yazilir, kalan sayi olarak eklenir.
 // PHP tarafindaki seed ile ayni bicim.
@@ -1668,7 +1800,7 @@ function renderLog(){
   const el=document.getElementById('log-list');if(!el)return;
   if(!logs.length){el.innerHTML='<div style="font-size:11px;color:var(--hint);padding:6px 8px;">'+t('No events yet.')+'</div>';return;}
   // msg + ts tek yerde escape (üreticiler artık ham metin verir) — XSS savunması
-  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(l.ts)}</span></div>`).join('');
+  el.innerHTML=logs.map(l=>`<div class="log-item"><div class="log-dot ${l.type==='err'?'err':l.type==='warn'?'warn':'ok'}"></div><span class="log-txt">${esc(l.msg)}</span><span class="log-ts">${esc(fmtLogTs(l))}</span></div>`).join('');
 }
 
 function checkAlerts(data){
@@ -1711,9 +1843,19 @@ function checkAlerts(data){
   let topWrk='';
   if(data.procPhp&&data.procPhp.length) topWrk=suffix(data.procPhp[0][0]+' '+data.procPhp[0][1]);
   // MySQL is parcasi alarminda en uzun suren sorgu: procSql = [id,user,db,sn,state,query].
+  // Mail kuyrugu faili: collector'in ornekledigi en kalabalik gonderen hesap (PHP mailqTopTxt ile ayni).
+  const mqTxt=mailqTopTxt(data.mailqTop,data.mailqSampled);
+  const topMq=mqTxt?suffix(mqTxt):'';
+  // IO wait faili: en cok disk I/O yapan hesap; veri yoksa top-CPU surecine duser.
+  let topIo='';
+  if(data.ioAcct&&data.ioAcct.length&&data.ioAcct[0][1]>0) topIo=suffix(data.ioAcct[0][0]+' '+fmtKbps(data.ioAcct[0][1]));
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
     topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
+  // Disk alarminda en dolu hesap: diskAcct = [hesap, GB], azalan sirali (saatlik
+  // kota verisi; yas etiketi anlamsiz, o yuzden suffix() degil dogrudan).
+  let topDisk='';
+  if(snapFresh&&data.diskAcct&&data.diskAcct.length) topDisk=' — '+t('top:')+' '+data.diskAcct[0][0]+' '+data.diskAcct[0][1]+' GB';
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
     tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
     tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
@@ -1723,8 +1865,8 @@ function checkAlerts(data){
   transLog('ram',data.ram,TH.ram_crit,TH.ram_warn,
     tf('RAM critical: %s%%%s',data.ram,topRam),tf('RAM high: %s%%%s',data.ram,topRam),tf('RAM back to normal: %s%%',data.ram),now);
   transLog('iow',data.iowait,TH.iow_crit,TH.iow_warn,
-    tf('IO Wait critical: %s%%%s',data.iowait,top),tf('IO Wait high: %s%%%s',data.iowait,top),tf('IO Wait back to normal: %s%%',data.iowait),now);
-  if(data.swapPct!=null&&data.swapTotalGB)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
+    tf('IO Wait critical: %s%%%s',data.iowait,topIo||top),tf('IO Wait high: %s%%%s',data.iowait,topIo||top),tf('IO Wait back to normal: %s%%',data.iowait),now);
+  if(data.swapPct!=null)transLog('swap',data.swapPct,TH.swap_crit,TH.swap_warn,
     tf('Swap heavily in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),tf('Swap in use: %s GB (%s%%)',data.swapUsedGB,data.swapPct),t('Swap cleared'),now);
   // shmem AKILLI (PHP $shmemLevel ile birebir): yalnız bellek baskısı (available<%12
   // veya swap≥%10) varken alarm; %75+ kaçak her durumda kritik, %65+ erken uyarı.
@@ -1751,16 +1893,19 @@ function checkAlerts(data){
     transLog('wrk',data.lsphpTotal,cc*TH.wrk_crit_x,cc*TH.wrk_warn_x,tf('PHP workers very high: %s%s',data.lsphpTotal,topWrk),tf('PHP workers elevated: %s%s',data.lsphpTotal,topWrk),t('PHP workers back to normal'),now);}
   // Disk kullanımı — header sağlığıyla aynı eşik (warn 75 / crit 90); event log'a da düşsün.
   if(data.disk!=null)transLog('disk',data.disk,TH.disk_crit,TH.disk_warn,
-    tf('Disk critically full: %s%%',data.disk),tf('Disk usage high: %s%%',data.disk),tf('Disk usage back to normal: %s%%',data.disk),now);
+    tf('Disk critically full: %s%%%s',data.disk,topDisk),tf('Disk usage high: %s%%%s',data.disk,topDisk),tf('Disk usage back to normal: %s%%',data.disk),now);
   // Mail kuyruğu — hesap sayısına oranlı (warn ≥ hesap / crit ≥ 3×); header sağlığıyla aynı.
   if(data.mailQ!=null){const b=data.acctForMailq||50;
-    transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages',data.mailQ),tf('Mail queue elevated: %s messages',data.mailQ),t('Mail queue back to normal'),now);}
+    transLog('mailq',data.mailQ,b*TH.mailq_crit_x,b*TH.mailq_warn_x,tf('Mail queue very high: %s messages%s',data.mailQ,topMq),tf('Mail queue elevated: %s messages%s',data.mailQ,topMq),t('Mail queue back to normal'),now);}
   if(data.raidState){const rl=data.raidState==='degraded'?'err':data.raidState==='resync'?'warn':'ok';
     if(rl!==mlvl.raid){
       if(rl==='err')addLog('err',tf('%s — a disk is down; replace before a second fails',data.raidTxt),now);
       else if(rl==='warn')addLog('warn',tf('%s — array rebuilding',data.raidTxt),now);
       else if(mlvl.raid!=='ok')addLog('ok',t('RAID array healthy again'),now);
       mlvl.raid=rl;}}
+  // Bayat snapshot'ta PHP smartMsg/raidMismatch'i bos verir; bu "temizlendi"
+  // degildir — tazeyken degerlendir (checkSnap zaten STALE'i yaziyor).
+  if(snapFresh){
   {const sl=data.smartMsg?'err':'ok';
    if(sl!==mlvl.smart){
      if(sl==='err')addLog('err',data.smartMsg,now);
@@ -1771,6 +1916,7 @@ function checkAlerts(data){
      if(ml==='warn')addLog('warn',tf('RAID mismatch count: %s — data inconsistency found in last scrub',data.raidMismatch),now);
      else if(mlvl.mismatch!=='ok')addLog('ok',t('RAID mismatch cleared'),now);
      mlvl.mismatch=ml;}}
+  }
   if(data.webResponseTime!=null)transLog('webrt',data.webResponseTime,TH.webrt_crit,TH.webrt_warn,
     tf('Web response time high: %sms',data.webResponseTime),
     tf('Web response time elevated: %sms',data.webResponseTime),
@@ -1805,11 +1951,15 @@ function checkAlerts(data){
   });
   // Panonun KENDI guncellemesi. updAt degisince yazilir; ilk tick yalnizca
   // taban kurar, cunku sunucu render'i onu zaten seed etmis olabilir.
-  if(prevUpdAt===undefined){prevUpdAt=data.updAt||null;}
-  else if((data.updAt||null)!==prevUpdAt){
-    prevUpdAt=data.updAt||null;
-    if(data.updAt&&data.updFrom&&data.updRev)
-      addLog('ok',tf('Dashboard updated: %s → %s',data.updFrom,data.updRev),now);
+  // updAt YOKSA (bir tur git okunamadi, snapshot bayat) taban DEGISMEZ: eskiden
+  // null'a cekilip bir sonraki turda ayni guncelleme ikinci kez yaziliyordu
+  // ("Pano guncellendi: a52a9d3 -> 025816c" 03:11 ve yine 03:34).
+  if(data.updAt){
+    if(prevUpdAt===undefined)prevUpdAt=data.updAt;
+    else if(data.updAt!==prevUpdAt){
+      prevUpdAt=data.updAt;
+      if(data.updFrom&&data.updRev)addLog('ok',tf('Dashboard updated: %s → %s',data.updFrom,data.updRev),now);
+    }
   }
 }
 
@@ -1821,10 +1971,11 @@ function applyMetrics(data){
   document.getElementById('hostname').textContent=data.hostname;
   document.getElementById('threads').textContent=data.threads;
   document.getElementById('uptime').textContent=data.uptime||'—';
-  document.getElementById('time-val').textContent=data.time.split(' ')[1];
+  lastGoodTime=data.time.split(' ')[1];lastFetchOk=Date.now();
+  document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.9 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.27 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -1892,8 +2043,8 @@ function render(data){
     setFill('ic-mq',q/Math.max(b*TH.mailq_warn_x,1)*100,qc);
     push(hist.mq,q);
     spark('sp-mq',hist.mq,qc,0,0,[0,Math.max(b*TH.mailq_warn_x,Math.max.apply(null,hist.mq))]);}}
-  if(data.lsphpIdle!=null)lsphpIdle=data.lsphpIdle;
   {const s=document.getElementById('iv-lsphp-sub');if(s)s.innerHTML=data.lsphpIdle!=null?t('active')+' &middot; '+data.lsphpIdle+' '+t('idle'):t('running lsphp');}
+  {const s=document.getElementById('iv-mailq-sub');if(s){const m=mailqTopTxt(data.mailqTop,data.mailqSampled);s.textContent=t('messages queued')+(m?' · '+t('top:')+' '+m:'');}}
   {const e=document.getElementById('iv-lsphp');if(e){const n=data.lsphpTotal,c=data.coreCount||1;e.textContent=n!=null?n:'—';e.style.color=n==null?'var(--muted)':n>=c*TH.wrk_crit_x?'var(--danger)':n>=c*TH.wrk_warn_x?'var(--warn)':'var(--accent)';}}
   {const n=data.lsphpTotal;if(n!=null){const cc=data.coreCount||1;
     const wc=n>=cc*TH.wrk_crit_x?'var(--danger)':n>=cc*TH.wrk_warn_x?'var(--warn)':'var(--accent)';
@@ -1916,49 +2067,126 @@ function render(data){
 // '' saglikli | 'conn' hic yanit yok | '403' | '401' | 'http' diger HTTP hatasi | 'feed'
 // besleme yok. Eskiden tek bir bayrakti; bu yuzden IP engeli "ulasilamiyor" diye
 // yaziliyor, ikisinden donuste de "servis beslemesi geri geldi" cikiyordu.
-let downKind='';
+let downKind='feed'; // besleme zaten kesikse PHP tohumladi; JS tekrar yazmasin
 // undefined = henuz taban kurulmadi (ilk tick). null = guncelleme bilgisi yok.
 let prevUpdAt;
 // null: hic yanit alinamadi (ag/DNS/servis kapali). Sayi: sunucu yanit verdi ama
 // HTTP durumu ok degil — 403 tipik olarak IP degisiminden sonra CSF/guvenlik duvari.
 let lastHttpStatus=null;
+// Bayat veri isareti: son basarili veri saati + ne kadar eski oldugu. Her
+// basarisiz tick'te yenilenir (30 sn), basarili tick'te kaldirilir.
+let lastGoodTime='';
+function markStale(on){
+  const b=document.body,tv=document.getElementById('time-val'),fm=document.getElementById('footer-mode-txt');
+  if(!on){b.classList.remove('feed-stale');if(fm)fm.textContent=t('Auto-refresh every 30 seconds');if(tv&&lastGoodTime)tv.textContent=lastGoodTime;return;}
+  b.classList.add('feed-stale');
+  const age=ageShort(Math.max(60,Math.round((Date.now()-lastFetchOk)/1000)));
+  if(tv&&lastGoodTime)tv.textContent=lastGoodTime+' · '+tf('%s ago',age);
+  if(fm)fm.textContent=tf('Not refreshing — last data %s ago',age);
+}
+let lastFetchOk=Date.now();
 
+// Istek butcesi. Zaman asimi SART: zaman asimi olmadan, yolu sessizce DUSUREN bir
+// guvenlik duvari (CSF DROP — IP degisiminden sonra tipik) karsisinda fetch
+// dakikalarca asili kalir; 30 sn'lik timer bu arada yeni tick'ler acar ve istekler
+// birikir.
+// Sinir KODDA SABIT DEGIL: sunucu kendi cevap hazirlama suresini olcer ve son
+// tarihi ondan turetir (PHP'de genBudgetMs). Esikler, servis sayisi ve yoklama
+// maliyeti her kurulumda farkli oldugu icin elle toplanmis bir sayi baska bir
+// sunucuda yanlis olurdu. Her basarili tick degeri tazeler: sunucu yavasladikca
+// pencere genisler, hizlandikca tabana doner.
+let FETCH_TIMEOUT=30000;
+let lastFailTimeout=false;   // son basarisizlik zaman asimi miydi (yol dusuruluyor mu)
 async function fetchWithRetry(url, retries=2, delay=2000){
-  lastHttpStatus=null;
+  lastHttpStatus=null; lastFailTimeout=false;
   for(let i=0; i<=retries; i++){
+    const ac=(typeof AbortController!=='undefined')?new AbortController():null;
+    const to=ac?setTimeout(()=>ac.abort(),FETCH_TIMEOUT):null;
     try{
-      const r=await fetch(url);
+      const r=await fetch(url,ac?{signal:ac.signal}:undefined);
       lastHttpStatus=r.status;
       if(r.ok) return await r.json();
       // Yetki reddi tekrar denemekle duzelmez; bekleyip ugrasmadan cik.
       if(r.status===401||r.status===403) return null;
-    }catch(e){ lastHttpStatus=null; }
+      lastFailTimeout=false;
+    }catch(e){
+      lastHttpStatus=null;
+      // Bizim kestigimiz istek (AbortError) = sunucu zamaninda yanit vermedi.
+      // Aninda reddedilen istek (DNS yok, baglanti reddedildi) bundan AYRI: biri
+      // "yanit gelmiyor", digeri "kapi kapali". Kullaniciya ayri yazilir.
+      lastFailTimeout=(e&&e.name==='AbortError');
+    }finally{ if(to)clearTimeout(to); }
+    // Zaman asimi PAHALI (son tarih kadar bekledik): iki denemeden sonra israr
+    // etmeyiz, yoksa tek tur dakikalari bulur. Aninda reddedilen istek bedava —
+    // onda 3 deneme kalir.
+    if(lastFailTimeout&&i>=1) break;
     if(i<retries) await new Promise(res=>setTimeout(res,delay));
   }
   return null;
 }
 
 let lastFetch=0;
+let tickBusy=false;
 async function tick(){
+  // Ust uste binme korumasi: yavas/asili bir istek varken 30 sn'lik timer yenisini
+  // acmasin. Yoksa kesinti suresince istekler birikir ve ag dondugunde hepsi birden
+  // cozulup celiskili satirlar yazabilir.
+  if(tickBusy)return;
+  tickBusy=true;
   lastFetch=Date.now();
-  const data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now());
+  let data=null;
+  try{ data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now()); }
+  finally{ tickBusy=false; }
 
   if(!data){
-    // Sunucu yanıt verdi ama içeri almadı mı, yoksa hiç yanıt vermedi mi — ayrı yazılır.
+    // Neden ulasamadik — elimizdeki her ayirt edilebilir durum ayri yazilir.
+    // navigator.onLine YALNIZCA false iken kanit sayilir: false ise cihazda ag
+    // yoktur (kesin), true ise internet oldugunu GARANTI ETMEZ. Tek yonlu kullanim.
     const s=lastHttpStatus;
-    const k=(s===403)?'403':(s===401)?'401':(s!=null)?'http':'conn';
+    const k=(typeof navigator!=='undefined'&&navigator.onLine===false)?'offline'
+           :(s===403)?'403':(s===401)?'401'
+           :(s===404)?'404'
+           :(s===502||s===503||s===504)?'backend'
+           :(s!=null)?'http'
+           :lastFailTimeout?'timeout':'conn';
     if(downKind!==k){
       downKind=k;
-      addLog('err', k==='403' ? t('Access forbidden (403) — IP blocked?')
-                  : k==='401' ? t('Authentication required (401)')
-                  : k==='http'? tf('Server responded with error (%s)',s)
-                  :             t('Server unreachable'),
-             new Date().toTimeString().slice(0,8));
+      addLog('err', k==='offline'? t('No internet connection')
+                  : k==='403'   ? t('Access forbidden (403) — IP blocked?')
+                  : k==='401'   ? t('Authentication required (401)')
+                  : k==='404'   ? t('Page not found (404) — install moved?')
+                  : k==='backend'? tf('Server backend not responding (%s)',s)
+                  : k==='http'  ? tf('Server responded with error (%s)',s)
+                  : k==='timeout'? t('Server did not respond (timeout)')
+                  :               t('Server unreachable'),
+             hmsOf(srvClock()),srvClock()); // sunucu yanit vermedi: yurutulen sunucu saati (tarayici saati degil)
     }
+    markStale(true);
     return;
   }
+  markStale(false);
+
+  // Sunucunun olctugu yeni son tarih (bkz. FETCH_TIMEOUT): sekme acik kalsa da
+  // pencere guncel kalsin. Sacma bir deger gelirse dokunulmaz.
+  if(data.fetchBudget>0&&data.fetchBudget<=120000)FETCH_TIMEOUT=data.fetchBudget;
 
   const now=data.time.split(' ')[1];
+  if(data.now!=null){srvNow=+data.now;srvWall=Date.now();}if(data.tz!=null)TZOFF=+data.tz;
+  // SURUM DEGISTIYSE SAYFAYI YENILE. Acik sekme guncellemeden sonra ESKI JS ile
+  // calismaya devam ediyordu: sunucu yeni JSON gonderse de eski kod (or. kaldirilan
+  // Top-15 yedek taramasi) eski mantigiyla olay uretiyordu — "csf-autogroup basladi"
+  // 01:54:01 ve 01:59:24 boyle dustu. Olay kaydi sessionStorage'da, yenilemede
+  // korunur. Surum basina bir kez (dongu olmasin), kullanicinin islemi kesilmesin
+  // diye kisa gecikmeyle.
+  if(data.appVer&&data.appVer!==PAGE_VER){
+    let done=null;try{done=sessionStorage.getItem('az-reloaded-for');}catch(e){}
+    if(done!==data.appVer){
+      try{sessionStorage.setItem('az-reloaded-for',data.appVer);}catch(e){}
+      addLog('ok',tf('Page was loaded as v%s, server is v%s — reloading',PAGE_VER,data.appVer),now);
+      setTimeout(function(){location.reload();},1500);
+      return;
+    }
+  }
   checkSnap(data,now);
 
   // Bağlantı geri geldi — beslemeden AYRI mesaj. Eskiden ağ/403 dönüşünde de
@@ -1986,7 +2214,10 @@ async function tick(){
   render(data);
 }
 
-document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];renderLog();saveLogs();});
+document.getElementById('log-clear-btn').addEventListener('click',()=>{
+  // Temizleme isareti: an + silinen temel mesajlar (bkz. loadClear/seedAllowed).
+  try{localStorage.setItem(CLR_KEY,JSON.stringify({t:srvClock(),k:logs.map(l=>logKey(l.msg))}));}catch(e){}
+  logs=[];renderLog();saveLogs();});
 // Olay kaydı boyutlandırma tutamağı. Kenar otomatik kaydırma: imleç viewport'un
 // altına yaklaşınca sayfa kaydırılır ve referans aynı miktarda yukarı alınır —
 // böylece kutu büyürken tutamak imlecin altında kalır ve TEK sürüklemede istenen
@@ -1996,9 +2227,12 @@ document.getElementById('log-clear-btn').addEventListener('click',()=>{logs=[];r
 (function(){
   const list=document.getElementById('log-list'),grip=document.getElementById('log-grip');
   if(!list||!grip)return;
-  const MIN=56;
+  const MIN=32;
   let y0=0,h0=0,sonY=0,aktif=false,zaman=null;
-  const uygula=function(){list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  // Surukleme sabit yukseklige gecirir: otomatik ust sinir (max-height) kalkar.
+  const uygula=function(){list.style.maxHeight='none';list.style.height=Math.max(MIN,h0+(sonY-y0))+'px';};
+  // Cift tiklama: otomatik yukseklige don (icerige gore, 8 satira kadar).
+  grip.addEventListener('dblclick',function(){list.style.height='';list.style.maxHeight='';});
   grip.addEventListener('pointerdown',function(e){
     aktif=true;y0=sonY=e.clientY;h0=list.offsetHeight;
     try{grip.setPointerCapture(e.pointerId);}catch(_){}
@@ -2053,7 +2287,7 @@ renderLog();
 if(location.protocol==='file:'){
   // CSF mail eki dosya olarak açıldı — canlı yenileme yapılamaz
   addLog('warn',t('Static snapshot (mail attachment) — live refresh disabled'),
-         new Date().toTimeString().slice(0,8));
+         hmsOf(srvClock()),srvClock());
 }else{
   document.body.classList.remove('static-mode');
   // 'Updated'/'Snapshot' t()'den gecer ve PHP'nin upper()'i ile ayni buyutulur.
@@ -2077,6 +2311,49 @@ if(location.protocol==='file:'){
   };
   document.addEventListener('visibilitychange',onVisible);
   window.addEventListener('pageshow',e=>{if(e.persisted)onVisible();});
+
+  // Cihazin agi gidince/gelince tarayici bunu ANINDA soyluyor — 30 sn'lik tick'i
+  // beklemeye gerek yok. Kesinti satirini buradan yazmak damgayi gercek ana koyar.
+  // 'online' doneminde "baglanti geri geldi" YAZILMAZ: cihazin agi olmasi sunucuya
+  // ulasildigi anlamina gelmez; o satiri basarili tick yazar. Yalnizca hemen dener.
+  window.addEventListener('offline',()=>{
+    if(downKind==='offline')return;
+    downKind='offline';
+    addLog('err',t('No internet connection'),hmsOf(srvClock()),srvClock());
+    markStale(true);
+  });
+  window.addEventListener('online',()=>{tick();});
+
+  // Ekrani uyanik tutma. Tarayicinin "verimlilik modu" / "uyuyan sekmeler"
+  // ozelligini sayfadan KAPATMANIN yolu yok — o bir tarayici ayari, web'e acilmis
+  // API'si yok. Yapilabilen tek sey ekran kilidi: sekme GORUNURKEN ekranin (ve cogu
+  // makinede makinenin) uyumasini engeller.
+  //
+  // Karar config'te degil BU TARAYICIDA tutulur: bu sunucunun degil, o EKRANIN
+  // ozelligi — ayni pano duvar ekraninda acik, dizustunde kapali olmali.
+  // config'teki keep_awake yalnizca hic secim yapilmamis tarayici icin varsayilan.
+  // Dugmeye tiklamak ayrica bazi tarayicilarin istedigi kullanici hareketidir;
+  // kilit bu yuzden sessizce reddedilmek yerine guvenilir sekilde veriliyor.
+  const awBtn=document.getElementById('awake-btn');
+  if(awBtn&&navigator.wakeLock&&navigator.wakeLock.request){
+    let wl=null,on=KEEP_AWAKE;
+    try{const v=localStorage.getItem('az-awake');if(v!==null)on=(v==='1');}catch(e){}
+    const paint=()=>{awBtn.classList.toggle('on',on);awBtn.setAttribute('aria-pressed',on?'true':'false');};
+    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;};
+    const acq=async()=>{
+      if(!on||document.visibilityState!=='visible'||wl)return;
+      try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;});}
+      catch(e){wl=null;}   // reddedilirse sessiz: pano calismaya devam eder
+    };
+    awBtn.hidden=false; paint(); acq();
+    awBtn.addEventListener('click',()=>{
+      on=!on;
+      try{localStorage.setItem('az-awake',on?'1':'0');}catch(e){}
+      paint(); if(on)acq(); else rel();
+    });
+    // Sekme gizlenince tarayici kilidi KENDISI birakir; geri gelince yeniden alinir.
+    document.addEventListener('visibilitychange',acq);
+  }
 }
 </script>
 <script src="demo.js"></script>

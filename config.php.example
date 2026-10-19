@@ -62,6 +62,15 @@ return [
     //     'ssl_warn'   => 14,   // days left (default 30)
     // ],
 
+    // ── Keep the screen awake — DEFAULT only ──────────────────
+    // There is a button for this in the header; each browser remembers its own
+    // choice, because it is a property of the screen, not of the server. This
+    // setting is only what a browser that has never pressed the button gets.
+    // Set it true for a wall display that should come up lit after a reboot.
+    // It cannot switch off the browser's own "efficiency mode" or "sleeping
+    // tabs" — there is no web API for that; see the README.
+    'keep_awake'    => false,
+
     // ── Footer credit (optional) ──────────────────────────────
     // Small attribution link in the footer. Set to your own, or '' to hide.
     'credit_text'   => 'Ayzeta',

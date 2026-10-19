@@ -1,6 +1,9 @@
 <?php
 ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (mail satır limiti)
-const APP_VERSION = '1.5.25'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+// Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
+// (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
+$GEN_T0 = microtime(true);
+const APP_VERSION = '1.5.27'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -172,6 +175,9 @@ $TR = [
     'Server unreachable' => 'Sunucuya ulaşılamıyor', '%s ago' => '%s önce', 'Not refreshing — last data %s ago' => 'Yenilenemiyor — son veri %s önce', 'Service feed unavailable (root snapshot stale?)' => 'Servis beslemesi yok (root anlık görüntüsü bayat mı?)', 'Service feed restored' => 'Servis beslemesi geri geldi',
     'Access forbidden (403) — IP blocked?' => 'Erişim yasak (403) — IP engellenmiş olabilir', 'Authentication required (401)' => 'Kimlik doğrulaması gerekiyor (401)',
     'Server responded with error (%s)' => 'Sunucu hata döndürdü (%s)', 'Connection restored' => 'Bağlantı geri geldi',
+    'No internet connection' => 'İnternet bağlantısı yok', 'Server did not respond (timeout)' => 'Sunucu yanıt vermedi (zaman aşımı)',
+    'Keep screen awake' => 'Ekranı uyanık tut',
+    'Page not found (404) — install moved?' => 'Sayfa bulunamadı (404) — kurulum taşınmış olabilir', 'Server backend not responding (%s)' => 'Sunucu arka ucu yanıt vermiyor (%s)',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
     'Web response time elevated: %sms' => 'Web yanıt süresi yükseldi: %sms', 'MySQL response time elevated: %sms' => 'MySQL yanıt süresi yükseldi: %sms',
@@ -681,9 +687,48 @@ function isListening($port, $ports) { return in_array($port, $ports); }
 // paylaşılır, böylece ölçüm ~dakikada bir yapılır (metriklerin geri kalanıyla
 // aynı kadans). BAŞARISIZ sonuç da önbelleklenir: çöken bir servise her
 // render'da yeniden bağlanmayı denemek sayfayı timeout süresince bekletirdi.
+// ── Istemcinin istek son tarihi — SAYILMAZ, OLCULUR ──────────────────────────
+// Sabit bir sure (ornegin "20 sn") yanlis olurdu: her kurulumda esikler, servis
+// sayisi ve dolayisiyla yoklama maliyeti farkli, ustelik ileride bir yoklama daha
+// eklenince elle toplanmis sayi sessizce eskir. Onun yerine sunucu KENDI cevap
+// hazirlama suresini olcer ve en kotu gozlemi saklar; son tarih ondan turetilir.
+//
+// Pencere 24 saat: tek seferlik patolojik bir istek sureli olarak sinirlamasin.
+// Taban 15 sn, soguk onbellekli normal bir isteği zaten karsiliyor (web yoklamasi
+// en fazla 2x3 sn + MySQL 3x2 sn). Tavan 30 sn: bundan uzun suren bir sunucuda
+// "yanit vermedi" demek zaten dogrudur ve kesinti tespiti sonsuza kadar gecikmez.
+// Geçici dosyalar HESABA ÖZEL. CageFS'li sunucuda her kullanıcının /tmp'si zaten
+// ayrı, ama eklenti CageFS'siz sunuculara da kuruluyor: orada /tmp ortaktır ve iki
+// hesabın panosu aynı dosyaya denk gelirdi — biri ötekinin ölçümlerini okur,
+// dosya ötekinin sahipliğinde olduğu için yazamayan taraf da sessizce
+// önbelleksiz kalır (her istekte yeniden yoklama). Kullanıcı kimliği ada girer;
+// CageFS'te de zararsız, yalnızca ad uzar.
+function azTmp($ad) {
+    static $u = null;
+    if ($u === null) {
+        $u = function_exists('posix_geteuid') ? (string)posix_geteuid() : '';
+        if ($u === '') $u = substr(md5(__FILE__), 0, 8);   // kimlik yoksa kurulum yoluna göre
+    }
+    return sys_get_temp_dir() . '/az_' . $ad . '_' . $u . '.json';
+}
+const GEN_HW_WINDOW = 86400, GEN_FLOOR_MS = 15000, GEN_CEIL_MS = 30000;
+function genBudgetMs($elapsedMs) {
+    $file = azTmp('gen_hw');
+    $d    = json_decode((string)@file_get_contents($file), true);
+    $hw   = (is_array($d) && isset($d['ms'], $d['t']) && (time() - (int)$d['t']) < GEN_HW_WINDOW)
+          ? (float)$d['ms'] : 0.0;
+    if ($elapsedMs > $hw) {
+        $hw = $elapsedMs;
+        @file_put_contents($file, json_encode(['ms' => round($hw, 1), 't' => time()]), LOCK_EX);
+    }
+    // x3: bir istek daha once gorulen en kotunun uc kati kadar yavaslayabilir.
+    // +5000: sunucunun olcemedigi kisim — ag gidis donusu.
+    return (int)max(GEN_FLOOR_MS, min(GEN_CEIL_MS, $hw * 3 + 5000));
+}
+
 function probeCached($key, $ttl, callable $probe) {
     static $data = null;
-    $file = sys_get_temp_dir() . '/az_probe_cache.json';
+    $file = azTmp('probe_cache');
     if ($data === null) {
         $data = json_decode((string)@file_get_contents($file), true);
         if (!is_array($data)) $data = [];
@@ -758,7 +803,7 @@ function rtCol($ms, $warn, $crit) {
 
 // ── SSL ───────────────────────────────────────────────────────
 $sslDaysLeft = null; $sslExpiry = null;
-$sslCache    = sys_get_temp_dir() . '/az_ssl_cache.json';
+$sslCache    = azTmp('ssl_cache');
 if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
     $cached      = json_decode(@file_get_contents($sslCache), true);
     $sslDaysLeft = $cached['days']   ?? null;
@@ -1235,6 +1280,7 @@ $ICONS = [
     'bolt' => '<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />',
     'cpu' => '<path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" />',
     'database' => '<path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" />',
+    'device-desktop' => '<path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z" /><path d="M7 20h10" /><path d="M9 16v4" /><path d="M15 16v4" />',
     'file-arrow-right' => '<path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 15h6" /><path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" />',
     'list' => '<path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" />',
     'lock' => '<path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" />',
@@ -1746,6 +1792,9 @@ if (isset($_GET['json'])) {
     echo json_encode([
         'hostname'          => gethostname(), 'threads' => $coreCount,
         'time'              => date('Y-m-d H:i:s'), 'now' => time(), 'appVer' => APP_VERSION, 'tz' => (int)date('Z'),
+        // Acik kalan sekme son tarihi yeniden yuklemeden guncellesin: sunucu
+        // yavasladikca pencere genisler, hizlandikca tabana doner.
+        'fetchBudget'       => genBudgetMs((microtime(true) - $GEN_T0) * 1000),
         'overall'           => ['status' => $overallStatus, 'color' => $overallColorCss, 'detail' => $overallDetail],
         'cardCol'           => ['cpu' => $cpuCardCol, 'ram' => $ramCardCol, 'disk' => $diskCardCol, 'iow' => $iowCardCol],
         'load1'             => $load1, 'load5' => $load5, 'load15' => $load15,
@@ -2227,6 +2276,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .bk-chip{font-size:9px;font-weight:700;background:var(--accent-bg);color:var(--accent);padding:2px 6px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;}
 .theme-btn{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;transition:background .2s;}
 .theme-btn:hover{background:rgba(255,255,255,.2);}
+/* Acik durum: ayni dugme, daha belirgin zemin. Renk DEGISTIRILMEZ — baslik
+   seridi koyu, ikonlar beyaz; vurgu rengi orada okunmuyor. */
+.theme-btn.on{background:rgba(255,255,255,.34);}
+.theme-btn[hidden]{display:none;}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);}}
 /* Bolum etiketi: yazi solda, ince cizgi arayi doldurur, aralik sagda.
@@ -2615,6 +2668,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <?=icon('moon','ic-moon')?><?=icon('sun','ic-sun')?>
     </button>
     <button class="theme-btn" id="lang-btn" title="<?=htmlspecialchars(t('Language'), ENT_QUOTES, 'UTF-8')?>" style="font-size:11px;font-weight:700;letter-spacing:.02em;"><?=$LANG_UI === 'tr' ? 'EN' : 'TR'?></button>
+    <!-- Ekranı uyanık tut. 'hidden' başlangıç: tarayıcı Wake Lock desteklemiyorsa
+         hiç görünmez, ölü kontrol çizilmez. JS destek varsa açar. -->
+    <button class="theme-btn" id="awake-btn" hidden aria-pressed="false" title="<?=htmlspecialchars(t('Keep screen awake'), ENT_QUOTES, 'UTF-8')?>">
+      <?=icon('device-desktop')?>
+    </button>
   </div>
   <div class="hdr-meta">
     <div class="hdr-status<?=$overallDetail!==''?' has-detail':''?>" id="hdr-status">
@@ -2886,6 +2944,9 @@ document.addEventListener('DOMContentLoaded', function() {
 const TH=<?=json_encode($TH, JSON_PRETTY_PRINT)?>;
 const LANG_UI=<?=json_encode($LANG_UI)?>;
 const PAGE_VER=<?=json_encode(APP_VERSION)?>; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+// Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
+// ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
+const KEEP_AWAKE=<?=json_encode((bool)($cfg['keep_awake'] ?? false))?>;
 const TR=<?=$LANG_UI === 'tr' ? json_encode($TR, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}'?>;
 function t(s){return LANG_UI==='tr'?(TR[s]||s):s;}
 function tf(s){var a=[].slice.call(arguments,1),i=0;return (LANG_UI==='tr'?(TR[s]||s):s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}
@@ -3830,42 +3891,89 @@ function markStale(on){
 }
 let lastFetchOk=Date.now();
 
+// Istek butcesi. Zaman asimi SART: zaman asimi olmadan, yolu sessizce DUSUREN bir
+// guvenlik duvari (CSF DROP — IP degisiminden sonra tipik) karsisinda fetch
+// dakikalarca asili kalir; 30 sn'lik timer bu arada yeni tick'ler acar ve istekler
+// birikir.
+// Sinir KODDA SABIT DEGIL: sunucu kendi cevap hazirlama suresini olcer ve son
+// tarihi ondan turetir (PHP'de genBudgetMs). Esikler, servis sayisi ve yoklama
+// maliyeti her kurulumda farkli oldugu icin elle toplanmis bir sayi baska bir
+// sunucuda yanlis olurdu. Her basarili tick degeri tazeler: sunucu yavasladikca
+// pencere genisler, hizlandikca tabana doner.
+let FETCH_TIMEOUT=<?=json_encode(genBudgetMs((microtime(true) - $GEN_T0) * 1000))?>;
+let lastFailTimeout=false;   // son basarisizlik zaman asimi miydi (yol dusuruluyor mu)
 async function fetchWithRetry(url, retries=2, delay=2000){
-  lastHttpStatus=null;
+  lastHttpStatus=null; lastFailTimeout=false;
   for(let i=0; i<=retries; i++){
+    const ac=(typeof AbortController!=='undefined')?new AbortController():null;
+    const to=ac?setTimeout(()=>ac.abort(),FETCH_TIMEOUT):null;
     try{
-      const r=await fetch(url);
+      const r=await fetch(url,ac?{signal:ac.signal}:undefined);
       lastHttpStatus=r.status;
       if(r.ok) return await r.json();
       // Yetki reddi tekrar denemekle duzelmez; bekleyip ugrasmadan cik.
       if(r.status===401||r.status===403) return null;
-    }catch(e){ lastHttpStatus=null; }
+      lastFailTimeout=false;
+    }catch(e){
+      lastHttpStatus=null;
+      // Bizim kestigimiz istek (AbortError) = sunucu zamaninda yanit vermedi.
+      // Aninda reddedilen istek (DNS yok, baglanti reddedildi) bundan AYRI: biri
+      // "yanit gelmiyor", digeri "kapi kapali". Kullaniciya ayri yazilir.
+      lastFailTimeout=(e&&e.name==='AbortError');
+    }finally{ if(to)clearTimeout(to); }
+    // Zaman asimi PAHALI (son tarih kadar bekledik): iki denemeden sonra israr
+    // etmeyiz, yoksa tek tur dakikalari bulur. Aninda reddedilen istek bedava —
+    // onda 3 deneme kalir.
+    if(lastFailTimeout&&i>=1) break;
     if(i<retries) await new Promise(res=>setTimeout(res,delay));
   }
   return null;
 }
 
 let lastFetch=0;
+let tickBusy=false;
 async function tick(){
+  // Ust uste binme korumasi: yavas/asili bir istek varken 30 sn'lik timer yenisini
+  // acmasin. Yoksa kesinti suresince istekler birikir ve ag dondugunde hepsi birden
+  // cozulup celiskili satirlar yazabilir.
+  if(tickBusy)return;
+  tickBusy=true;
   lastFetch=Date.now();
-  const data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now());
+  let data=null;
+  try{ data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now()); }
+  finally{ tickBusy=false; }
 
   if(!data){
-    // Sunucu yanıt verdi ama içeri almadı mı, yoksa hiç yanıt vermedi mi — ayrı yazılır.
+    // Neden ulasamadik — elimizdeki her ayirt edilebilir durum ayri yazilir.
+    // navigator.onLine YALNIZCA false iken kanit sayilir: false ise cihazda ag
+    // yoktur (kesin), true ise internet oldugunu GARANTI ETMEZ. Tek yonlu kullanim.
     const s=lastHttpStatus;
-    const k=(s===403)?'403':(s===401)?'401':(s!=null)?'http':'conn';
+    const k=(typeof navigator!=='undefined'&&navigator.onLine===false)?'offline'
+           :(s===403)?'403':(s===401)?'401'
+           :(s===404)?'404'
+           :(s===502||s===503||s===504)?'backend'
+           :(s!=null)?'http'
+           :lastFailTimeout?'timeout':'conn';
     if(downKind!==k){
       downKind=k;
-      addLog('err', k==='403' ? t('Access forbidden (403) — IP blocked?')
-                  : k==='401' ? t('Authentication required (401)')
-                  : k==='http'? tf('Server responded with error (%s)',s)
-                  :             t('Server unreachable'),
+      addLog('err', k==='offline'? t('No internet connection')
+                  : k==='403'   ? t('Access forbidden (403) — IP blocked?')
+                  : k==='401'   ? t('Authentication required (401)')
+                  : k==='404'   ? t('Page not found (404) — install moved?')
+                  : k==='backend'? tf('Server backend not responding (%s)',s)
+                  : k==='http'  ? tf('Server responded with error (%s)',s)
+                  : k==='timeout'? t('Server did not respond (timeout)')
+                  :               t('Server unreachable'),
              hmsOf(srvClock()),srvClock()); // sunucu yanit vermedi: yurutulen sunucu saati (tarayici saati degil)
     }
     markStale(true);
     return;
   }
   markStale(false);
+
+  // Sunucunun olctugu yeni son tarih (bkz. FETCH_TIMEOUT): sekme acik kalsa da
+  // pencere guncel kalsin. Sacma bir deger gelirse dokunulmaz.
+  if(data.fetchBudget>0&&data.fetchBudget<=120000)FETCH_TIMEOUT=data.fetchBudget;
 
   const now=data.time.split(' ')[1];
   if(data.now!=null){srvNow=+data.now;srvWall=Date.now();}if(data.tz!=null)TZOFF=+data.tz;
@@ -4008,6 +4116,49 @@ if(location.protocol==='file:'){
   };
   document.addEventListener('visibilitychange',onVisible);
   window.addEventListener('pageshow',e=>{if(e.persisted)onVisible();});
+
+  // Cihazin agi gidince/gelince tarayici bunu ANINDA soyluyor — 30 sn'lik tick'i
+  // beklemeye gerek yok. Kesinti satirini buradan yazmak damgayi gercek ana koyar.
+  // 'online' doneminde "baglanti geri geldi" YAZILMAZ: cihazin agi olmasi sunucuya
+  // ulasildigi anlamina gelmez; o satiri basarili tick yazar. Yalnizca hemen dener.
+  window.addEventListener('offline',()=>{
+    if(downKind==='offline')return;
+    downKind='offline';
+    addLog('err',t('No internet connection'),hmsOf(srvClock()),srvClock());
+    markStale(true);
+  });
+  window.addEventListener('online',()=>{tick();});
+
+  // Ekrani uyanik tutma. Tarayicinin "verimlilik modu" / "uyuyan sekmeler"
+  // ozelligini sayfadan KAPATMANIN yolu yok — o bir tarayici ayari, web'e acilmis
+  // API'si yok. Yapilabilen tek sey ekran kilidi: sekme GORUNURKEN ekranin (ve cogu
+  // makinede makinenin) uyumasini engeller.
+  //
+  // Karar config'te degil BU TARAYICIDA tutulur: bu sunucunun degil, o EKRANIN
+  // ozelligi — ayni pano duvar ekraninda acik, dizustunde kapali olmali.
+  // config'teki keep_awake yalnizca hic secim yapilmamis tarayici icin varsayilan.
+  // Dugmeye tiklamak ayrica bazi tarayicilarin istedigi kullanici hareketidir;
+  // kilit bu yuzden sessizce reddedilmek yerine guvenilir sekilde veriliyor.
+  const awBtn=document.getElementById('awake-btn');
+  if(awBtn&&navigator.wakeLock&&navigator.wakeLock.request){
+    let wl=null,on=KEEP_AWAKE;
+    try{const v=localStorage.getItem('az-awake');if(v!==null)on=(v==='1');}catch(e){}
+    const paint=()=>{awBtn.classList.toggle('on',on);awBtn.setAttribute('aria-pressed',on?'true':'false');};
+    const rel=async()=>{try{if(wl)await wl.release();}catch(e){}wl=null;};
+    const acq=async()=>{
+      if(!on||document.visibilityState!=='visible'||wl)return;
+      try{wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;});}
+      catch(e){wl=null;}   // reddedilirse sessiz: pano calismaya devam eder
+    };
+    awBtn.hidden=false; paint(); acq();
+    awBtn.addEventListener('click',()=>{
+      on=!on;
+      try{localStorage.setItem('az-awake',on?'1':'0');}catch(e){}
+      paint(); if(on)acq(); else rel();
+    });
+    // Sekme gizlenince tarayici kilidi KENDISI birakir; geri gelince yeniden alinir.
+    document.addEventListener('visibilitychange',acq);
+  }
 }
 </script>
 </body>
