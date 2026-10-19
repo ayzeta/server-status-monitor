@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.27'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.28'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -177,6 +177,8 @@ $TR = [
     'Server responded with error (%s)' => 'Sunucu hata döndürdü (%s)', 'Connection restored' => 'Bağlantı geri geldi',
     'No internet connection' => 'İnternet bağlantısı yok', 'Server did not respond (timeout)' => 'Sunucu yanıt vermedi (zaman aşımı)',
     'Keep screen awake' => 'Ekranı uyanık tut',
+    'not installed' => 'kurulu değil', 'disabled (csf.disable)' => 'devre dışı (csf.disable)',
+    'rules not loaded' => 'kurallar yüklü değil', 'no iptables' => 'iptables yok',
     'Page not found (404) — install moved?' => 'Sayfa bulunamadı (404) — kurulum taşınmış olabilir', 'Server backend not responding (%s)' => 'Sunucu arka ucu yanıt vermiyor (%s)',
     'Web response time high: %sms' => 'Web yanıt süresi yüksek: %sms', 'Web response time normal: %sms' => 'Web yanıt süresi normal: %sms',
     'MySQL response time high: %sms' => 'MySQL yanıt süresi yüksek: %sms', 'MySQL response time normal: %sms' => 'MySQL yanıt süresi normal: %sms',
@@ -1108,12 +1110,37 @@ $dnsChecks = [
 // ════════════════════════════════════════════════════════════════
 // CSF/ModSec/CageFS: root snapshot'ta veri varsa gerçek kontrol,
 // yoksa eski davranış (komut kopyalama satırı) korunur.
+// CSF durumu artık toplayıcıda dört aşamalı belirleniyor (kurulu mu > csf.disable
+// > TESTING > kurallar yüklü mü); adlar csf-autogroup ile ortak. Eskiden yalnız
+// csf.disable'a bakılıyordu: duvar yüklenmemiş kalsa da satır "enabled" derdi.
+// 'unknown' = DOĞRULANAMADI, sorun değil — grup sayımından düşer ([[svcTally]]),
+// çünkü cPanel lisansı düştüğünde pano yanlışlıkla "Güvenlik Sorunlu" demişti.
+// 'enabled'/'disabled' eski toplayıcının çıktısı: güncelleme sırasında sayfa yeni,
+// anlık görüntü bir dakika eski olabiliyor — o aralıkta satır boş kalmasın.
+$csfMap = [
+    'ok'       => ['ok', 'enabled'],
+    'enabled'  => ['ok', 'enabled'],
+    'missing'  => ['no', 'not installed'],
+    'off'      => ['no', 'disabled (csf.disable)'],
+    'disabled' => ['no', 'disabled'],
+    'testing'  => ['no', 'TESTING mode'],
+    'norules'  => ['no', 'rules not loaded'],
+    'unknown'  => ['unk', 'unknown · no iptables'],
+];
 $csfTesting = ($procSec['csf_testing'] ?? '0') === '1';
-$secRoot = [];
-$secRoot[] = isset($procSec['csf'])
-    ? ['label' => 'CSF firewall', 'ok' => ($procSec['csf'] === 'enabled' && !$csfTesting), 'type' => 'check',
-       'note' => $procSec['csf'] . ($csfTesting ? ' · TESTING mode' : '')]
-    : ['label' => 'CSF firewall', 'type' => 'cmd', 'cmd' => 'systemctl status csf'];
+$csfRaw     = $procSec['csf'] ?? null;
+$secRoot    = [];
+if ($csfRaw !== null) {
+    // Tanımadığımız bir durum gelirse (ileride eklenen bir ad) uydurmayız:
+    // doğrulanamadı sayılır ve ham değer not olarak gösterilir.
+    [$csfKind, $csfNote] = $csfMap[$csfRaw] ?? ['unk', 'unknown'];
+    if ($csfKind === 'ok' && $csfTesting) [$csfKind, $csfNote] = ['no', 'TESTING mode']; // eski toplayıcı
+    $secRoot[] = ['label' => 'CSF firewall', 'type' => 'check', 'note' => $csfNote,
+                  'ok' => $csfKind === 'ok']
+               + ($csfKind === 'unk' ? ['unknown' => true] : []);
+} else {
+    $secRoot[] = ['label' => 'CSF firewall', 'type' => 'cmd', 'cmd' => 'systemctl status csf'];
+}
 $msVal = isset($procSec['modsec']) ? trim($procSec['modsec'], " \t\"'") : null; // cPanel değeri tırnaklı yazabiliyor
 $secRoot[] = $msVal !== null
     ? ['label' => 'ModSecurity', 'ok' => strcasecmp($msVal, 'on') === 0, 'type' => 'check',
@@ -1870,7 +1897,12 @@ function renderChecks($checks) {
                  ? '<span class="sub-ver" title="' . htmlspecialchars($c['verT'] ?? $c['ver']) . '">' . htmlspecialchars($c['ver']) . '</span>'
                  : '';
             $out .= '<div class="sub-check">'
-                  . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : 'err') . '"></span>'
+                  // Doğrulanamayan kontrol GRİ: yeşil/kırmızı "ölçtük" demek,
+                  // gri "okuyamadık" demek (komut satırlarıyla aynı anlam).
+                  // Kırmızı yanlıştı — grup rozeti unknown'ı saymadığı için
+                  // satır kırmızıyken başlık "Operational" diyordu. Sarı da
+                  // olmaz: bu panoda sarı, ölçülmüş bir değerin eşiği aşması.
+                  . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : (!empty($c['unknown']) ? 'muted' : 'err')) . '"></span>'
                   . '<span class="sub-lbl">' . htmlspecialchars($c['label']) . $ver . '</span>'
                   . '<span class="sub-note">' . $note . '</span>'
                   . $age
@@ -3438,7 +3470,8 @@ function renderSvc(key,data){
       }
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':'err'}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
+      // PHP'deki dalın ikizi: doğrulanamayan kontrol gri (bkz. oradaki not).
+      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':(ch.unknown?'muted':'err')}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }

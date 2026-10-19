@@ -78,6 +78,16 @@ header button (per-browser, cookie-based). The version shows in the footer.
   PHP workers, disk I/O and disk usage per cPanel account. I/O comes from
   CloudLinux LVE where present (counts short-lived processes too) and from
   `/proc/<pid>/io` deltas elsewhere; the IO-wait alarm names the top I/O account.
+- **CSF is checked, not assumed** — the absence of `csf.disable` does not mean a
+  firewall is up: a package upgrade could leave the rules unloaded while the file
+  was never created. The collector works through four states in order — not
+  installed, disabled, TESTING mode, rules actually loaded — and says which one
+  it found. A read it could not perform (no `iptables`, or run without
+  privileges) is reported as unverified, never as a problem, so it cannot raise a
+  false security alarm. Bad news needs two consecutive readings, because CSF
+  briefly has no chain while it reloads. The state names match
+  [csf-autogroup](https://github.com/ayzeta/csf-autogroup), so the two tools
+  never call the same situation by different names.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded

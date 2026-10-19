@@ -224,8 +224,61 @@ OUT="$HOME_DIR/.proc_snapshot"
   ps axo user:19,comm --no-headers | awk '$2=="lsphp"{c[$1]++} END{for(u in c) printf "%d %s lsphp\n", c[u], u}' | sort -rn | head -15
   echo
   echo "--- Security checks ---"
-  if [ -d /etc/csf ]; then
-    [ -e /etc/csf/csf.disable ] && echo "csf disabled" || echo "csf enabled"
+  # CSF durumu TEK bir dosyadan okunamaz. "csf.disable yoksa acik" demek yetmiyor:
+  # bir CSF yukseltmesi guvenlik duvarini YUKLENMEMIS birakabiliyordu (CSF 16.33-1
+  # bunu duzeltti) ve o durumda hicbir kural yokken pano yesil gorunurdu.
+  # Sira onemli, ilk tutan kazanir: kurulu mu > csf.disable > TESTING > kural yuklu mu.
+  # Durum adlari csf-autogroup ile ORTAK (missing/off/testing/norules/unknown/ok) —
+  # iki arac ayni duruma farkli ad vermesin; olcutleri o arac gercek CSF 16.33'te
+  # (CloudLinux 8 ve AlmaLinux 9, iptables-nft) dogruladi.
+  # systemd'nin csf servisine BAKILMAZ: kurallar yukluyken "failed" gorundugu oldu.
+  if [ -d /etc/csf ] || command -v csf >/dev/null 2>&1; then
+    CSF_ST=ok
+    if [ ! -x /usr/sbin/csf ] && ! command -v csf >/dev/null 2>&1; then
+      CSF_ST=missing
+    elif [ -e /etc/csf/csf.disable ]; then
+      CSF_ST=off
+    elif [ "$(awk -F'"' '/^TESTING /{print $2; exit}' /etc/csf/csf.conf 2>/dev/null)" = "1" ]; then
+      # TESTING kural kontrolunden ONCE: bu moddayken CSF kurallari cron ile
+      # periyodik soker, yuklu gorunmesi kalici degil.
+      CSF_ST=testing
+    elif ! command -v iptables >/dev/null 2>&1; then
+      CSF_ST=unknown
+    elif iptables -S LOCALINPUT >/dev/null 2>&1; then
+      CSF_ST=ok
+    elif command -v iptables-legacy >/dev/null 2>&1 && iptables-legacy -S LOCALINPUT >/dev/null 2>&1; then
+      CSF_ST=ok                       # kurallari legacy arka uctan yuklemis eski kurulum
+    else
+      # "Zincir yok" ile "okuyamadim" AYRI tutulur. Toplayici root cron'da kosar,
+      # ama biri elle root disinda calistirirsa iptables yetki hatasi verir — bu
+      # "duvar yuklenmemis" DEGIL, dogrulanamadidir. (csf-autogroup bu ayrimi
+      # yapmiyor, hep root kostugu icin oraya gerek yok.)
+      CSF_ERR=$(iptables -S LOCALINPUT 2>&1 >/dev/null)
+      case "$CSF_ERR" in
+        *[Pp]ermission*|*"not permitted"*|*"must be root"*) CSF_ST=unknown;;
+        *) CSF_ST=norules;;
+      esac
+    fi
+    # KOTU HABER TEK OLCUMLE YAZILMAZ. CSF yeniden yuklerken (csf -r, paket
+    # yukseltmesi) once temizleyip sonra kuruyor; LOCALINPUT o arada kisa sure yok.
+    # Dakikada bir kosan toplayici o ana denk gelse sahte alarm uretirdi. Ayni sey
+    # 'missing' icin de gecerli (rpm ikiliyi degistirirken). Bu yuzden ikisi ancak
+    # ART ARDA IKI olcumde gorulunce yayinlanir. Kasitli durumlar (off, testing)
+    # boyle bir pencereye sahip degil — onlar aninda yazilir.
+    CSF_SFILE="$DATA_DIR/.csf_state"
+    read CSF_PREV CSF_PUB < <(cat "$CSF_SFILE" 2>/dev/null)
+    CSF_OUT=$CSF_ST
+    case "$CSF_ST" in
+      norules|missing)
+        # Ilk goruste onceki YAYINI koru; gecmis yoksa 'unknown' (dogrulanamadi),
+        # 'ok' demek yanlis olurdu — henuz dogrulanmis bir sey yok.
+        [ "$CSF_PREV" != "$CSF_ST" ] && CSF_OUT=${CSF_PUB:-unknown};;
+    esac
+    printf '%s %s\n' "$CSF_ST" "$CSF_OUT" > "$CSF_SFILE"
+    chmod 600 "$CSF_SFILE" 2>/dev/null
+    echo "csf $CSF_OUT"
+    # Eski panolar bu satiri okuyor (guncelleme sirasinda sayfa yeni, anlik
+    # goruntu bir dakika eski olabiliyor). Yeni pano durumu 'csf'den aliyor.
     T=$(awk -F'"' '/^TESTING /{print $2}' /etc/csf/csf.conf 2>/dev/null)
     [ -n "$T" ] && echo "csf_testing $T"
   fi
