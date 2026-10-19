@@ -89,17 +89,22 @@ header button (per-browser, cookie-based). The version shows in the footer.
   [csf-autogroup](https://github.com/ayzeta/csf-autogroup), so the two tools
   never call the same situation by different names.
 - **Which account is *growing*, not just which is big** — the disk-by-account
-  card has a second view: growth over the last 30 days, ranked. The biggest
-  account is rarely news; the one that quietly gained 20 GB this month is. A
-  per-account size is recorded once a day, and the card compares the newest
-  reading with the oldest one still inside the window, so an account that creeps
-  up half a gigabyte a week becomes visible instead of hiding under the
-  threshold of a short window, while a one-off migration drops out after 30 days
-  instead of sitting at the top for months. Accounts with no reading at the
-  start of the window are not hidden — a new account that uploaded 80 GB is
-  exactly what you want to see — they are tagged `new` so the number explains
-  itself. Growth under 1 GB is not listed. Until a month of history exists the
-  card uses the longest span it has and says what that span is.
+  card ranks growth as well as size, over **1, 7 or 30 days**. The biggest
+  account is rarely news; the one that quietly gained 20 GB this month is, and
+  the one that gained 20 GB since yesterday is a different story again — so the
+  window is yours to pick rather than something the dashboard decides for you.
+  A per-account size is recorded once a day; each window compares the newest
+  reading against the one at its start. An account creeping up half a gigabyte a
+  week barely registers at a day and stands out over a month, while a one-off
+  migration drops out of the 30-day window instead of sitting at the top of a
+  trend line for two months. Accounts with no reading at the start of a window
+  are not hidden — a new account that uploaded 80 GB is exactly what you want to
+  see — they are tagged `new` so the number explains itself. There is no
+  threshold: the list is sorted by growth, so the top row is the fastest grower
+  by definition, and if that row reads `+0.3` then nothing is growing, which is
+  worth knowing too. A window appears only once enough days exist to cover it,
+  and its button is labelled with the span actually measured, so a `30g` button
+  never stands for twelve days of data.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded
