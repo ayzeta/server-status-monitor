@@ -105,6 +105,15 @@ header button (per-browser, cookie-based). The version shows in the footer.
   worth knowing too. A window appears only once enough days exist to cover it,
   and its button is labelled with the span actually measured, so a `30g` button
   never stands for twelve days of data.
+- **SSL expiry is judged against who issued it** — a certificate that renews
+  itself should not be called a problem while its renewal window is still open.
+  AutoSSL starts renewing a Let's Encrypt certificate 29 days before expiry and
+  a cPanel-issued one 15 days before, so a fixed 30-day warning fires *before*
+  anything has even been attempted — every cycle, forever. The dashboard reads
+  the issuer from the certificate it already fetches and warns at 14 days for
+  Let's Encrypt, 7 for cPanel: by then renewal has been failing daily for over a
+  week, which is worth knowing. Any other issuer is assumed to be renewed by a
+  human and keeps a 30-day notice. The card's tooltip says which rule applied.
 - **RAID / SMART / inode / mismatch** alarms, shown on the disk card *and* the
   event log (mail-safe).
 - **Live event log** with 2-tick confirmation (no flapping) + server-seeded

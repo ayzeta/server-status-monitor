@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.31'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.32'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -180,6 +180,11 @@ $TR = [
     'not installed' => 'kurulu değil', 'disabled (csf.disable)' => 'devre dışı (csf.disable)',
     'rules not loaded' => 'kurallar yüklü değil', 'no iptables' => 'iptables yok',
     'growth' => 'artış', '%sd' => '%sg', 'new' => 'yeni',
+    '%s — AutoSSL renews within %s days of expiry; warning at %s days, critical at %s'
+        => '%s — AutoSSL bitişe %s gün kala yeniliyor; uyarı %s günde, kritik %s',
+    '%s — automatic renewal is not assumed; warning at %s days, critical at %s'
+        => '%s — otomatik yenileme varsayılmıyor; uyarı %s günde, kritik %s',
+    'Certificate issuer could not be read' => 'Sertifikayı veren makam okunamadı',
     'growth data is building up' => 'artış verisi birikiyor',
     'no account grew in this window' => 'bu pencerede büyüyen hesap yok',
     'No record at the start of the window — account is new or was not yet measured'
@@ -890,12 +895,13 @@ function rtCol($ms, $warn, $crit) {
 }
 
 // ── SSL ───────────────────────────────────────────────────────
-$sslDaysLeft = null; $sslExpiry = null;
+$sslDaysLeft = null; $sslExpiry = null; $sslIssuer = null;
 $sslCache    = azTmp('ssl_cache');
 if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
     $cached      = json_decode(@file_get_contents($sslCache), true);
     $sslDaysLeft = $cached['days']   ?? null;
     $sslExpiry   = $cached['expiry'] ?? null;
+    $sslIssuer   = $cached['issuer'] ?? null;   // eski önbellekte yok: null kalır
 } else {
     $ctx = stream_context_create(['ssl' => ['capture_peer_cert' => true, 'verify_peer' => false, 'verify_peer_name' => false]]);
     $fp  = @stream_socket_client('ssl://' . gethostname() . ':2087', $e, $s, 5, STREAM_CLIENT_CONNECT, $ctx);
@@ -905,9 +911,34 @@ if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
         if (isset($info['validTo_time_t'])) {
             $sslExpiry   = date('Y-m-d', $info['validTo_time_t']);
             $sslDaysLeft = (int)(($info['validTo_time_t'] - time()) / 86400);
-            @file_put_contents($sslCache, json_encode(['days' => $sslDaysLeft, 'expiry' => $sslExpiry]));
+            // Veren makam da saklanır: yenileme penceresini O belirliyor (aşağıya bak).
+            $iss = $info['issuer'] ?? [];
+            $sslIssuer = trim((string)(($iss['O'] ?? '') . ' ' . ($iss['CN'] ?? '')));
+            @file_put_contents($sslCache, json_encode(
+                ['days' => $sslDaysLeft, 'expiry' => $sslExpiry, 'issuer' => $sslIssuer]));
         }
     }
+}
+// Uyarı eşiği, sertifikayı VEREN MAKAMA göre seçilir — config'te açıkça yazılmadıysa.
+//
+// Sebebi ölçülmüş bir çakışma: cPanel AutoSSL yenilemeye Let's Encrypt sertifikasında
+// son 29 güne, cPanel'in kendi sertifikasında son 15 güne girince başlıyor. Sabit 30
+// günlük uyarı, AutoSSL daha denemeye BAŞLAMADAN alarm vermek demekti; bu tek seferlik
+// bir aksilik değil, her yenileme döngüsünde tekrarlayan bir yanlış alarmdı.
+// Yeni eşikler "AutoSSL günlerdir deniyor ve başaramıyor" anlamına gelir:
+//   Let's Encrypt → 14 gün kala uyarı (15 gündür deneniyor), 5 gün kala kritik
+//   cPanel        →  7 gün kala uyarı ( 8 gündür deneniyor), 3 gün kala kritik
+// TANIMADIĞIMIZ makamda otomatik yenileme VARSAYILMAZ: elle kurulmuş ya da ticari
+// sertifikayı insan yeniler, orada cömert 30/7 kalır. Sectigo tek başına ölçüt
+// değil — ticari sertifika da ondan gelir; yalnızca adında 'cPanel' geçen eşleşir.
+$sslAutoCA = null;
+if ($sslIssuer) {
+    if (stripos($sslIssuer, "Let's Encrypt") !== false) $sslAutoCA = ["Let's Encrypt", 29, 14, 5];
+    elseif (stripos($sslIssuer, 'cPanel') !== false)    $sslAutoCA = ['cPanel', 15, 7, 3];
+}
+if ($sslAutoCA) {
+    if (!isset($cfg['thresholds']['ssl_warn'])) $TH['ssl_warn'] = $sslAutoCA[2];
+    if (!isset($cfg['thresholds']['ssl_crit'])) $TH['ssl_crit'] = $sslAutoCA[3];
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -2979,7 +3010,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('users')?></span><span class="res-name"><?=t('Hosted Accounts')?></span></div><span class="res-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></span></div>
       <div class="res-meta"><?=t('cPanel accounts')?></div>
     </div>
-  <div class="info-card" id="ic-ssl" style="--c:<?=$sslColorCss?><?=cardBorderCss($sslColorCss)?>">
+<?php
+  // İpucu eşiğin NEDEN o olduğunu söyler: sayı havada kalmasın, "30 gün kaldı ama
+  // uyarı yok" ya da tersi görülünce sebebi aranmasın.
+  $sslTip = $sslAutoCA
+      ? tf('%s — AutoSSL renews within %s days of expiry; warning at %s days, critical at %s',
+           $sslAutoCA[0], $sslAutoCA[1], $TH['ssl_warn'], $TH['ssl_crit'])
+      : ($sslIssuer ? tf('%s — automatic renewal is not assumed; warning at %s days, critical at %s',
+                         $sslIssuer, $TH['ssl_warn'], $TH['ssl_crit'])
+                    : t('Certificate issuer could not be read'));
+?>
+  <div class="info-card" id="ic-ssl" title="<?=htmlspecialchars($sslTip, ENT_QUOTES, 'UTF-8')?>" style="--c:<?=$sslColorCss?><?=cardBorderCss($sslColorCss)?>">
       <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('lock')?></span><span class="res-name">SSL &middot; <span lang="en"><?=htmlspecialchars(gethostname(),ENT_QUOTES,'UTF-8')?></span></span></div><span class="res-val" id="iv-ssl" style="color:<?=$sslColorCss?>"><?=$sslDaysLeft !== null ? vu($sslDaysLeft, t('days')) : '—'?></span></div>
       <div class="res-meta" id="iv-ssl-sub"><?=$sslExpiry ?? t('unavailable')?></div>
     </div>
