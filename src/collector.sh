@@ -766,6 +766,16 @@ PYEOF
       fi
     fi
     read UPD_RREV UPD_BEH < <(cat "$UPD_CACHE" 2>/dev/null)
+    # GERIDE KALINAN TUR SAYISI HER TURDA YENIDEN SAYILIR — ag erisimi YOK, yalnizca
+    # yereldeki 'origin/<dal>' isaretcisi okunur. Fetch gunde bir yeterli ama SAYI
+    # oyle degil: guncelleme uygulanir uygulanmaz 0'a dusmesi gerekiyor. Eskiden sayi
+    # da onbellekten geliyordu ve kullanici guncelledikten sonra footer 24 saate kadar
+    # "guncelleme var" demeye devam ediyordu.
+    UPD_BRL=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$UPD_BRL" ]; then
+      UPD_BEHL=$(git -C "$REPO_DIR" rev-list --count "HEAD..origin/$UPD_BRL" 2>/dev/null)
+      case "${UPD_BEHL:-}" in ''|*[!0-9]*) ;; *) UPD_BEH=$UPD_BEHL;; esac
+    fi
     case "${UPD_BEH:-0}" in ''|*[!0-9]*) UPD_BEH=0;; esac
     if [ "$UPD_BEH" -gt 0 ]; then
       echo "upd_behind $UPD_BEH"
