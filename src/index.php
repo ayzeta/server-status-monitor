@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.36'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.37'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1432,7 +1432,13 @@ $ICONS = [
     'bolt' => '<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />',
     'cpu' => '<path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" />',
     'database' => '<path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" />',
-    'device-desktop' => '<path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z" /><path d="M7 20h10" /><path d="M9 16v4" /><path d="M15 16v4" />',
+    // Uyanık-kal düğmesi: aynı fincan, aktifken dumanı çıkıyor. Ekran/monitör
+    // ikonu mobilde doğrudan tarayıcının "masaüstü modu" düğmesi sanılıyordu;
+    // kahve ise bu işlevin yerleşik idiomu (Caffeine, Amphetamine) ve hiçbir
+    // cihaz çağrışımı yok. Üstünü çizmek yerine duman: 16 pikselde çizgiler
+    // birbirine girmiyor, siluet iki durumda da aynı kalıyor.
+    'cup'       => '<path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" />',
+    'cup-steam' => '<path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" /><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" /><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" />',
     'file-arrow-right' => '<path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 15h6" /><path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" />',
     'list' => '<path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" />',
     'lock' => '<path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" />',
@@ -2533,6 +2539,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 /* Tema ikonu artik JS ile sinif degistirmiyor; hangi ikonun gorunecegine
    data-theme'e bakan CSS karar veriyor (3 satir JS eksildi). */
 .ic-sun{display:none;}
+/* Uyanik-kal: pasifte sade fincan, aktifte dumani cikan fincan — tema dugmesindeki
+   ay/gunes ile AYNI yontem, o yuzden kurallar da ayni yerde. '.ic' display veriyor
+   ve bu satirlardan ONCE geliyor; asagida durmazlarsa .ic onlari ezer. */
+.ic-aw-on{display:none;}
+.theme-btn.on .ic-aw-off{display:none;}
+.theme-btn.on .ic-aw-on{display:inline-block;}
 [data-theme="dark"] .ic-sun{display:inline-block;}
 [data-theme="dark"] .ic-moon{display:none;}
 /* Ikon kutusu — servis kartlarindaki .svc-icon ile ayni dil, daha kucuk olcek.
@@ -2900,7 +2912,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <!-- Ekranı uyanık tut. 'hidden' başlangıç: tarayıcı Wake Lock desteklemiyorsa
          hiç görünmez, ölü kontrol çizilmez. JS destek varsa açar. -->
     <button class="theme-btn" id="awake-btn" hidden aria-pressed="false" title="<?=htmlspecialchars(t('Keep screen awake'), ENT_QUOTES, 'UTF-8')?>">
-      <?=icon('device-desktop')?>
+      <?php // İkisi AYRI satırda basılır: tek satırda 947 bayt ediyor ve CSF mail
+            // ekinin 900 baytlık satır sınırını aşıyordu. Satır sonu ÇIKTIYA
+            // yazılıyor — şablonda '?>' sonrasına koymak işe yaramaz, PHP oradaki
+            // tek satır sonunu yutar. Boşluk düzeni bozmaz: .theme-btn flex,
+            // boşluk metin düğümü öğe sayılmaz. ?>
+      <?=icon('cup', 'ic-aw-off') . "\n"?><?=icon('cup-steam', 'ic-aw-on')?>
     </button>
   </div>
   <div class="hdr-meta">
