@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.33'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.35'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1684,7 +1684,7 @@ if (!empty($histSeed['t'])) {
 // "bitti" de aynı şekilde: collector kampanya bitince SON GÖRÜLME anını kaydediyor
 // (act_<key>_end) ve bir saat saklıyor. Damga gerçek bitiş anı — çipin söndüğü an
 // değil; kabul penceresi 10 dakika olduğu için ikisi arasında o kadar fark olabilir.
-$actEnds = []; $actEndsT = []; $actEndsP = []; // H:i:s metni + epoch + bitis kapsami (hesap)
+$actEnds = []; $actEndsT = []; $actEndsP = []; $actEndsK = []; // H:i:s metni + epoch + bitis kapsami (hesap) + bitis turu
 foreach ($actDefs as $ai => $ad) {
     $aAge    = $acts[$ai] ?? null;
     $aEndRaw = $rootFresh ? ($procSec[$ad[1] . '_end'] ?? null) : null;
@@ -1698,6 +1698,13 @@ foreach ($actDefs as $ai => $ad) {
     $aEndRawP = (string)($procSec[$ad[1] . '_end_p'] ?? '');
     $aEndP = $rootFresh ? ($aEndRawP === '*' ? t($ad[1] === 'act_backup' ? 'all accounts' : 'multiple accounts') : preg_replace('/[^A-Za-z0-9_.,\-]/', '', $aEndRawP)) : '';
     $actEndsP[$ai] = ($aEndP !== '' && $aEndP !== '-' && $aEndP !== 'incremental') ? $aEndP : null;
+    // Bitis TURU ('<anahtar>_end_k'): "bitti" satirinda islemin ne oldugu da yazsin.
+    // Eskiden yalnizca kapsam tasiniyordu: "Ayzeta Backup basladi · geri yukleme ·
+    // abdesthane" ile basliyor, "Ayzeta Backup bitti · abdesthane" ile bitiyordu —
+    // islem turu dusuyordu. Toplayici turu kampanya boyunca degismediyse tasir;
+    // degistiyse hic yayinlamaz (yanlis tur yazmaktansa yazmamak dogru).
+    $aEndK = $rootFresh ? preg_replace('/[^A-Za-z0-9_.\-]/', '', (string)($procSec[$ad[1] . '_end_k'] ?? '')) : '';
+    $actEndsK[$ai] = ($aEndK !== '' && $aEndK !== '-') ? t(str_replace('_', ' ', $aEndK)) : null;
     $lbl = t(str_replace(' running', '', $ad[0]));
     // Ayrinti yalnizca is SURERKEN bilinir; biten iste collector artik
     // yayinlamiyor, o yuzden seed edilen 'bitti' satiri sade kalir.
@@ -1717,9 +1724,11 @@ foreach ($actDefs as $ai => $ad) {
         // kaydini tur bitince yaziyor, o turda konan engel sayisi ancak o zaman
         // biliniyor. Collector '<anahtar>_fb' yayinliyorsa bitis satirina eklenir.
         $aFb  = $rootFresh ? ($procSec[$ad[1] . '_fb'] ?? null) : null;
+        // Sira baslangic satiriyla AYNI: once islem turu, sonra kapsam.
         $fDet = (is_numeric($aFb) && (int)$aFb > 0)
               ? ' · +' . (int)$aFb . ' ' . t('blocks')
-              : ($actEndsP[$ai] !== null ? ' · ' . $actEndsP[$ai] : '');
+              : (($actEndsK[$ai] !== null ? ' · ' . $actEndsK[$ai] : '')
+               . ($actEndsP[$ai] !== null ? ' · ' . $actEndsP[$ai] : ''));
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('finished') . $fDet,
                        'ts'   => $actEnds[$ai], 't' => $actEndsT[$ai], 'x' => 1];
     }
@@ -1958,7 +1967,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
         'updRev' => $updRev, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -3758,8 +3767,12 @@ function renderProcs(data){
         // goruldiyse o hesap). Baslangic ayrintisi bitise TASINMAZ: PHP tohumu
         // onu bilemez ve tam yedekte ilk gorulen hesabi yazmak yaniltirdi.
         const fb=basladi?null:(data.actFbs&&data.actFbs[i]);
+        // Bitiste sira baslangictakiyle AYNI: once islem turu ('actEndsK'), sonra
+        // kapsam. Tur eskiden hic tasinmiyordu; "basladi · geri yukleme · hesap"
+        // ile baslayan is "bitti · hesap" diye bitiyordu.
+        const endK=(!basladi&&data.actEndsK&&data.actEndsK[i])?' · '+data.actEndsK[i]:'';
         const endP=(!basladi&&data.actEndsP&&data.actEndsP[i])?' · '+data.actEndsP[i]:'';
-        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(basladi?(actDet[i]||''):endP);
+        const det=(fb>0)?(' · +'+fb+' '+t('blocks')):(basladi?(actDet[i]||''):endK+endP);
         addLog('ok',t(lbl.replace(' running',''))+' '+t(basladi?'started':'finished')
                +det,ts,tE);});
       actWas=st;
@@ -4191,6 +4204,13 @@ async function fetchWithRetry(url, retries=2, delay=2000){
 }
 
 let lastFetch=0;
+// Bu istek sirasinda sekme GIZLENDI mi. Askiya alinmis sekmenin iptal ettigi istek
+// sunucu hatasi degildir; sureye bakmak YETMIYOR, cunku kisa bir arka plan turu
+// (olculdu: 37 sn ve 69 sn) planlanan butcenin altinda kalip yine alarm yaziyordu.
+// Bayrak tik basinda sifirlanir, arada bir kez bile gizlenirse kalkar.
+let hidDuringFetch=false;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')hidDuringFetch=true;});
 let tickBusy=false;
 async function tick(){
   // Ust uste binme korumasi: yavas/asili bir istek varken 30 sn'lik timer yenisini
@@ -4199,11 +4219,27 @@ async function tick(){
   if(tickBusy)return;
   tickBusy=true;
   lastFetch=Date.now();
+  hidDuringFetch=document.visibilityState!=='visible';
   let data=null;
   try{ data=await fetchWithRetry(window.location.pathname+'?json=1&_='+Date.now()); }
   finally{ tickBusy=false; }
 
   if(!data){
+    // ASKIYA ALINMIS SEKME SUNUCUYU SUCLAMAZ.
+    // Zaman asimi sayaci sayfa donarken de yasiyor: tarayici sekmeyi askiya alip
+    // (telefonda ekran kapaninca, masaustunde arka plana atilinca) dakikalar sonra
+    // uyandirinca o sayac ANINDA tetikleniyor, ucustaki istek iptal ediliyor ve biz
+    // bunu "sunucu yanit vermedi" diye yaziyorduk. Olculdu: sekme arka plana
+    // atildiginda 22:48:15 hata, uyaninca 22:48:52 "baglanti geri geldi" — sunucu
+    // boyunca ayaktaydi.
+    // Hata ANINDA 'gorunur mu' diye bakmak YETMEZ: sekme uyandigi icin uyaniyor,
+    // yani o an sayfa zaten gorunur. Bu yuzden istek BOYUNCA gizlenip gizlenmedigi
+    // izlenir (hidDuringFetch). Sure olcusu de tek basina yetmiyordu: olculen arka
+    // plan turlari 37 ve 69 saniyeydi, planlanan butcenin (3 deneme x sinir) altinda.
+    // Sure kontrolu yine de duruyor — makine uykuya girip gorunurluk olayi hic
+    // gelmeyebilir. Askidaysak tur sessizce atlanir: veri bayat isaretlenir, sekme
+    // one gelince zaten hemen yeni istek gider ve gercek bir sorun varsa O ZAMAN yazilir.
+    if(hidDuringFetch||Date.now()-lastFetch>FETCH_TIMEOUT*3+8000){ markStale(true); return; }
     // Neden ulasamadik — elimizdeki her ayirt edilebilir durum ayri yazilir.
     // navigator.onLine YALNIZCA false iken kanit sayilir: false ise cihazda ag
     // yoktur (kesin), true ise internet oldugunu GARANTI ETMEZ. Tek yonlu kullanim.
