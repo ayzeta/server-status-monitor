@@ -511,7 +511,9 @@ render, the CSF mail attachment, and the live 30-second ticks alike.
 | Mail queue top sender (info) | shown once the queue reaches 25: the account behind most queued messages, from Exim spool headers (`-auth_id` / `-ident`), 500-message sample, 5-minute cache | |
 | MySQL response | 30 ms | 100 ms |
 | Web response | 500 ms | 2000 ms |
-| SSL expiry | 30 days left | 7 days left |
+| SSL expiry — Let's Encrypt | 14 days left | 5 days left |
+| SSL expiry — cPanel-issued | 7 days left | 3 days left |
+| SSL expiry — any other issuer | 30 days left | 7 days left |
 | Root snapshot | — | older than 180 s |
 
 The two response times are deliberately not on the same scale: the MySQL figure is

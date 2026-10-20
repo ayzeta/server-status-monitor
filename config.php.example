@@ -59,17 +59,10 @@ return [
     // 'thresholds' => [
     //     'ram_warn'   => 80,   // % (default 70)
     //     'shmem_warn' => 50,   // % of RAM under memory pressure (default 40)
-    //     'ssl_warn'   => 30,   // days left — only set this to override the
-    //                           // issuer-based default. A certificate that
-    //                           // renews itself should not be warned about
-    //                           // while the renewal window is still open:
-    //                           // AutoSSL starts renewing a Let's Encrypt cert
-    //                           // 29 days out and a cPanel one 15 days out, so
-    //                           // the defaults are 14/5 and 7/3 respectively —
-    //                           // by then renewal has been failing for days.
-    //                           // Any other issuer keeps 30/7, because a
-    //                           // hand-installed or commercial certificate is
-    //                           // renewed by a person who needs the notice.
+    //     'ssl_warn'   => 30,   // days left — normally not needed: the default
+    //                           // comes from who issued the certificate (see
+    //                           // README). Set it for a certificate that does
+    //                           // NOT renew itself.
     // ],
 
     // ── Keep the screen awake — DEFAULT only ──────────────────

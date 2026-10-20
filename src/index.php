@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.32'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.33'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -940,6 +940,14 @@ if ($sslAutoCA) {
     if (!isset($cfg['thresholds']['ssl_warn'])) $TH['ssl_warn'] = $sslAutoCA[2];
     if (!isset($cfg['thresholds']['ssl_crit'])) $TH['ssl_crit'] = $sslAutoCA[3];
 }
+// SEVİYE TEK YERDE. Eskiden aynı karşılaştırma üç ayrı yerde yapılıyordu (sağlık
+// kalemi, kart rengi, JS'teki olay geçişi) ve JS'inki sayfa yüklenirken dondurulan
+// eşiği kullanıyordu. Eşik artık çalışma anında değişebildiği için (sertifikanın
+// makamı önbellek tazelenince öğreniliyor) açık sekmede başlık düzelirken kutu eski
+// renkte kalıyordu. Seviye burada bir kez hesaplanır; renk, sağlık ve JS onu kullanır.
+$sslLvl = $sslDaysLeft === null ? 'ok'
+        : ($sslDaysLeft <= $TH['ssl_crit'] ? 'err'
+        : ($sslDaysLeft <= $TH['ssl_warn'] ? 'warn' : 'ok'));
 
 // ── Helpers ───────────────────────────────────────────────────
 // Port yoklaması da önbellekten geçer: çöken bir servis (Redis/Memcached) aksi
@@ -1483,7 +1491,7 @@ $health = [ // her giriş: [seviye, tepe-detayında görünecek kısa etiket] �
     'raid'     => [$raidState==='degraded'?'err':($raidState==='resync'?'warn':'ok'),             $raidTxt!==''?$raidTxt:t('RAID issue')],
     'mismatch' => [$raidMismatch>0?'warn':'ok',                                                   tf('%s RAID mismatch', $raidMismatch)],
     'smart'    => [$smartMsg!==''?'err':'ok',                                                     t('SMART fault')],
-    'ssl'      => [$sslDaysLeft===null?'ok':($sslDaysLeft<=$TH['ssl_crit']?'err':($sslDaysLeft<=$TH['ssl_warn']?'warn':'ok')), 'SSL '.$sslDaysLeft.$sslUnit],
+    'ssl'      => [$sslLvl, 'SSL '.$sslDaysLeft.$sslUnit],
     'webrt'    => [$webResponseTime===null?'ok':hLvlHi($webResponseTime,$TH['webrt_warn'],$TH['webrt_crit']),   'Web '.$webResponseTime.'ms'],
     'dbrt'     => [$mysqlResponseTime===null?'ok':hLvlHi($mysqlResponseTime,$TH['dbrt_warn'],$TH['dbrt_crit']), 'MySQL '.$mysqlResponseTime.'ms'],
     'mysqlthr' => [$mysqlThr===null?'ok':hLvlHi($mysqlThr,$coreCount*$TH['mysqlthr_warn_x'],$coreCount*$TH['mysqlthr_crit_x']), tf('MySQL %s running', $mysqlThr)],
@@ -1521,11 +1529,8 @@ $ramCardCol  = hCol(hWorst($health['ram'][0],  $health['swap'][0],  $health['shm
 $diskCardCol = hCol(hWorst($health['disk'][0], $health['inode'][0], $health['raid'][0], $health['mismatch'][0], $health['smart'][0]), 'var(--c-disk)');
 $iowCardCol  = hCol($health['iow'][0], 'var(--c-iow)');
 
-$sslColorCss = 'var(--accent)';
-if ($sslDaysLeft !== null) {
-    if ($sslDaysLeft <= $TH['ssl_crit'])      $sslColorCss = 'var(--danger)';
-    elseif ($sslDaysLeft <= $TH['ssl_warn']) $sslColorCss = 'var(--warn)';
-}
+// Renk seviyeden türer ($sslLvl) — eşiği burada bir kez daha karşılaştırmayız.
+$sslColorCss = $sslLvl === 'err' ? 'var(--danger)' : ($sslLvl === 'warn' ? 'var(--warn)' : 'var(--accent)');
 
 
 // ── Sparkline geçmişi (cron'dan) ──────────────────────────────
@@ -1962,6 +1967,9 @@ if (isset($_GET['json'])) {
         'webResponseTime'   => $webResponseTime,
         'mysqlResponseTime' => $mysqlResponseTime,
         'sslExpiry'         => $sslExpiry,  'sslDaysLeft' => $sslDaysLeft,
+        // Seviye SUNUCUDAN gelir; JS hem rengi hem olay kaydı geçişini bundan
+        // türetir, eşiği kendisi karşılaştırmaz (bkz. $sslLvl'in yanındaki not).
+        'sslLvl'            => $sslLvl,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'mailqTop' => $mailqTop, 'mailqSampled' => $mailqSampled, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
         'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
@@ -3977,7 +3985,8 @@ function checkAlerts(data){
     tf('MySQL response time elevated: %sms',data.mysqlResponseTime),
     tf('MySQL response time normal: %sms',data.mysqlResponseTime),now);
   if(data.sslDaysLeft!=null){
-    const sl=data.sslDaysLeft<=TH.ssl_crit?'err':(data.sslDaysLeft<=TH.ssl_warn?'warn':'ok');
+    // Seviye sunucudan (bkz. iv-ssl rengi): eşik çalışma anında değişebiliyor.
+    const sl=data.sslLvl||(data.sslDaysLeft<=TH.ssl_crit?'err':(data.sslDaysLeft<=TH.ssl_warn?'warn':'ok'));
     if(sl!==mlvl.ssl){
       if(sl==='err')addLog('err',tf('SSL expires in %s days!',data.sslDaysLeft),now);
       else if(sl==='warn')addLog('warn',tf('SSL expires in %s days',data.sslDaysLeft),now);
@@ -4104,7 +4113,12 @@ function render(data){
     spark('sp-wrk',hist.wrk,wc,0,0,[0,Math.max(cc*TH.wrk_warn_x,Math.max.apply(null,hist.wrk))]);}}
   if(data.sslDaysLeft!=null){
     const e=document.getElementById('iv-ssl'),s=document.getElementById('iv-ssl-sub');
-    const col=data.sslDaysLeft<=TH.ssl_crit?'var(--danger)':data.sslDaysLeft<=TH.ssl_warn?'var(--warn)':'var(--accent)';
+    // Renk SUNUCUNUN verdiği seviyeden türer: eşik sertifikanın makamına göre
+    // çalışma anında değişebiliyor, sayfa yüklenirken dondurulan TH ile hesaplamak
+    // açık sekmede başlık düzelirken kutuyu eski renkte bırakıyordu. Eski sürümün
+    // JSON'u için yedek hesap duruyor (güncelleme anında veri bir tik eski olabilir).
+    const lvl=data.sslLvl||(data.sslDaysLeft<=TH.ssl_crit?'err':data.sslDaysLeft<=TH.ssl_warn?'warn':'ok');
+    const col=lvl==='err'?'var(--danger)':lvl==='warn'?'var(--warn)':'var(--accent)';
     if(e){e.innerHTML=vu(data.sslDaysLeft,t('days'));e.style.color=col;}
     setCardCol('ic-ssl',col);
     if(s&&data.sslExpiry)s.textContent=data.sslExpiry;
