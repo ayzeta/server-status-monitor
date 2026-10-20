@@ -528,9 +528,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <!-- Ekran&#305; uyan&#305;k tut. 'hidden' ba&#351;lang&#305;&#231;: taray&#305;c&#305; Wake Lock desteklemiyorsa
          hi&#231; g&#246;r&#252;nmez, &#246;l&#252; kontrol &#231;izilmez. JS destek varsa a&#231;ar. -->
     <button class="theme-btn" id="awake-btn" hidden aria-pressed="false" title="Keep screen awake">
-      ' sonras&#305;na koymak i&#351;e yaramaz, PHP oradaki
-            // tek sat&#305;r sonunu yutar. Bo&#351;luk d&#252;zeni bozmaz: .theme-btn flex,
-            // bo&#351;luk metin d&#252;&#287;&#252;m&#252; &#246;&#287;e say&#305;lmaz. ?>
       <svg class="ic ic-aw-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" /></svg>
 <svg class="ic ic-aw-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" /><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" /><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" /></svg>    </button>
   </div>
@@ -540,7 +537,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2048ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +3">Web 2048ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +3</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2039ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +3">Web 2039ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +3</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -550,7 +547,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">20:27:03</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">20:34:21</span></div></div>
   </div>
 </div>
 
@@ -638,11 +635,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2048</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2039</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Response</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>3</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Response</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>2</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP response time</div>
     </div>
   <div class="info-card">
@@ -753,21 +750,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web response time high: 2048ms</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Web response time high: 2039ms</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">20:34</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">20:27</span></div>
+<span class="log-txt">Root snapshot missing &#8212; cron down?</span><span class="log-ts">20:34</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="Drag to resize &#183; double-click for automatic height"></div>
 </div>
@@ -775,7 +772,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.37">v1.5.37</span> &middot; 2026-10-20 20:27:03</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.38">v1.5.38</span> &middot; 2026-10-20 20:34:21</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -854,7 +851,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="en";
-const PAGE_VER="1.5.37"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.38"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -882,7 +879,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'20:27:03'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'20:34:21'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -909,55 +906,55 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP went offline \u00b7 FTP service, Kernel state",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "err",
         "msg": "Cache went offline \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "err",
         "msg": "DNS went offline \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "err",
         "msg": "Mail services went offline \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "err",
         "msg": "Web server went offline \u00b7 Apache, HTTPS (443) +3",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2048ms",
-        "ts": "20:27",
-        "t": 1792528023
+        "msg": "Web response time high: 2039ms",
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "warn",
         "msg": "Service feed unavailable (root snapshot stale?)",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     },
     {
         "type": "warn",
         "msg": "Root snapshot missing \u2014 cron down?",
-        "ts": "20:27",
-        "t": 1792528023
+        "ts": "20:34",
+        "t": 1792528461
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1792528023,TZOFF=0;
+let srvNow=1792528461,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1782,7 +1779,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.37 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.38 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

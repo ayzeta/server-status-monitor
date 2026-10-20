@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.37'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.38'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1437,6 +1437,9 @@ $ICONS = [
     // kahve ise bu işlevin yerleşik idiomu (Caffeine, Amphetamine) ve hiçbir
     // cihaz çağrışımı yok. Üstünü çizmek yerine duman: 16 pikselde çizgiler
     // birbirine girmiyor, siluet iki durumda da aynı kalıyor.
+    // İki ikon şablonda AYRI satırlara basılır (satır sonu icon() çıktısına
+    // eklenir): tek satırda 947 bayt ediyor ve CSF mail ekinin 900 baytlık satır
+    // sınırını aşıyor. Aradaki boşluk düzeni bozmaz, .theme-btn flex.
     'cup'       => '<path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" />',
     'cup-steam' => '<path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1" /><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5" /><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555" /><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" /><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2" />',
     'file-arrow-right' => '<path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 15h6" /><path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" />',
@@ -2912,11 +2915,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <!-- Ekranı uyanık tut. 'hidden' başlangıç: tarayıcı Wake Lock desteklemiyorsa
          hiç görünmez, ölü kontrol çizilmez. JS destek varsa açar. -->
     <button class="theme-btn" id="awake-btn" hidden aria-pressed="false" title="<?=htmlspecialchars(t('Keep screen awake'), ENT_QUOTES, 'UTF-8')?>">
-      <?php // İkisi AYRI satırda basılır: tek satırda 947 bayt ediyor ve CSF mail
-            // ekinin 900 baytlık satır sınırını aşıyordu. Satır sonu ÇIKTIYA
-            // yazılıyor — şablonda '?>' sonrasına koymak işe yaramaz, PHP oradaki
-            // tek satır sonunu yutar. Boşluk düzeni bozmaz: .theme-btn flex,
-            // boşluk metin düğümü öğe sayılmaz. ?>
       <?=icon('cup', 'ic-aw-off') . "\n"?><?=icon('cup-steam', 'ic-aw-on')?>
     </button>
   </div>
