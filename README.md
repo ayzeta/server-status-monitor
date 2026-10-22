@@ -227,6 +227,10 @@ header button (per-browser, cookie-based). The version shows in the footer.
   `imunify360-agent`, `csf`, `repquota`, `lveinfo`. Missing ones are silently
   skipped. `python3` is used for the I/O and Ayzeta Backup readers.
 
+See [COMPATIBILITY.md](COMPATIBILITY.md) for which cPanel and CSF releases the
+dashboard has been checked against, and which of their files and commands it
+reads — a change in either is what would turn a card blank.
+
 ## Where to host it
 
 This is a **server** dashboard, not a website — but on cPanel a PHP page must
@@ -318,7 +322,7 @@ Re-run it any time to change settings (answers are remembered).
 ## Updating
 
 ```bash
-sudo ssmon update
+ssmon update
 ```
 
 The installer leaves a small `ssmon` command behind so you never have to
@@ -331,6 +335,11 @@ remember where the checkout lives:
 | `ssmon collect` | run the collector once, in the foreground |
 | `ssmon uninstall` | remove it (add `--purge` to drop `config.php` too) |
 | `ssmon version` | print the deployed version |
+
+Run it **as root**. `sudo ssmon …` often answers *command not found*: the command
+lives in `/usr/local/bin`, which sudo's `secure_path` leaves out of `PATH` on
+RHEL-family systems. Use `sudo -i` first, or spell the path out —
+`sudo /usr/local/bin/ssmon update`.
 
 `sudo bash update.sh` from the checkout still works and does the same thing.
 
@@ -573,7 +582,7 @@ flapping to *Degraded* over normal shared-memory usage.
 ## Uninstall
 
 ```bash
-sudo ssmon uninstall            # add --purge to drop config.php and saved answers
+ssmon uninstall                 # as root; add --purge to drop config.php and saved answers
 ```
 
 It reads the answers saved at install time, so it knows which account and which

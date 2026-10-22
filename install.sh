@@ -318,6 +318,9 @@ WRAPPER="/usr/local/bin/ssmon"
 } > "$WRAPPER"
 chmod 0755 "$WRAPPER"
 echo "Command: ssmon update | reinstall | collect | uninstall | version"
+# sudo'nun secure_path'i /usr/local/bin'i atlar — "sudo ssmon" çoğu sunucuda
+# "command not found" der. Kuran kişi bunu ilk anda görsün.
+echo "         (run as root; with sudo use 'sudo -i' or /usr/local/bin/ssmon)"
 if [ -n "${ACCESS_KEY:-}" ]; then
   echo "Access key active — integration URLs must carry it:"
   [ -s "$CSF_KEY_FILE" ] || echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH$KEYQ\""
