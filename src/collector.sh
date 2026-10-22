@@ -107,7 +107,7 @@ chmod 600 "$NET_STATE" 2>/dev/null
 # bir sonraki bosluk 310 olsa ayni sorun donerdi. 600 bosluk SINIFINI kapsar.
 # Bedeli: gercekten biten bir is cipte 10 dk'ya kadar kalir — arka plan gostergesi
 # icin kabul edilebilir, dogru isi parcalayip log'u sahte ciftlerle doldurmaktan iyi.
-ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=600
+ACT_STATE="$DATA_DIR/.act_state"; ACT_GRACE=120   # 2 tik: olay kaydi kapanis debounce'u
 ACT_NOW=$(date +%s); ACT_NEXT=""
 # Sonuc $ACT_AGE'e yazilir, echo EDILMEZ: cagri komut ikamesiyle yapilsaydi
 # ( A=$(act_age ...) ) fonksiyon alt kabukta calisir ve $ACT_NEXT birikimi ana
@@ -143,8 +143,8 @@ ACT_TRACE="$DATA_DIR/.act_matches.log"; ACT_TS="$(date '+%F %T')"
 # (elle baslatilan tek hesap yedegi). Birden fazla hesap goruldiyse "*" olur ve
 # bitiste ad yazilmaz — tam yedekte son paketlenen hesabi yazmak yaniltirdi.
 act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam  $4=tur -> $ACT_AGE / $ACT_END / $ACT_END_P / $ACT_END_K
-  local k="$1" et="$2" sc="$3" kd="$4" pf pl pc ps pk age pe pes pek
-  ACT_AGE=""; ACT_END=""; ACT_END_P=""; ACT_END_K=""
+  local k="$1" et="$2" sc="$3" kd="$4" gr="${5:-$ACT_GRACE}" pf pl pc ps pk age pe pes pek
+  ACT_AGE=""; ACT_END=""; ACT_END_P=""; ACT_END_K=""; ACT_LIVE=""
   read pf pl pc ps pk < <(awk -v k="$k" '$1==k{print $2, $3, $4, $5, $6; exit}' "$ACT_STATE" 2>/dev/null)
   # Saglik kontrolu: bozuk/eski bicimli kayit (30 gunden yasli "baslangic") atilir.
   # Onceki surumun durum dosyasi 'anahtar ppid ilk son' bicimindeydi; alan kaymasi
@@ -159,8 +159,11 @@ act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam  $4=tu
   # gosterir, kor gecen sureyi degil. Gecis YAZILMAZ — kor sure ne baslatir ne bitirir.
   if [ "$et" = "?" ]; then
     if [ -n "$pf" ]; then
+      # Kor tik: sonda OKUYAMADI. Bu "kosuyor" KANITI degil, bilgisizliktir —
+      # rozet gosterilmez (ACT_AGE atanmaz). Kampanya acik tutulur ki olay kaydi
+      # kor gecen bir tik yuzunden sahte "bitti" yazmasin.
       ACT_NEXT="$ACT_NEXT$k $pf $ACT_NOW $pc $ps $pk"$'\n'
-      ACT_AGE=$(( ACT_NOW - pf ))
+      ACT_LIVE=$pf
       return 0
     fi
     read pe pes pek < <(awk -v k="END:$k" '$1==k{print $2, $3, $4; exit}' "$ACT_STATE" 2>/dev/null)
@@ -172,7 +175,7 @@ act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam  $4=tu
   fi
 
   if [ -n "$et" ]; then                                   # surec goruldu
-    if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$ACT_GRACE" ]; then
+    if [ -z "$pf" ] || [ $(( ACT_NOW - ${pl:-0} )) -gt "$gr" ]; then
       pf=$ACT_NOW; ps=""; pk=""                           # yeni kampanya
     fi
     pl=$ACT_NOW; pc=$ACT_NOW
@@ -182,13 +185,21 @@ act_age() {   # $1=anahtar  $2=etimes (bos = surec gorunmuyor)  $3=kapsam  $4=tu
     case "$kd" in ''|-) ;; *) if [ -z "$pk" ]; then pk=$kd; elif [ "$pk" != "$kd" ]; then pk="*"; fi;; esac
     ACT_NEXT="$ACT_NEXT$k $pf $pl $pc $ps $pk"$'\n'
     age=$(( ACT_NOW - pf )); [ "$et" -gt "$age" ] && age=$et
-    ACT_AGE=$age
+    ACT_AGE=$age; ACT_LIVE=$pf
     return 0                                              # aktif: eski bitis dusurulur
   fi
 
-  if [ -n "$pf" ] && [ $(( ACT_NOW - ${pl:-0} )) -le "$ACT_GRACE" ]; then
-    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc $ps $pk"$'\n'       # pencere icinde: suruyor say
-    ACT_AGE=$(( ACT_NOW - pf ))
+  # SUREC GORUNMUYOR ama kampanya henuz kapanmadi.
+  # ACT_AGE BURADA ATANMAZ — rozet yalnizca KANITA dayanir. Eskiden burada da
+  # yas veriliyordu ve rozet, is bittikten sonra pay suresince ekranda kalip
+  # sayaci buyutuyordu; gosterilen sey olcum degil cikarimdi (sunucuda olculdu:
+  # cron */30, ps bos, rozet 5DK'dan 9DK'ya cikiyordu).
+  # Kampanya yine de acik tutulur, cunku OLAY KAYDI ayri bir sey: "bitti" satirini
+  # tek bir goremedigimiz tik yuzunden yazmak cop uretir. Kapanis art arda iki
+  # olcum bekler (ACT_GRACE); bu bir durum iddiasi degil, kaydin debounce'u.
+  if [ -n "$pf" ] && [ $(( ACT_NOW - ${pl:-0} )) -le "$gr" ]; then
+    ACT_NEXT="$ACT_NEXT$k $pf $pl $pc $ps $pk"$'\n'
+    ACT_LIVE=$pf
     return 0
   fi
 
@@ -211,6 +222,7 @@ act_end_scope() { case "$1" in ''|-) ACT_END_P="";; *) ACT_END_P=$1;; esac
 act_emit() {  # $1=anahtar  $2=etimes
   act_age "$1" "$2"
   [ -n "$ACT_AGE" ] && echo "$1 $ACT_AGE"
+  [ -n "$ACT_LIVE" ] && echo "${1}_live $ACT_LIVE"
   [ -n "$ACT_END" ] && echo "${1}_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "${1}_end_p $ACT_END_P"
   [ -n "$ACT_END_K" ] && echo "${1}_end_k $ACT_END_K"
@@ -467,6 +479,7 @@ PYEOF
     END { if (m) print m, (u == "" ? "-" : u), (full ? "full_backup" : (u == "" && prog != "" ? prog : "-")) }')
   act_age act_backup "$A" "$ABK" "$AFULL"
   [ -n "$ACT_AGE" ] && { echo "act_backup $ACT_AGE"; echo "act_backup_p ${ABK:--}"; [ "${AFULL:--}" != "-" ] && echo "act_backup_k $AFULL"; }
+  [ -n "$ACT_LIVE" ] && echo "act_backup_live $ACT_LIVE"
   [ -n "$ACT_END" ] && echo "act_backup_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "act_backup_end_p $ACT_END_P"
       [ -n "$ACT_END_K" ] && echo "act_backup_end_k $ACT_END_K"
@@ -505,6 +518,7 @@ PYEOF
     END { if (m) print m, (u == "" ? "-" : u), (k == "" ? "-" : k) }')
   act_age act_wpt "$A" "$AWP" "$AWK"
   [ -n "$ACT_AGE" ] && { echo "act_wpt $ACT_AGE"; echo "act_wpt_p ${AWP:--}"; [ "${AWK:--}" != "-" ] && echo "act_wpt_k $AWK"; }
+  [ -n "$ACT_LIVE" ] && echo "act_wpt_live $ACT_LIVE"
   [ -n "$ACT_END" ] && echo "act_wpt_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "act_wpt_end_p $ACT_END_P"
       [ -n "$ACT_END_K" ] && echo "act_wpt_end_k $ACT_END_K"
@@ -527,6 +541,7 @@ PYEOF
     END { if (m) print m, (u == "" ? "-" : u) }')
   act_age act_appdisc "$A" "$APD"
   [ -n "$ACT_AGE" ] && { echo "act_appdisc $ACT_AGE"; echo "act_appdisc_p ${APD:--}"; }
+  [ -n "$ACT_LIVE" ] && echo "act_appdisc_live $ACT_LIVE"
   [ -n "$ACT_END" ] && echo "act_appdisc_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "act_appdisc_end_p $ACT_END_P"
   # ── Ayzeta Backup ───────────────────────────────────────────────
@@ -638,6 +653,7 @@ PYEOF
     [ "$AYZ_FIN" = "-" ] && AYZ_FIN=""
     act_age act_ayzbackup "$AYZ_AGE" "$AYZ_P" "$AYZ_K"
     [ -n "$ACT_AGE" ] && { echo "act_ayzbackup $ACT_AGE"; echo "act_ayzbackup_p ${AYZ_P:--}"; echo "act_ayzbackup_k ${AYZ_K:--}"; }
+    [ -n "$ACT_LIVE" ] && echo "act_ayzbackup_live $ACT_LIVE"
     if [ -n "$ACT_END" ]; then
       # OTORITER bitis varsa onu yaz. Guard IKI YONLU: damga bizim cikardigimiz
       # bitisin +/-2 dk'si icinde VE gelecekte olmamali. Ust sinir sart: bitis
@@ -705,8 +721,12 @@ PYEOF
   # ayakta kalir, rozet durur ve yasi buyur. YAKALANAN turun bitisi ise tur
   # kaydindan gercek damgayi ve o turda konan engel sayisini alir; kacirilan tur
   # hic yazilmaz, yani olay kaydi 30 dakikalik rutinle dolmaz.
+  # Burada artık özel bir ayar yok: rozet BÜTÜN etkinliklerde kanıta bağlı, yani
+  # yalnızca süreç o tikte görüldüğünde çıkıyor. Bu turu 5DK/9DK diye gösteren
+  # kusur (ölçüldü 2026-10-21: cron */30, 'ps' boş, rozet büyüyordu) oradan geliyordu.
   act_age act_csfag "$A"
   [ -n "$ACT_AGE" ] && echo "act_csfag $ACT_AGE"
+  [ -n "$ACT_LIVE" ] && echo "act_csfag_live $ACT_LIVE"
   if [ -n "$ACT_END" ]; then
     # Guard IKI YONLU: kayit bu kampanyanin bitisine +/-2 dk icinde olmali. Tek
     # yonlu olsa (yalnizca "gelecekte degil") bitis kaydi bir saat saklandigi icin
@@ -858,6 +878,7 @@ except Exception:
   fi
   act_age act_imunify "$IM_AGE" "$IM_P"; IM_AGE=$ACT_AGE
   [ -n "$IM_AGE" ] && { echo "act_imunify $IM_AGE"; echo "act_imunify_n $IM_N"; echo "act_imunify_p $IM_P"; }
+  [ -n "$ACT_LIVE" ] && echo "act_imunify_live $ACT_LIVE"
   [ -n "$ACT_END" ] && echo "act_imunify_end $ACT_END"
   [ -n "$ACT_END_P" ] && echo "act_imunify_end_p $ACT_END_P"
   # Threads_running: o an sorgu isleyen thread — "kisa ama cok sorgu" senaryosunu gosterir

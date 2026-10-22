@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.38'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.40'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1156,7 +1156,7 @@ $updBehind = ($rootFresh && isset($procSec['upd_behind']) && is_numeric($procSec
 $updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['upd_at']))
            ? (int)$procSec['upd_at'] : null;
 $updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
-$actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actImunifyN = null;
+$actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actLive = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
     // Imunify: artımlı taramalar SÜREKLI koşar (her değişen dosya) → çip hep
@@ -1174,6 +1174,11 @@ foreach ($actDefs as [$aLbl, $aKey]) {
     // JS gecis satiri ayni degeri yazsin diye tick'e de gider.
     $aFbRaw      = $procSec[$aKey . '_fb'] ?? null;
     $actFbs[]    = is_numeric($aFbRaw) ? (int)$aFbRaw : null;
+    // Kampanya açık mı ('<anahtar>_live'). ROZETTEN AYRI: rozet yalnızca süreci
+    // gördüğümüz tikte çıkar (kanıt), kampanya ise kapanışı iki ölçüm bekler.
+    // Olay kaydının "başladı/bitti" geçişi bunu kullanır, rozet varlığını değil.
+    $aLiveRaw    = $rootFresh ? ($procSec[$aKey . '_live'] ?? null) : null;
+    $actLive[]   = is_numeric($aLiveRaw) ? (int)$aLiveRaw : null;   // kampanya başlangıcı (epoch)
     if ($mx !== null && !$imIncr) {
         $chip = t(str_replace(' running', '', $aLbl)) . ' · ' . fmtAgeShort($mx);
         if ($aKey === 'act_imunify') {
@@ -1724,10 +1729,13 @@ foreach ($actDefs as $ai => $ad) {
     // Tam yedekte hesap "o an paketlenen"dir, baslangic satirina yazilmaz (cipte kalir).
     // Tam yedek ve wp-toolkit partisinde hesap "o an islenen"dir: baslangic satirina yazilmaz, cipte kalir.
     if ($aSc !== '' && $aSc !== '-' && $aSc !== 'incremental' && $aKd !== 'full_backup' && $ad[1] !== 'act_wpt') $aDet .= ' · ' . $aSc;
-    if ($aAge !== null) {
+    // "Başladı" satırı KAMPANYAYA bakar, rozete değil: rozet artık yalnızca süreci
+    // gördüğümüz tikte çıkıyor ve iş sürerken bir tik kaçırsak satır kaybolurdu.
+    // Damga da kampanyanın kendi başlangıç anı — yaştan geriye hesap değil.
+    if ($actLive[$ai] !== null) {
+        $aSt = $actLive[$ai];
         $seedLogs[] = ['type' => 'ok', 'msg' => $lbl . ' ' . t('started') . $aDet,
-                       'ts'   => date('H:i:s', time() - (int)$aAge),
-                       't'    => time() - (int)$aAge, 'x' => 1];
+                       'ts'   => date('H:i:s', $aSt), 't' => $aSt, 'x' => 1];
     } elseif ($actEnds[$ai] !== null) {
         // Bazi islerde ayrinti is BITTIKTEN sonra doguyor: csf-autogroup tur
         // kaydini tur bitince yaziyor, o turda konan engel sayisi ancak o zaman
@@ -1976,7 +1984,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs,
+        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs, 'actLive' => $actLive,
         'updRev' => $updRev, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -3750,7 +3758,12 @@ function renderProcs(data){
     ac.innerHTML=chips.filter(Boolean).map(c=>'<span class="bk-chip">'+esc(c)+'</span>').join('');
     // Başlangıç/bitiş Event log'a düşsün — pill gözden kaçsa da iz kalır.
     // İlk gözlemde sadece durum kaydedilir (sayfa açılışında sahte "started" olmasın).
-    const st=chips.map(c=>c!=null?'1':'0').join('');
+    // Geçiş ROZETTEN DEĞİL kampanyadan okunur (data.actLive). Rozet artık yalnızca
+    // kanıta dayanıyor: süreci göremediğimiz tek bir tik onu söndürür. Geçişi rozete
+    // bağlı bırakırsak çok süreçli bir işte (cpbackup → hesap başına pkgacct) o
+    // boşluk olay kaydına "bitti/başladı" çöp çifti düşürürdü. Kampanya ise iki
+    // ölçüm bekler — bu bir durum iddiası değil, kaydın debounce'u.
+    const st=defs.map((d,i)=>(data.actLive&&data.actLive[i])?'1':'0').join('');
     if(actWas===null)actWas=st;
     else if(st!==actWas){
       defs.forEach(([lbl,silent],i)=>{
@@ -3770,12 +3783,16 @@ function renderProcs(data){
         // bitis = collector'in kaydettigi son gorulme (data.actEnds). Ikisi de
         // fark edildigi ana degil olayin kendi anina bagli — sekme uyusa da,
         // pencere 10 dk gec sonse de damga dogru kalir.
-        const ts=basladi
-          ? (ages[i]!=null?timeMinus(data.time,ages[i]):data.time.split(' ')[1])
-          : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
+        // Baslangic damgasi KAMPANYANIN kendi ani (data.actLive = epoch). Eskiden
+        // 'sunucu saati - cip yasi' ile hesaplaniyordu; rozet artik yalniz kanitla
+        // ciktigi icin sureci goremedigimiz bir tikte yas yok ve damga kayardi.
+        const lv=(data.actLive&&data.actLive[i])||null;
         const tE=basladi
-          ? (ages[i]!=null?srvNow-ages[i]:srvNow)
+          ? (lv!=null?lv:(ages[i]!=null?srvNow-ages[i]:srvNow))
           : ((data.actEndsT&&data.actEndsT[i]!=null)?data.actEndsT[i]:srvNow);
+        const ts=basladi
+          ? hmsOf(tE)
+          : ((data.actEnds&&data.actEnds[i])?data.actEnds[i]:data.time.split(' ')[1]);
         // Ayrinti: baslangicta o an bilinen tur/kapsam ('actDet'); bitiste varsa
         // is bitince dogan sayi ('actFbs' — csf-autogroup'ta konan engel), yoksa
         // collector'in bitis kapsami ('actEndsP': kampanya boyunca tek hesap

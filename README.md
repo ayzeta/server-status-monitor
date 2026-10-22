@@ -135,6 +135,13 @@ header button (per-browser, cookie-based). The version shows in the footer.
   response, keeps the worst of the last 24 hours, and derives the window from
   that (15s floor, 30s ceiling). A slow server widens its own window instead of
   being mislabelled as unreachable, and no hand-tallied constant can go stale.
+- **A chip means the job is running *now*** — never "it probably still is". The
+  chip is drawn only for a tick where the process was actually seen, and its age
+  is the process's own, so a job that finished does not linger on screen with a
+  climbing counter. The event log is a separate matter: a record, not a claim
+  about the present, so it waits for two consecutive readings before writing
+  `finished` — otherwise a multi-process job (one `pkgacct` per account) would
+  fill the log with pairs every time the gap between accounts fell on a reading.
 - **Alerts name the culprit** — load/CPU/IO-wait lines carry the top process
   with its account and script; RAM the top-RSS process; PHP-worker and MySQL
   lines the busiest account / longest query; disk the fullest account; IO wait
