@@ -1158,12 +1158,14 @@ for pid, (et, b, u, c) in cur.items():
     if et < pet or et < dt - 5: continue       # pid yeniden kullanilmis: bu BASKA bir surec
     d = b - pb
     if d <= 0: continue
-    out.append((d / dt / 1024.0, u, c))
+    out.append((d / dt / 1024.0, u, c, pid))
 out.sort(reverse=True)
-# Komut tek satira sigsin; bosluk alan ayiraci oldugu icin ciktida bosluk kalamaz
-for kb, u, c in out[:10]:
+# Komut tek satira sigsin; bosluk alan ayiraci oldugu icin ciktida bosluk kalamaz.
+# Alanlar: ioproc PID KULLANICI KBPS KOMUT — PID, CPU/RAM kartlariyla ayni
+# sutun dilini kurmak icin tasiniyor (surec orada da PID'iyle listeleniyor).
+for kb, u, c, pid in out[:10]:
     c = "_".join(c.split())[:70]
-    print("ioproc %s %.1f %s" % (u, kb, c))
+    print("ioproc %d %s %.1f %s" % (pid, u, kb, c))
 PYEOF
   )
   rm -f "$IOP_STATE.ps"

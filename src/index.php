@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.46'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.47'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -320,12 +320,17 @@ if (is_readable($procSnapFile)) {
                 elseif (count($p) === 4 && $p[0] === 'ioacct' && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null];
             }
         } elseif (stripos($title, 'Top IO processes') !== false) {
-            // "ioproc kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk yok
-            // (collector alt çizgiye çeviriyor), çünkü satır boşlukla ayrılıyor.
+            // "ioproc PID kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk
+            // yok (collector alt çizgiye çeviriyor), çünkü satır boşlukla ayrılıyor.
+            // ESKİ BİÇİM (PID'siz, 4 alan) da okunur: güncellemeden sonra diskteki
+            // anlık görüntü bir tur boyunca eski collector'ın yazdığı hali olabilir.
             foreach ($lines as $ln) {
-                $p = preg_split('/\s+/', trim($ln), 4);
-                if (count($p) === 4 && $p[0] === 'ioproc' && is_numeric($p[2]))
-                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3])];
+                $p = preg_split('/\s+/', trim($ln), 5);
+                if ($p[0] !== 'ioproc') continue;
+                if (count($p) === 5 && ctype_digit($p[1]) && is_numeric($p[3]))
+                    $ioProc[] = [$p[2], (float)$p[3], str_replace('_', ' ', $p[4]), (int)$p[1]];
+                elseif (count($p) === 4 && is_numeric($p[2]))
+                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3]), null];
             }
         }
     }
@@ -2299,17 +2304,23 @@ function ioAcctCls($kb, $sum) {
 // Hesap basina disk I/O — dikey tablo (disk/PHP kartlariyla ayni stil), alt
 // satirin orta karti. Kaynak collector'dan gelir (io_src): LVE ya da /proc/io.
 // Süreç başına I/O satırları — PHP ve JS aynı gövdeyi üretsin diye tek yerde.
+// Sütunlar CPU/Bellek kartlarıyla aynı dilde: PID | KULLANICI | KOMUT | I/O.
+// Hesap görünümündeki çubuk burada YOK — "kim büyük" sorusunu sağdaki sayı zaten
+// söylüyor, dar kartta o genişlik komuta gidiyor. Komut tooltipte durmuyor:
+// kırpılan metin proc-cmd ile tıklayınca açılıyor (CPU kartındaki bileşen).
 function ioProcRows($ioProc, $h) {
     if (!$ioProc) {
-        return '<tr><td colspan="3" style="color:var(--hint)">' . t('no process I/O measured') . '</td></tr>';
+        return '<tr><td colspan="4" style="color:var(--hint)">' . t('no process I/O measured') . '</td></tr>';
     }
-    $mx = 0.1; $sum = 0;
-    foreach ($ioProc as $p) { if ($p[1] > $mx) $mx = $p[1]; $sum += $p[1]; }
+    $sum = 0;
+    foreach ($ioProc as $p) { $sum += $p[1]; }
     $out = '';
-    foreach ($ioProc as [$u, $kb, $cmd]) {
-        $w = round($kb / $mx * 100);
-        $out .= '<tr><td class="proc-user" title="' . $h($cmd) . '">' . $h($u) . '</td>'
-              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+    foreach ($ioProc as $p) {
+        [$u, $kb, $cmd] = $p;
+        $pid = $p[3] ?? null;
+        $out .= '<tr><td class="iop-pid">' . ($pid !== null ? $h($pid) : '') . '</td>'
+              . '<td class="proc-user">' . $h($u) . '</td>'
+              . '<td class="td-fill"><span class="proc-cmd" title="' . $h($cmd) . '">' . $h($cmd) . '</span></td>'
               . '<td class="num ' . ioAcctCls($kb, $sum) . '">' . $h(fmtKbps($kb)) . '</td></tr>' . "\n";
     }
     return $out;
@@ -2331,7 +2342,14 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
          . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . '</button>' . "\n"
          . '<button type="button" class="io-tab io-t-proc" data-io="proc" title="' . $ptip . '">' . t('process') . '</button>'
          . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
+         // Tek başlık, iki görünüm: hesapta HESAP | (çubuk) | I/O, süreçte
+         // PID | KULLANICI | KOMUT | I/O. Görünmeyen hücreler CSS ile düşüyor,
+         // böylece başlıklar her iki gövdeyle de hizalı kalıyor.
+         . '<table class="proc-table"><thead><tr>' . "\n"
+         . '<th class="ioh-p iop-pid">PID</th>'
+         . '<th><span class="ioh-a">' . upper(t('Account')) . '</span><span class="ioh-p">' . upper(t('User')) . '</span></th>'
+         . '<th><span class="ioh-p">' . upper(t('Command')) . '</span></th>'
+         . '<th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
     if (!$ioAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('I/O data pending') . '</td></tr>';
     }
@@ -2608,6 +2626,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .io-acct .io-t-acct,.io-proc .io-t-proc{opacity:1;text-decoration:underline;
   text-underline-offset:3px;}
 .io-acct .iop,.io-proc #pt-io{display:none;}
+/* Başlık etiketleri gövdeyle birlikte değişir: hesapta HESAP, süreçte
+   PID/KULLANICI/KOMUT. Gizli hücre tabloda yer kaplamadığı için iki görünümün
+   sütun sayısı farklı olabiliyor. */
+.io-acct .ioh-p,.io-proc .ioh-a{display:none;}
+.iop-pid{color:var(--hint);}
 .ic-sun{display:none;}
 /* Uyanik-kal: pasifte sade fincan, aktifte dumani cikan fincan — tema dugmesindeki
    ay/gunes ile AYNI yontem, o yuzden kurallar da ayni yerde. '.ic' display veriyor
@@ -2912,7 +2935,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .proc-row .proc-card:nth-child(2) td:nth-child(1),
   .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1),
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
-  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
+  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6),
+  .iop-pid{display:none;} /* I/O · süreç kartının PID'i — CPU/RAM/SQL ile aynı kural */
   .proc-row-sql td.sql-empty{display:table-cell!important;}
   /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
      SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
@@ -3939,13 +3963,15 @@ function renderProcs(data){
   const iop=document.getElementById('pt-ioproc');
   if(iop&&data.ioProc!==undefined){
     const g=data.ioProc||[];
-    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
+    if(!g.length)iop.innerHTML=`<tr><td colspan="4" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
     else{
-      const mx=Math.max(0.1,...g.map(p=>p[1])),sum=g.reduce((a,p)=>a+p[1],0);
+      const sum=g.reduce((a,p)=>a+p[1],0);
       iop.innerHTML=g.map(p=>{
-        const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
+        const sh=sum>0?p[1]/sum:0;
         const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
-        return `<tr><td class="proc-user" title="${esc(p[2])}">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
+        return `<tr><td class="iop-pid">${p[3]!=null?esc(p[3]):''}</td><td class="proc-user">${esc(p[0])}</td>`+
+          `<td class="td-fill"><span class="proc-cmd" title="${esc(p[2])}">${esc(p[2])}</span></td>`+
+          `<td class="num ${cls}">${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
     }
   }
   const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')

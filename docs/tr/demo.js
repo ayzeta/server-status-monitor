@@ -194,11 +194,13 @@
   function ioAcct(){ var kb=[45,35,34,32,29,20,13,8,3,2,1,1,1,1,0], r=[];
     for(var i=0;i<kb.length;i++)r.push([pick(i+4),kb[i]*(0.6+S.iow/14),Math.round(kb[i]/3)]);
     return r; }
-  function ioProc(){ var base=[[ 'mysql',2048,'/usr/sbin/mariadbd'],
-      ['root',512,'/usr/local/cpanel/bin/backup'],
-      ['root',190,'/opt/imunify360/venv/bin/python3 -m im360.run'],
-      ['root',64,'jbd2/sda1-8']], r=[];
-    for(var i=0;i<base.length;i++)r.push([base[i][0],base[i][1]*(0.5+S.iow/12),base[i][2]]);
+  // [kullanici, kbps, komut, pid] — PID urunde collector'dan gelir.
+  function ioProc(){ var base=[['mysql',2048,'/usr/sbin/mariadbd',2295514],
+      ['root',512,'/usr/local/cpanel/bin/backup',3728089],
+      ['nobody',190,'litespeed (lshttpd - #01)',3467220],
+      ['root',96,'/opt/imunify360/venv/bin/python3 -m im360.run',1357489],
+      ['root',64,'jbd2/sda1-8',412]], r=[];
+    for(var i=0;i<base.length;i++)r.push([base[i][0],base[i][1]*(0.5+S.iow/12),base[i][2],base[i][3]]);
     return r; }
   function diskAcct(){ var gb=[29.8,11.8,10.6,7.8,7.5,7.4,7.2,6.3,6.2,5.7,5.5,5.0,4.6,4.5], r=[]; for(var i=0;i<gb.length;i++)r.push([pick(i),gb[i]]); return r; }
   var SQLQ=['SELECT * FROM wp_options WHERE autoload=\'yes\'','SELECT SLEEP(6)',
