@@ -329,6 +329,7 @@ remember where the checkout lives:
 | `ssmon update` | pull and redeploy if GitHub is ahead |
 | `ssmon reinstall` | re-run the installer (change settings) |
 | `ssmon collect` | run the collector once, in the foreground |
+| `ssmon uninstall` | remove it (add `--purge` to drop `config.php` too) |
 | `ssmon version` | print the deployed version |
 
 `sudo bash update.sh` from the checkout still works and does the same thing.
@@ -572,19 +573,24 @@ flapping to *Degraded* over normal shared-memory usage.
 ## Uninstall
 
 ```bash
-crontab -l | grep -v 'collector.sh' | crontab -
-rm -rf /root/server-status-monitor
-rm -f ~USER/public_html/status/index.php ~USER/public_html/status/config.php
-rm -f ~USER/.proc_snapshot ~USER/.metrics_history ~USER/.disk_history
+sudo ssmon uninstall            # add --purge to drop config.php and saved answers
 ```
 
-The installer also keeps a marked block in `~USER/public_html/status/.htaccess`
-(the access rules and the any-path rewrite). Delete that block — everything
-between the `BEGIN`/`END server-status-monitor access control` markers — or the
-whole file if nothing else wrote to it. Caches and state (`.upd_state`,
-`.act_state`, `.io_state`, `.act_matches.log`, …) live under the collector
-directory and go with it. The dashboard keeps nothing in the browser beyond the
-event log of the current tab and the *Clear* marker.
+It reads the answers saved at install time, so it knows which account and which
+collector directory to touch, and it stops rather than guess if they are gone.
+It removes the cron line first — no point deleting files something is still
+writing to — then the collector and its state, `index.php`, the feed files in
+the account's home, the probe caches, and the `ssmon` command itself.
+
+Two things it deliberately does **not** do. It takes only the marked block out
+of the account's `.htaccess` and leaves the rest alone, because cPanel keeps its
+own PHP handler block in that same file and removing it would change how PHP
+runs for the account. And it leaves `config.php` (your branding and language)
+unless you pass `--purge`, so a reinstall picks up where you left off.
+
+The git checkout stays too; it prints the `rm -rf` line for it at the end. The
+dashboard keeps nothing in the browser beyond the event log of the current tab
+and the *Clear* marker.
 
 ## Demo
 

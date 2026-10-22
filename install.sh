@@ -311,12 +311,13 @@ WRAPPER="/usr/local/bin/ssmon"
   echo '  update)    exec bash "$REPO/update.sh" ;;'
   echo '  reinstall) exec bash "$REPO/install.sh" ;;'
   echo '  collect)   exec bash "$DATA/collector.sh" ;;'
+  echo '  uninstall) shift; exec bash "$REPO/uninstall.sh" "$@" ;;'
   echo '  version)   sed -n "s/^const APP_VERSION = .\\(.*\\).;.*/\\1/p" "$REPO/src/index.php" ;;'
-  echo '  *) echo "Usage: ssmon {update|reinstall|collect|version}"; exit 1 ;;'
+  echo '  *) echo "Usage: ssmon {update|reinstall|collect|uninstall [--purge]|version}"; exit 1 ;;'
   echo 'esac'
 } > "$WRAPPER"
 chmod 0755 "$WRAPPER"
-echo "Command: ssmon update | reinstall | collect | version"
+echo "Command: ssmon update | reinstall | collect | uninstall | version"
 if [ -n "${ACCESS_KEY:-}" ]; then
   echo "Access key active — integration URLs must carry it:"
   [ -s "$CSF_KEY_FILE" ] || echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH$KEYQ\""

@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.43'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.45'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -92,9 +92,9 @@ $TR = [
     // Load / kaynak kartları
     'Load avg' => 'Yük ort.', '1 min' => '1 dk', '5 min' => '5 dk', '15 min' => '15 dk', '%s%% of %s cores' => '%%%s / %s çekirdek', 'Days' => 'Gün',
     'CPU' => 'İşlemci', 'RAM' => 'Bellek', 'run' => 'çalışan', 'R' => 'O', 'W' => 'Y',
-    'Load' => 'Yük', 'run' => 'çalışan', 'IO Wait' => 'IO Bekleme',
+    'Load' => 'Yük', 'run' => 'çalışan', 'I/O wait' => 'I/O bekleme',
     // Info şeridi
-    'Network IN' => 'Ağ GİRİŞ', 'Network OUT' => 'Ağ ÇIKIŞ', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
+    'Network in' => 'Ağ giriş', 'Network out' => 'Ağ çıkış', 'incoming traffic' => 'gelen trafik', 'outgoing traffic' => 'giden trafik',
     // Kapasite config'ten mi karttan mı geldiğini metin söylüyor: sağlayıcı hattı
     // şekillendirmişse kart hızına göre oran yanıltır, ekranda hangisi olduğu yazsın.
     '%s%% · peak %s' => '%%%s · tepe %s',
@@ -109,9 +109,9 @@ $TR = [
     '%s%%<span class="nm-x"> of line</span> · peak %s<span class="nm-x"> · %s</span>'
         => '<span class="nm-x">hattın </span>%%%s · tepe %s<span class="nm-x"> · %s</span>',
     '%s%%<span class="nm-x"> of NIC speed</span> · peak %s<span class="nm-x"> · %s</span>'
-        => '<span class="nm-x">kart hızının </span>%%%s · tepe %s<span class="nm-x"> · %s</span>', 'PHP Workers' => 'PHP İşçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
-    'Mail Queue' => 'Mail Kuyruğu', 'messages queued' => 'kuyruktaki mesaj', 'Web Response' => 'Web Yanıtı', 'HTTP response time' => 'HTTP yanıt süresi',
-    'MySQL Response' => 'MySQL Yanıtı', 'TCP response time' => 'TCP yanıt süresi', 'Hosted Accounts' => 'Hesaplar', 'cPanel accounts' => 'cPanel hesabı',
+        => '<span class="nm-x">kart hızının </span>%%%s · tepe %s<span class="nm-x"> · %s</span>', 'PHP workers' => 'PHP işçileri', 'active' => 'aktif', 'idle' => 'boşta', 'running lsphp' => 'çalışan lsphp',
+    'Mail queue' => 'Mail kuyruğu', 'messages queued' => 'kuyruktaki mesaj', 'Web response' => 'Web yanıtı', 'HTTP response time' => 'HTTP yanıt süresi',
+    'MySQL response' => 'MySQL yanıtı', 'TCP response time' => 'TCP yanıt süresi', 'Hosted accounts' => 'Hesaplar', 'cPanel accounts' => 'cPanel hesabı',
     'days' => 'gün',
     // Servis kartları + durum
     'Web server' => 'Web sunucusu', 'Mail services' => 'Mail servisleri', 'Security' => 'Güvenlik', 'Database' => 'Veritabanı',
@@ -131,8 +131,8 @@ $TR = [
     'running' => 'çalışıyor', 'listening' => 'dinliyor', 'responding' => 'yanıt veriyor', 'alive' => 'ayakta',
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları
-    'Top processes · CPU' => 'En yüklü süreçler · İşlemci', 'Top processes · RAM' => 'En yüklü süreçler · Bellek',
-    'Top disk · account' => 'En dolu disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
+    'CPU · process' => 'İşlemci · süreç', 'RAM · process' => 'Bellek · süreç',
+    'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
     'account' => 'hesap', 'process' => 'süreç', 'no process I/O measured' => 'süreç I/O ölçülemedi',
     'Per-process disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, so this does not add up to the account view.'
         => 'Süreç başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: /proc/<pid>/io farkları — iki ölçüm arasında doğup ölen süreç sayılmaz, bu yüzden hesap görünümüyle toplamı tutmaz.',
@@ -143,7 +143,7 @@ $TR = [
     'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
-    'MySQL · active queries' => 'MySQL · aktif sorgular',
+    'MySQL · query' => 'MySQL · sorgu',
     'No queries running longer than %ss at snapshot time' => 'Anlık görüntüde %s sn üzeri çalışan sorgu yok',
     'root snapshot, %ss ago' => 'root anlık görüntüsü, %s sn önce', 'STALE (cron?)' => 'BAYAT (cron?)',
     // Event log
@@ -2159,7 +2159,7 @@ function pmemClass($v) { $v = (float)$v; return $v >= 15 ? 'hot' : ($v >= 5 ? 'w
 function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct = [], $ioSrc = '') {
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
-    $out = '<div class="proc-card"><div class="proc-title">' . t('Top processes · CPU') . '</div>'
+    $out = '<div class="proc-card"><div class="proc-title">' . t('CPU · process') . '</div>'
          . '<table class="proc-table"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num" title="' . htmlspecialchars(t('Percent of a single core — multi-threaded processes can exceed 100')) . '">CPU%</th><th class="num">MEM%</th><th>' . upper(t('Time')) . '</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
     foreach ($procCpu as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
@@ -2169,7 +2169,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     }
     $out .= '</tbody></table></div>';
 
-    $out .= '<div class="proc-card"><div class="proc-title">' . t('Top processes · RAM') . '</div>'
+    $out .= '<div class="proc-card"><div class="proc-title">' . t('RAM · process') . '</div>'
           . '<table class="proc-table"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num">MEM%</th><th class="num">RSS</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-ram">' . "\n";
     foreach ($procRam as $p) {
         $mc = pmemClass($p[3]);
@@ -2179,7 +2179,9 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     }
     $out .= '</tbody></table></div>';
 
-    $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . ' <span class="proc-age">&middot; ' . t('active+idle') . '</span></div>'
+    // Sağdaki ipucu baştaki noktayı TAŞIMAZ: seçici düğmesi olan kartlarda nokta
+    // yok, olmayanlarda vardı — aynı konumdaki aynı şey iki türlü yazılıyordu.
+    $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . '<span class="proc-age">' . t('active+idle') . '</span></div>'
           . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
     foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
@@ -2251,7 +2253,7 @@ function renderDiskCard($diskAcct, $h) {
                    . tf('%sd', $g['span']) . '</button>';
         }
     }
-    $out = '<div class="proc-card dk-size dk-w' . $defWin . '" id="disk-card"><div class="proc-title">' . t('Top disk · account')
+    $out = '<div class="proc-card dk-size dk-w' . $defWin . '" id="disk-card"><div class="proc-title">' . t('Disk · account')
          . '<span class="proc-age dk-tabs">' . $tabs . '</span></div>'
          . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">GB</th></tr></thead>'
          . '<tbody id="pt-disk">' . "\n";
@@ -2344,9 +2346,9 @@ function renderSqlTable($procSql, $sqlMinSec = 5, $mysqlThr = null, $mysqlThrCol
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
     // Threads_running: 5sn+ tablosunun görmediği "kısa ama çok sorgu" yükünün anlık
     // göstergesi. Çekirdeğe oranlı renk (warn ≥ çekirdek / err ≥ 2×) — DB'de sorgu birikmesi.
-    $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · active queries')
+    $out = '<div class="proc-card"><div class="proc-title">' . t('MySQL · query')
          . '<span class="proc-age" id="sql-thr" title="' . htmlspecialchars(tf('Threads executing a query at snapshot; includes sub-%ss ones not listed below (the status query itself counts as 1)', (int)$sqlMinSec)) . '">'
-         . ($mysqlThr !== null ? ' &middot; Threads_running: <span style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
+         . ($mysqlThr !== null ? 'Threads_running: <span style="color:' . $mysqlThrCol . '">' . (int)$mysqlThr . '</span>' : '') . '</span></div>'
          . '<table class="proc-table"><thead><tr><th>ID</th><th>' . upper(t('User')) . '</th><th>' . upper(t('DB')) . '</th><th>' . upper(t('Query')) . '</th><th class="num">' . upper(t('Time(s)')) . '</th><th>' . upper(t('State')) . '</th></tr></thead><tbody id="pt-sql">' . "\n";
     if (!$procSql) {
         $out .= '<tr><td colspan="6" class="sql-empty" style="color:var(--hint)">' . tf('No queries running longer than %ss at snapshot time', $sqlMinSec) . '</td></tr>';
@@ -2843,8 +2845,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .loads-row{grid-template-columns:1fr;}
   .res-left{min-width:0;}
   .res-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL Response'
-     ve 'Hosted Accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
+  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL response'
+     ve 'Hosted accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
      Gizlemek yerine kucultmek — kutu korunuyor, metin siginiyor. */
   .res-icon{width:21px;height:21px;border-radius:6px;font-size:13px;}
   .res-val{font-size:19px;}
@@ -2910,7 +2912,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
      sabit oran / table-layout:fixed gerekmez (masaüstüyle aynı yaklaşım). */
 }
 /* Cok dar ekran (<=344px): ikon kutulari kaldirilir. Olculdu — kutu + bosluk
-   (34px) yuzunden 320px'te 'Network IN', 'Web Response', 'Hosted Accounts'
+   (34px) yuzunden 320px'te 'Network in', 'Web response', 'Hosted accounts'
    dahil 5 baslik kirpiliyordu. 360/375px'te kutular sigiyor, o yuzden esik
    379 degil 344: yaygin telefon genisliklerinde kutular korunur. */
 /* Ikon kutusu iki kademeli (hepsi olculdu):
@@ -3049,7 +3051,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-iow" style="--c:<?=$iowCardCol?>;--fill:<?=min($ioWait,100)?>%<?=cardBorderCss($iowCardCol)?>">
     <div class="res-top">
-      <div class="res-left"><span class="res-icon ic-iow"><?=icon('activity')?></span><span class="res-name"><?=t('IO Wait')?></span></div>
+      <div class="res-left"><span class="res-icon ic-iow"><?=icon('activity')?></span><span class="res-name"><?=t('I/O wait')?></span></div>
       <span class="res-val" id="rv-iow"><?=vu($ioWait, '%')?></span>
     </div>
     <div class="res-middle">
@@ -3069,35 +3071,35 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="sec" style="margin-top:12px"><span><?=upper(t('System info'))?></span><i class="sec-hair"></i></div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:<?=$netRxCol?>;--fill:<?=$netRxSat !== null ? min((int)$netRxSat,100) : 0?>%<?=cardBorderCss($netRxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network IN')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=vuSplit(fmtBytes($rxRate))?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-down')?></span><span class="res-name"><?=t('Network in')?></span></div><span class="res-val" id="iv-rx" style="color:<?=$netRxCol?>"><?=vuSplit(fmtBytes($rxRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['rx'], 260, 52, $netRxCol, 'ssr-rx')?><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub"><?=$netRxSat !== null ? netMeta($netRxSat, ($ssr['rx'] ? max($ssr['rx']) : 0), $netCapMbps, $netCapFromCfg, $netIfCount <= 1) : t('incoming traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:<?=$netTxCol?>;--fill:<?=$netTxSat !== null ? min((int)$netTxSat,100) : 0?>%<?=cardBorderCss($netTxCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network OUT')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=vuSplit(fmtBytes($txRate))?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('arrow-up')?></span><span class="res-name"><?=t('Network out')?></span></div><span class="res-val" id="iv-tx" style="color:<?=$netTxCol?>"><?=vuSplit(fmtBytes($txRate))?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['tx'], 260, 52, $netTxCol, 'ssr-tx')?><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub"><?=$netTxSat !== null ? netMeta($netTxSat, ($ssr['tx'] ? max($ssr['tx']) : 0), $netCapMbps, $netCapFromCfg, $netIfCount <= 1) : t('outgoing traffic')?></div>
     </div>
   <div class="info-card has-fill" id="ic-wrk" style="--c:<?=$wrkCol = lsphpCol($lsphpTotal, $coreCount)?>;--fill:<?=$lsphpTotal !== null ? min((int)round($lsphpTotal/max($coreCount * $TH['wrk_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($wrkCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('cpu')?></span><span class="res-name"><?=t('PHP Workers')?></span></div><span class="res-val" id="iv-lsphp" style="color:<?=$wrkCol?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('cpu')?></span><span class="res-name"><?=t('PHP workers')?></span></div><span class="res-val" id="iv-lsphp" style="color:<?=$wrkCol?>"><?=$lsphpTotal !== null ? $lsphpTotal : '—'?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['wrk'], 260, 52, $wrkCol, 'ssr-wrk', [0, sparkTop($ssr['wrk'], $coreCount * $TH['wrk_warn_x'])])?><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
       <div class="res-meta" id="iv-lsphp-sub" title="<?=htmlspecialchars(t('Value = active workers (R/D state); the lsphp/account table lists all processes incl. the idle pool'))?>"><?=$lsphpIdle !== null ? t('active') . ' &middot; ' . $lsphpIdle . ' ' . t('idle') : t('running lsphp')?></div>
     </div>
   <div class="info-card has-fill" id="ic-mq" style="--c:<?=$mqColV = mqCol($mailQ, $mqBase)?>;--fill:<?=$mailQ !== null ? min((int)round($mailQ/max($mqBase * $TH['mailq_warn_x'],1)*100),100) : 0?>%<?=cardBorderCss($mqColV)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('mail')?></span><span class="res-name"><?=t('Mail Queue')?></span></div><span class="res-val" id="iv-mailq" style="color:<?=$mqColV?>"><?=$mailQ !== null ? $mailQ : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('mail')?></span><span class="res-name"><?=t('Mail queue')?></span></div><span class="res-val" id="iv-mailq" style="color:<?=$mqColV?>"><?=$mailQ !== null ? $mailQ : '—'?></span></div>
       <span class="info-spark spark-wrap"><?=svgSpark($ssr['mq'], 260, 52, $mqColV, 'ssr-mq', [0, sparkTop($ssr['mq'], $mqBase * $TH['mailq_warn_x'])])?><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta" id="iv-mailq-sub"><?=t('messages queued')?><?=$mailqTopTxt !== '' ? ' &middot; ' . t('top:') . ' ' . htmlspecialchars($mailqTopTxt, ENT_QUOTES, 'UTF-8') : ''?></div>
     </div>
   <div class="info-card" id="ic-web" style="--c:<?=$webRtCol = rtCol($webResponseTime, $TH['webrt_warn'], $TH['webrt_crit'])?><?=cardBorderCss($webRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web Response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? vu($webResponseTime, 'ms') : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('bolt')?></span><span class="res-name"><?=t('Web response')?></span></div><span class="res-val" id="iv-web" style="color:<?=$webRtCol?>"><?=$webResponseTime !== null ? vu($webResponseTime, 'ms') : '—'?></span></div>
       <div class="res-meta"><?=t('HTTP response time')?></div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:<?=$dbRtCol = rtCol($mysqlResponseTime, $TH['dbrt_warn'], $TH['dbrt_crit'])?><?=cardBorderCss($dbRtCol)?>">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('database')?></span><span class="res-name"><?=t('MySQL Response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? vu($mysqlResponseTime, 'ms') : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('database')?></span><span class="res-name"><?=t('MySQL response')?></span></div><span class="res-val" id="iv-mysql" style="color:<?=$dbRtCol?>"><?=$mysqlResponseTime !== null ? vu($mysqlResponseTime, 'ms') : '—'?></span></div>
       <div class="res-meta"><?=t('TCP response time')?></div>
     </div>
   <div class="info-card">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('users')?></span><span class="res-name"><?=t('Hosted Accounts')?></span></div><span class="res-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><?=icon('users')?></span><span class="res-name"><?=t('Hosted accounts')?></span></div><span class="res-val" id="iv-acct"><?=$whmAcctCount !== null ? $whmAcctCount : '—'?></span></div>
       <div class="res-meta"><?=t('cPanel accounts')?></div>
     </div>
 <?php
@@ -3771,7 +3773,7 @@ function renderProcs(data){
   }
   const thr=document.getElementById('sql-thr');
   // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
-  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
+  if(thr)thr.innerHTML=data.mysqlThr!=null?'Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
   const ac=document.getElementById('act-chips');
   if(ac&&data.acts){
     // Etiket listesi PHP'deki $actDefs ile birebir sıralı; süre YALNIZCA data.acts'ten

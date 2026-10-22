@@ -423,8 +423,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .loads-row{grid-template-columns:1fr;}
   .res-left{min-width:0;}
   .res-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL Response'
-     ve 'Hosted Accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
+  /* Ikon kutusu mobilde kuculur. Olculdu: 26px'te 375px ekranda 'MySQL response'
+     ve 'Hosted accounts' basliklari kirpiliyordu, 21px'te hicbiri kirpilmiyor.
      Gizlemek yerine kucultmek &#8212; kutu korunuyor, metin siginiyor. */
   .res-icon{width:21px;height:21px;border-radius:6px;font-size:13px;}
   .res-val{font-size:19px;}
@@ -490,7 +490,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
      sabit oran / table-layout:fixed gerekmez (masa&#252;st&#252;yle ayn&#305; yakla&#351;&#305;m). */
 }
 /* Cok dar ekran (<=344px): ikon kutulari kaldirilir. Olculdu &#8212; kutu + bosluk
-   (34px) yuzunden 320px'te 'Network IN', 'Web Response', 'Hosted Accounts'
+   (34px) yuzunden 320px'te 'Network in', 'Web response', 'Hosted accounts'
    dahil 5 baslik kirpiliyordu. 360/375px'te kutular sigiyor, o yuzden esik
    379 degil 344: yaygin telefon genisliklerinde kutular korunur. */
 /* Ikon kutusu iki kademeli (hepsi olculdu):
@@ -545,7 +545,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2051ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3">Web 2051ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3">Web 2028ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +3</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -555,7 +555,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">11:04:29</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">11:55:06</span></div></div>
   </div>
 </div>
 
@@ -610,7 +610,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
-      <div class="res-left"><span class="res-icon ic-iow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4" /></svg></span><span class="res-name">IO Bekleme</span></div>
+      <div class="res-left"><span class="res-icon ic-iow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8l4 -16l3 8h4" /></svg></span><span class="res-name">I/O bekleme</span></div>
       <span class="res-val" id="rv-iow"><b>0</b><u>%</u></span>
     </div>
     <div class="res-middle">
@@ -623,31 +623,31 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="sec" style="margin-top:12px"><span>S&#304;STEM B&#304;LG&#304;S&#304;</span><i class="sec-hair"></i></div>
 <div class="info-row">
   <div class="info-card has-fill" id="ic-rx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" /></svg></span><span class="res-name">A&#287; G&#304;R&#304;&#350;</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 13l-6 6" /><path d="M6 13l6 6" /></svg></span><span class="res-name">A&#287; giri&#351;</span></div><span class="res-val" id="iv-rx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-rx"></span><canvas class="info-spark-canvas" id="sp-rx"></canvas></span>
       <div class="res-meta" id="iv-rx-sub">gelen trafik</div>
     </div>
   <div class="info-card has-fill" id="ic-tx" style="--c:var(--accent);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" /></svg></span><span class="res-name">A&#287; &#199;IKI&#350;</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /><path d="M18 11l-6 -6" /><path d="M6 11l6 -6" /></svg></span><span class="res-name">A&#287; &#231;&#305;k&#305;&#351;</span></div><span class="res-val" id="iv-tx" style="color:var(--accent)"><b>0</b><u class="w">B/s</u></span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-tx"></span><canvas class="info-spark-canvas" id="sp-tx"></canvas></span>
       <div class="res-meta" id="iv-tx-sub">giden trafik</div>
     </div>
   <div class="info-card has-fill" id="ic-wrk" style="--c:var(--muted);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg></span><span class="res-name">PHP &#304;&#351;&#231;ileri</span></div><span class="res-val" id="iv-lsphp" style="color:var(--muted)">&#8212;</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M9 9h6v6h-6z" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg></span><span class="res-name">PHP i&#351;&#231;ileri</span></div><span class="res-val" id="iv-lsphp" style="color:var(--muted)">&#8212;</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-wrk"></span><canvas class="info-spark-canvas" id="sp-wrk"></canvas></span>
       <div class="res-meta" id="iv-lsphp-sub" title="De&#287;er = aktif i&#351;&#231;iler (R/D durumu); lsphp/hesap tablosu bo&#351;taki havuz dahil t&#252;m s&#252;re&#231;leri listeler">&#231;al&#305;&#351;an lsphp</div>
     </div>
   <div class="info-card has-fill" id="ic-mq" style="--c:var(--muted);--fill:0%">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg></span><span class="res-name">Mail Kuyru&#287;u</span></div><span class="res-val" id="iv-mailq" style="color:var(--muted)">&#8212;</span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg></span><span class="res-name">Mail kuyru&#287;u</span></div><span class="res-val" id="iv-mailq" style="color:var(--muted)">&#8212;</span></div>
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web Yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2051</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2028</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL Yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>3</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -758,21 +758,21 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2051ms</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2028ms</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">11:55</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">11:04</span></div>
+<span class="log-txt">Root anl&#305;k g&#246;r&#252;nt&#252;s&#252; yok &#8212; cron kapal&#305; m&#305;?</span><span class="log-ts">11:55</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -780,7 +780,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.43">v1.5.43</span> &middot; 2026-10-22 11:04:29</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.45">v1.5.45</span> &middot; 2026-10-22 11:55:06</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -859,7 +859,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.43"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.45"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -890,9 +890,9 @@ const TR={
     "R": "O",
     "W": "Y",
     "Load": "Yük",
-    "IO Wait": "IO Bekleme",
-    "Network IN": "Ağ GİRİŞ",
-    "Network OUT": "Ağ ÇIKIŞ",
+    "I\/O wait": "I\/O bekleme",
+    "Network in": "Ağ giriş",
+    "Network out": "Ağ çıkış",
     "incoming traffic": "gelen trafik",
     "outgoing traffic": "giden trafik",
     "%s%% · peak %s": "%%%s · tepe %s",
@@ -900,17 +900,17 @@ const TR={
     "%s%%<span class=\"nm-x\"> of NIC speed<\/span> · peak %s%% (%s)<span class=\"nm-x\"> · %s<\/span>": "<span class=\"nm-x\">kart hızının <\/span>%%%s · tepe %%%s (%s)<span class=\"nm-x\"> · %s<\/span>",
     "%s%%<span class=\"nm-x\"> of line<\/span> · peak %s<span class=\"nm-x\"> · %s<\/span>": "<span class=\"nm-x\">hattın <\/span>%%%s · tepe %s<span class=\"nm-x\"> · %s<\/span>",
     "%s%%<span class=\"nm-x\"> of NIC speed<\/span> · peak %s<span class=\"nm-x\"> · %s<\/span>": "<span class=\"nm-x\">kart hızının <\/span>%%%s · tepe %s<span class=\"nm-x\"> · %s<\/span>",
-    "PHP Workers": "PHP İşçileri",
+    "PHP workers": "PHP işçileri",
     "active": "aktif",
     "idle": "boşta",
     "running lsphp": "çalışan lsphp",
-    "Mail Queue": "Mail Kuyruğu",
+    "Mail queue": "Mail kuyruğu",
     "messages queued": "kuyruktaki mesaj",
-    "Web Response": "Web Yanıtı",
+    "Web response": "Web yanıtı",
     "HTTP response time": "HTTP yanıt süresi",
-    "MySQL Response": "MySQL Yanıtı",
+    "MySQL response": "MySQL yanıtı",
     "TCP response time": "TCP yanıt süresi",
-    "Hosted Accounts": "Hesaplar",
+    "Hosted accounts": "Hesaplar",
     "cPanel accounts": "cPanel hesabı",
     "days": "gün",
     "Web server": "Web sunucusu",
@@ -955,9 +955,9 @@ const TR={
     "port bound": "port bağlı",
     "found": "bulundu",
     "not found": "bulunamadı",
-    "Top processes · CPU": "En yüklü süreçler · İşlemci",
-    "Top processes · RAM": "En yüklü süreçler · Bellek",
-    "Top disk · account": "En dolu disk · hesap",
+    "CPU · process": "İşlemci · süreç",
+    "RAM · process": "Bellek · süreç",
+    "Disk · account": "Disk · hesap",
     "I\/O · account": "I\/O · hesap",
     "I\/O data pending": "I\/O verisi bekleniyor",
     "read+write": "okuma+yazma",
@@ -990,7 +990,7 @@ const TR={
     "fail": "başarısız",
     "TESTING mode": "TEST modu",
     "unavailable": "yok",
-    "MySQL · active queries": "MySQL · aktif sorgular",
+    "MySQL · query": "MySQL · sorgu",
     "No queries running longer than %ss at snapshot time": "Anlık görüntüde %s sn üzeri çalışan sorgu yok",
     "root snapshot, %ss ago": "root anlık görüntüsü, %s sn önce",
     "STALE (cron?)": "BAYAT (cron?)",
@@ -1151,7 +1151,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:04:29'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:55:06'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1178,55 +1178,55 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "err",
         "msg": "\u00d6nbellek kapand\u0131 \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "err",
         "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2051ms",
-        "ts": "11:04",
-        "t": 1792667069
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2028ms",
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     },
     {
         "type": "warn",
         "msg": "Root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc yok \u2014 cron kapal\u0131 m\u0131?",
-        "ts": "11:04",
-        "t": 1792667069
+        "ts": "11:55",
+        "t": 1792670106
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1792667069,TZOFF=0;
+let srvNow=1792670106,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1701,7 +1701,7 @@ function renderProcs(data){
   }
   const thr=document.getElementById('sql-thr');
   // Değerler sayı + sabit renk anahtarı (kullanıcı girdisi yok) — innerHTML güvenli.
-  if(thr)thr.innerHTML=data.mysqlThr!=null?' &middot; Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
+  if(thr)thr.innerHTML=data.mysqlThr!=null?'Threads_running: <span style="color:'+(data.mysqlThrCol||'var(--hint)')+'">'+data.mysqlThr+'</span>':'';
   const ac=document.getElementById('act-chips');
   if(ac&&data.acts){
     // Etiket listesi PHP'deki $actDefs ile birebir sıralı; süre YALNIZCA data.acts'ten
@@ -2091,7 +2091,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.43 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.45 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
