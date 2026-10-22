@@ -1,0 +1,28 @@
+--- Top 15 by CPU ---
+PID USER CPU% MEM% TIME COMMAND
+2338317 mysql 17.4 11.1 7-00:02:52 /usr/sbin/mariadbd
+3199312 ikonikyapilar 76.6 0.1 00:10 lsphp
+3198842 serviskl 59.3 0.1 00:23 lsphp:/home/serviskl/public_html/index.php
+
+--- Top 15 by RSS ---
+PID USER CPU% MEM% RSS COMMAND
+2338317 mysql 17.4 11.1 10905190 /usr/sbin/mariadbd
+2337128 root 0.3 0.2 362496 /usr/bin/imunify360-php-daemon
+
+--- lsphp per user ---
+3 mdtekcom lsphp
+2 wholesale lsphp
+
+--- Top disk accounts ---
+diskacct pergo 22.6
+diskacct ladoor 13.1
+diskacct hitacomt 10.8
+
+--- Top IO accounts ---
+io_src lve
+ioacct makinem 45.0 12
+ioacct izmirdepo 35.0 9
+
+--- Top IO processes ---
+ioproc mysql 2048.0 /usr/sbin/mariadbd
+ioproc root 512.0 /usr/local/cpanel/bin/backup

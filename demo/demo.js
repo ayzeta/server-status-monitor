@@ -54,42 +54,10 @@
 
   // ── Eksik SÜREÇ iskeletini enjekte et (index.php süreç verisi yokken bu
   //    bölümü hiç basmaz; render()/renderProcs tbody'leri doldurabilsin diye) ──
-  function ensureSkeleton(){
-    if (document.getElementById('proc-row')) return;
-    var log = document.querySelector('.log-card');
-    if (!log) return;
-    var logSec = log.previousElementSibling;         // "Event log" başlığı
-    var parent = log.parentNode;
-    function tblCard(title, extra, headCells, tbodyId){
-      return '<div class="proc-card"><div class="proc-title">'+title+(extra||'')+'</div>'+
-             '<table class="proc-table"><thead><tr>'+headCells+'</tr></thead><tbody id="'+tbodyId+'"></tbody></table></div>';
-    }
-    var U=t('User'), CMD=t('Command');
-    var cpuC='<th>PID</th><th>'+U+'</th><th class="num">CPU%</th><th class="num">MEM%</th><th>'+t('Time')+'</th><th>'+CMD+'</th>';
-    var ramC='<th>PID</th><th>'+U+'</th><th class="num">MEM%</th><th class="num">RSS</th><th>'+CMD+'</th>';
-    var dskC='<th>'+t('Account')+'</th><th></th><th class="num">GB</th>';
-    var phpC='<th>'+t('Account')+'</th><th></th><th class="num">'+t('Procs')+'</th>';
-    var sqlC='<th>ID</th><th>'+U+'</th><th>'+t('DB')+'</th><th>'+t('Query')+'</th><th class="num">'+t('Time(s)')+'</th><th>'+t('State')+'</th>';
-
-    var sec=document.createElement('div'); sec.className='sec'; sec.style.marginTop='12px';
-    sec.innerHTML=t('Processes')+' <span class="proc-age" id="proc-age"></span> <span id="act-chips"></span>';
-
-    var row=document.createElement('div'); row.className='proc-row'; row.id='proc-row';
-    row.innerHTML = tblCard(t('Top processes · CPU'),'',cpuC,'pt-cpu')
-      + tblCard(t('Top processes · RAM'),'',ramC,'pt-ram')
-      + tblCard(t('Top disk · account'),' <span class="proc-age">&middot; '+t('GB used')+'</span>',dskC,'pt-disk')
-      + tblCard(t('PHP · account'),' <span class="proc-age">&middot; '+t('active+idle')+'</span>',phpC,'pt-php');
-
-    var sqlRow=document.createElement('div'); sqlRow.className='proc-row-sql';
-    sqlRow.innerHTML='<div class="proc-card"><div class="proc-title">'+t('MySQL · active queries')+
-      '<span class="proc-age" id="sql-thr"></span></div><table class="proc-table"><thead><tr>'+sqlC+
-      '</tr></thead><tbody id="pt-sql"></tbody></table></div>';
-
-    parent.insertBefore(sec, logSec);
-    parent.insertBefore(row, logSec);
-    parent.insertBefore(sqlRow, logSec);
-  }
-
+  // NOT: Kartlarin isaretlemesi ARTIK BURADA KURULMUYOR. demo/build.sh sayfayi
+  // sahte bir anlik goruntuyle render ediyor, yani butun kartlar urunun kendi
+  // koduyla olusuyor. Eskiden burada ikinci bir iskelet vardi ve demo urunden
+  // sapiyordu (I/O karti demoda hic yoktu).
   // ── Sparkline geçmişini ön-doldur (index.php baseline'ı boş) ───────────────
   function seedHistory(kind){
     var keys=['l1','l5','l15','cpu','ram','disk','iow','wrk','rx','tx','mq'];
@@ -219,6 +187,19 @@
     rows.sort(function(a,b){return b[1]-a[1];});
     return rows;
   }
+  function nowSec(){ return Math.floor(clock.getTime()/1000); }
+  // Hesap I/O'su LVE'den gelir (kisa omurlu surecleri de kapsar, yalniz hesaplar);
+  // surec I/O'su /proc'tan (root dahil her sey, ama tur arasinda olenler haric).
+  // Ikisi ayri kapsam oldugu icin toplamlari birbirini tutmaz — demo da oyle.
+  function ioAcct(){ var kb=[45,35,34,32,29,20,13,8,3,2,1,1,1,1,0], r=[];
+    for(var i=0;i<kb.length;i++)r.push([pick(i+4),kb[i]*(0.6+S.iow/14),Math.round(kb[i]/3)]);
+    return r; }
+  function ioProc(){ var base=[[ 'mysql',2048,'/usr/sbin/mariadbd'],
+      ['root',512,'/usr/local/cpanel/bin/backup'],
+      ['root',190,'/opt/imunify360/venv/bin/python3 -m im360.run'],
+      ['root',64,'jbd2/sda1-8']], r=[];
+    for(var i=0;i<base.length;i++)r.push([base[i][0],base[i][1]*(0.5+S.iow/12),base[i][2]]);
+    return r; }
   function diskAcct(){ var gb=[29.8,11.8,10.6,7.8,7.5,7.4,7.2,6.3,6.2,5.7,5.5,5.0,4.6,4.5], r=[]; for(var i=0;i<gb.length;i++)r.push([pick(i),gb[i]]); return r; }
   var SQLQ=['SELECT * FROM wp_options WHERE autoload=\'yes\'','SELECT SLEEP(6)',
     'UPDATE wp_postmeta SET meta_value=? WHERE post_id=?','SELECT COUNT(*) FROM wp_posts WHERE post_status=\'publish\'',
@@ -264,7 +245,19 @@
       mysqlThr:Math.round(S.mysqlThr), mysqlThrCol:thrCol(Math.round(S.mysqlThr)),
       procAge:32, snapMtime:(snap++),
       procCpu:procCpu(), procRam:procRam(), procPhp:procPhp(), procSql:procSql(), diskAcct:diskAcct(),
+      ioAcct:ioAcct(), ioProc:ioProc(), ioSrc:'lve',
+      // Artis gorunumu: pencere basina liste. Gercek panoda collector'in gunluk
+      // kaydindan gelir; demoda sabit ornek.
+      acctGrowSet:[{win:1,span:1,rows:[[pick(0),1.3,false],[pick(3),0.42,false],
+                                       [pick(7),0.08,false]]},
+                   {win:7,span:7,rows:[[pick(0),4.1,false],[pick(5),2.6,true],
+                                       [pick(3),1.2,false],[pick(7),0.35,false]]}],
       acts:[ S.acts[0]!=null?Math.round(S.acts[0]):null, null, S.acts[2]!=null?Math.round(S.acts[2]):null, S.acts[3]!=null?Math.round(S.acts[3]):null ],
+      // Olay kaydinin basladi/bitti gecisi ROZETTEN degil kampanyadan okunuyor
+      // (urunde data.actLive). Degeri kampanyanin baslangic ani.
+      actLive:[ S.acts[0]!=null?Math.round(nowSec()-S.acts[0]):null, null,
+                S.acts[2]!=null?Math.round(nowSec()-S.acts[2]):null,
+                S.acts[3]!=null?Math.round(nowSec()-S.acts[3]):null ],
       actImunifyP:S.imAcct||null, actImunifyN:S.imFiles||null,
       web:SERVICES.web, mail:SERVICES.mail, dns:SERVICES.dns, sec:SERVICES.sec, db:SERVICES.db, cache:SERVICES.cache, ftp:SERVICES.ftp
     };
@@ -326,7 +319,7 @@
   // ── Başlat ──────────────────────────────────────────────────────────────────
   function loop(){ stepPhase(); clock=new Date(clock.getTime()+STEP*1000); try{ render(genDemoData()); }catch(e){ if(window.console)console.warn('demo',e);} }
   function start(){
-    ensureSkeleton(); badge();
+    badge();
     // Statik demo: dil düğmesi cookie+reload YERİNE önceden üretilmiş EN/TR sayfaları
     // arasında gezinir (Pages'te PHP yok, reload aynı dili döndürürdü). Eski listener'ı
     // atmak için düğmeyi klonlayıp değiştir.

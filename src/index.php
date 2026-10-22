@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.45'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.46'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -318,9 +318,14 @@ if (is_readable($procSnapFile)) {
                 $p = preg_split('/\s+/', trim($ln)); // ioacct user kbps iops | io_src lve|proc
                 if (count($p) === 2 && $p[0] === 'io_src') $ioSrc = $p[1];
                 elseif (count($p) === 4 && $p[0] === 'ioacct' && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null];
-                // "ioproc kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk
-                // yok (collector alt çizgiye çeviriyor), satır boşlukla ayrılıyor.
-                elseif (count($p) === 4 && $p[0] === 'ioproc' && is_numeric($p[2])) $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3])];
+            }
+        } elseif (stripos($title, 'Top IO processes') !== false) {
+            // "ioproc kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk yok
+            // (collector alt çizgiye çeviriyor), çünkü satır boşlukla ayrılıyor.
+            foreach ($lines as $ln) {
+                $p = preg_split('/\s+/', trim($ln), 4);
+                if (count($p) === 4 && $p[0] === 'ioproc' && is_numeric($p[2]))
+                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3])];
             }
         }
     }
@@ -2320,8 +2325,10 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
     // ölçüm arasında ölen süreci göremez. Bu yüzden toplamları birbirini tutmaz.
     $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, so this does not add up to the account view.'), ENT_QUOTES, 'UTF-8');
     $out = '<div class="proc-card io-acct" id="io-card"><div class="proc-title">' . t('I/O')
-         . '<span class="proc-age io-tabs">'
-         . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . '</button>'
+         // Her düğme AYRI satırda: ipuçları uzun (TR'de daha uzun) ve hepsi tek
+         // satıra basılınca CSF mail ekinin 900 baytlık satır sınırı aşılıyordu.
+         . '<span class="proc-age io-tabs">' . "\n"
+         . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . '</button>' . "\n"
          . '<button type="button" class="io-tab io-t-proc" data-io="proc" title="' . $ptip . '">' . t('process') . '</button>'
          . '</span></div>'
          . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";

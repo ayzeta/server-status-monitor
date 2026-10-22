@@ -17,6 +17,28 @@ command -v php >/dev/null || { echo "php gerekli (statik export için)"; exit 1;
 
 mkdir -p docs docs/tr
 
+# ── Render için sahte besleme ────────────────────────────────────────────
+# index.php süreç bölümünü yalnızca anlık görüntü varsa basar. Demo boş veriyle
+# render edilince o bölüm hiç oluşmuyor, demo.js de kartları kendi iskeletiyle
+# kuruyordu — demo üründen sapıyordu (I/O kartı demoda hiç yoktu). Artık ürünün
+# KENDİ işaretlemesi çıktıya giriyor; demo.js yalnız veri besliyor.
+# mktemp -d DEGIL: Git Bash'te /tmp/... POSIX yolu doner ve Windows'taki PHP onu
+# acamaz — besleme sessizce okunmaz, surec bolumu hic basilmazdi. Depo ici yol
+# her iki isletim sisteminde de calisir.
+SEED="demo/.seedtmp"
+rm -rf "$SEED"; mkdir -p "$SEED"
+cp demo/seed.snapshot "$SEED/.proc_snapshot"
+# Artış görünümü için iki günlük kayıt: dünkü ve bugünkü.
+{ printf "%s" "$(date -d yesterday +%F 2>/dev/null || date +%F)"
+  printf " pergo:21.30 ladoor:13.05 hitacomt:10.20 akenturc:8.55 alici:8.40\n"
+  printf "%s" "$(date +%F)"
+  printf " pergo:22.60 ladoor:13.10 hitacomt:10.80 akenturc:8.60 alici:8.40\n"
+} > "$SEED/.diskacct_history"
+printf "<?php\nreturn ['home_dir' => '%s'];\n" "$SEED" > src/config.php
+temizle(){ rm -rf "$SEED"; rm -f src/config.php; }
+trap temizle EXIT
+
+
 # ── EN (varsayılan) ──────────────────────────────────────────────────────
 php src/index.php > docs/index.html          # pristine ürün, boş veriyle (EN)
 php demo/inject.php docs/index.html
