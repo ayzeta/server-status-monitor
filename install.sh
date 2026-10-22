@@ -298,6 +298,25 @@ if [ -s "$CSF_KEY_FILE" ]; then
   echo "     The managed .htaccess already answers on any path, so whichever key"
   echo "     CSF appends lands on the dashboard."
 fi
+# ── Yönetim komutu ────────────────────────────────────────────
+# Kısa komut: "ssmon update" — tam yolu yazmaya gerek kalmasın. Yollar kurulum
+# anında gömülür, böylece depo nereye klonlanmışsa komut oraya bakar.
+WRAPPER="/usr/local/bin/ssmon"
+{
+  echo '#!/bin/bash'
+  echo '# server-status-monitor yönetim komutu — install.sh üretti, elle düzenlemeyin.'
+  printf 'REPO=%q\n' "$SRC"
+  printf 'DATA=%q\n' "$DATA_DIR"
+  echo 'case "${1:-}" in'
+  echo '  update)    exec bash "$REPO/update.sh" ;;'
+  echo '  reinstall) exec bash "$REPO/install.sh" ;;'
+  echo '  collect)   exec bash "$DATA/collector.sh" ;;'
+  echo '  version)   sed -n "s/^const APP_VERSION = .\\(.*\\).;.*/\\1/p" "$REPO/src/index.php" ;;'
+  echo '  *) echo "Usage: ssmon {update|reinstall|collect|version}"; exit 1 ;;'
+  echo 'esac'
+} > "$WRAPPER"
+chmod 0755 "$WRAPPER"
+echo "Command: ssmon update | reinstall | collect | version"
 if [ -n "${ACCESS_KEY:-}" ]; then
   echo "Access key active — integration URLs must carry it:"
   [ -s "$CSF_KEY_FILE" ] || echo "  CSF:   PT_APACHESTATUS = \"https://<your-domain>/$URL_PATH$KEYQ\""

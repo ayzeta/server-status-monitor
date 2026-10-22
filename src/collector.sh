@@ -958,6 +958,10 @@ except Exception:
     # Bicim: "YYYY-MM-DD hesap:gb hesap:gb ..." — gunde TEK satir, cunku pano her
     # render'da yalnizca IKI satir okuyacak (en yeni + pencerenin basi); hesap
     # basina satir yazsak 371 hesap x 40 gun = 15 bin satir ayristirmak gerekirdi.
+    # COZUNURLUK 0.01 GB (10 MB). Once 0.1 idi ve bir gunluk pencerede cogu hesabin
+    # buyumesi o adimin altinda kaldigi icin liste 14 satir "+0.1" diye kilitleniyordu:
+    # 50 MB ile 149 MB ayirt edilemiyordu, yani siralama siralama degildi. Ek maliyet
+    # hesap basina gunde bir karakter.
     # ALT SINIR YOK, kucuk hesaplar da yazilir: 0.05 GB'den 30 GB'ye firlayan
     # hesap tam da yakalanmasi gereken sey, listede yoksa "yeni" sanilip elenirdi.
     # Kota kapali sunucuda repquota bos/sifir doner — o zaman HIC YAZILMAZ:
@@ -966,7 +970,7 @@ except Exception:
     DAHTODAY=$(date +%F)
     if [ -s "$DAC.all" ] \
        && [ "$(tail -1 "$DAH" 2>/dev/null | awk '{print $1}')" != "$DAHTODAY" ]; then
-      awk -v d="$DAHTODAY" '{printf "%s%s:%.1f", (NR==1?d FS:FS), $2, $1/1048576}
+      awk -v d="$DAHTODAY" '{printf "%s%s:%.2f", (NR==1?d FS:FS), $2, $1/1048576}
                             END{if (NR) print ""}' "$DAC.all" >> "$DAH"
       tail -40 "$DAH" > "$DAH.tmp" && mv "$DAH.tmp" "$DAH"   # 30 gunluk pencere + pay
       chown "$WEB_USER:$WEB_USER" "$DAH"; chmod 640 "$DAH"
@@ -1087,6 +1091,83 @@ PYEOF
     [ -n "$IO_OUT" ] && echo "io_src proc"
   fi
   [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
+  echo
+  echo "--- Top IO processes ---"
+  # SUREC basina disk I/O (KB/s). Kaynak /proc/<pid>/io: read_bytes+write_bytes
+  # BLOK katmanindan okunur (sayfa onbelleginden degil), yani IO beklemeyi ureten
+  # seyle ayni sey olculur. Fark iki olcum arasinda alinir.
+  #
+  # KAPSAM, hesap gorunumunden FARKLI ve ikisi birbirini tamamlar:
+  #   - Hesap (LVE): cgroup duzeyinde sayar, tur arasinda olen kisa omurlu
+  #     surecleri (istek basina lsphp) de kapsar; ama yalnizca cPanel hesaplari.
+  #   - Surec (/proc): root dahil HER SEYI gorur; ama iki olcum arasinda dogup
+  #     olen sureci goremez.
+  # Bu yuzden iki listenin toplamlari birbirini TUTMAZ ve biri otekinin yerine
+  # gecmez. Pano ikisini birlikte gosterir.
+  #
+  # PID YENIDEN KULLANIMI: biten bir surecin pid'i yenisine verilirse eski sayac
+  # yeni surece yazilir ve ucuk bir hiz cikardi. Kimlik pid + surecin YASI ile
+  # dogrulanir: yas gecen sureden kucukse o surec yeni dogmustur, atlanir.
+  IOP_STATE="$DATA_DIR/.ioproc_state"
+  ps axo pid=,etimes=,user:19=,args= 2>/dev/null | cut -c1-200 > "$IOP_STATE.ps"
+  IOP_OUT=$(python3 - "$IOP_STATE" <<'PYEOF'
+import os, sys, time
+state = sys.argv[1]; now = time.time()
+cur = {}            # pid -> (etimes, bytes, user, komut)
+try:
+    with open(state + ".ps") as f:
+        for ln in f:
+            p = ln.split(None, 3)
+            if len(p) < 4: continue
+            try: pid = int(p[0]); et = int(p[1])
+            except ValueError: continue
+            rb = wb = 0
+            try:
+                with open("/proc/%d/io" % pid) as g:
+                    for l2 in g:
+                        if l2.startswith("read_bytes:"): rb = int(l2.split()[1])
+                        elif l2.startswith("write_bytes:"): wb = int(l2.split()[1])
+            except Exception:
+                continue    # surec oldu ya da okunamadi
+            cur[pid] = (et, rb + wb, p[2], p[3].strip())
+except Exception:
+    sys.exit(0)
+
+prev = {}; pt = None
+try:
+    with open(state) as f:
+        for ln in f:
+            p = ln.split()
+            if len(p) == 2 and p[0] == "t": pt = float(p[1])
+            elif len(p) == 3: prev[int(p[0])] = (int(p[1]), int(p[2]))
+except Exception:
+    pass
+try:
+    with open(state + ".tmp", "w") as f:
+        f.write("t %f\n" % now)
+        for pid, (et, b, u, c) in cur.items(): f.write("%d %d %d\n" % (pid, et, b))
+    os.chmod(state + ".tmp", 0o600); os.replace(state + ".tmp", state)
+except Exception:
+    pass
+if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)   # ilk tur / cok eski ornek
+dt = now - pt
+out = []
+for pid, (et, b, u, c) in cur.items():
+    if pid not in prev: continue               # ilk gorulen surec: omur boyu sayaci bu dakikaya yazma
+    pet, pb = prev[pid]
+    if et < pet or et < dt - 5: continue       # pid yeniden kullanilmis: bu BASKA bir surec
+    d = b - pb
+    if d <= 0: continue
+    out.append((d / dt / 1024.0, u, c))
+out.sort(reverse=True)
+# Komut tek satira sigsin; bosluk alan ayiraci oldugu icin ciktida bosluk kalamaz
+for kb, u, c in out[:10]:
+    c = "_".join(c.split())[:70]
+    print("ioproc %s %.1f %s" % (u, kb, c))
+PYEOF
+  )
+  rm -f "$IOP_STATE.ps"
+  [ -n "$IOP_OUT" ] && printf '%s\n' "$IOP_OUT"
   # Tarihce 15. kolonu icin: o dakikanin en cok I/O yapan hesabi "hesap:kbps".
   TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5)}')
   echo

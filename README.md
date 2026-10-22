@@ -100,9 +100,14 @@ header button (per-browser, cookie-based). The version shows in the footer.
   trend line for two months. Accounts with no reading at the start of a window
   are not hidden — a new account that uploaded 80 GB is exactly what you want to
   see — they are tagged `new` so the number explains itself. There is no
-  threshold: the list is sorted by growth, so the top row is the fastest grower
-  by definition, and if that row reads `+0.3` then nothing is growing, which is
-  worth knowing too. A window appears only once enough days exist to cover it,
+  threshold, fixed or proportional: the list is sorted by growth, so the top row
+  is the fastest grower by definition, and if that row reads `+0.3` then nothing
+  is growing, which is worth knowing too. A proportional cut-off was tried and
+  rejected — at one tenth of the largest, an account up 10 GB would have hidden
+  one up 950 MB, raising the bar for everyone exactly when something went wrong.
+  Sizes are recorded to 10 MB, fine enough that a day's list is a real ranking
+  rather than a row of identical values at the limit of the measurement.
+  A window appears only once enough days exist to cover it,
   and its button is labelled with the span actually measured, so a `30g` button
   never stands for twelve days of data.
 - **SSL expiry is judged against who issued it** — a certificate that renews
@@ -142,6 +147,16 @@ header button (per-browser, cookie-based). The version shows in the footer.
   about the present, so it waits for two consecutive readings before writing
   `finished` — otherwise a multi-process job (one `pkgacct` per account) would
   fill the log with pairs every time the gap between accounts fell on a reading.
+- **I/O is read two ways, because one way is always blind somewhere** — the
+  account view comes from CloudLinux LVE, which counts a cgroup and so includes
+  the short-lived `lsphp` of every request, but only ever sees cPanel accounts.
+  The process view comes from `/proc/<pid>/io` deltas, which sees everything
+  including root — `mariadbd`, a backup, a scanner — but cannot see a process
+  that started and ended between two readings. The card carries both, and an
+  IO-wait alert names both, largest first. Naming only one meant going blind on
+  whichever side the load happened to be: an alert once read `account 15 KB/s`
+  while IO wait sat at 18%, because the real writer was a root process that the
+  account list cannot contain. The two totals are not meant to agree.
 - **Alerts name the culprit** — load/CPU/IO-wait lines carry the top process
   with its account and script; RAM the top-RSS process; PHP-worker and MySQL
   lines the busiest account / longest query; disk the fullest account; IO wait
@@ -303,9 +318,20 @@ Re-run it any time to change settings (answers are remembered).
 ## Updating
 
 ```bash
-cd server-status-monitor
-sudo bash update.sh
+sudo ssmon update
 ```
+
+The installer leaves a small `ssmon` command behind so you never have to
+remember where the checkout lives:
+
+| | |
+|---|---|
+| `ssmon update` | pull and redeploy if GitHub is ahead |
+| `ssmon reinstall` | re-run the installer (change settings) |
+| `ssmon collect` | run the collector once, in the foreground |
+| `ssmon version` | print the deployed version |
+
+`sudo bash update.sh` from the checkout still works and does the same thing.
 
 `update.sh` pulls **only if the GitHub remote is ahead**, then redeploys
 non-interactively with your saved settings — no prompts, and your `config.php`
