@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.47'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.48'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -322,15 +322,18 @@ if (is_readable($procSnapFile)) {
         } elseif (stripos($title, 'Top IO processes') !== false) {
             // "ioproc PID kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk
             // yok (collector alt çizgiye çeviriyor), çünkü satır boşlukla ayrılıyor.
+            // PID OKUNUR AMA GÖSTERİLMEZ: kartta yeri komut sütunundan götürüyordu
+            // ve listedeki süreçlerin çoğu (istek başına lsphp) bakılana kadar
+            // ölmüş oluyor. Alan satırda duruyor, gerekirse hazır.
             // ESKİ BİÇİM (PID'siz, 4 alan) da okunur: güncellemeden sonra diskteki
             // anlık görüntü bir tur boyunca eski collector'ın yazdığı hali olabilir.
             foreach ($lines as $ln) {
                 $p = preg_split('/\s+/', trim($ln), 5);
                 if ($p[0] !== 'ioproc') continue;
                 if (count($p) === 5 && ctype_digit($p[1]) && is_numeric($p[3]))
-                    $ioProc[] = [$p[2], (float)$p[3], str_replace('_', ' ', $p[4]), (int)$p[1]];
+                    $ioProc[] = [$p[2], (float)$p[3], str_replace('_', ' ', $p[4])];
                 elseif (count($p) === 4 && is_numeric($p[2]))
-                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3]), null];
+                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3])];
             }
         }
     }
@@ -734,7 +737,7 @@ function diskGrowthSet($file, $limit = 15) {
         $rows = [];
         foreach ($now as $u => $gb) {
             $yeni = !isset($was[$u]);
-            $art  = round($yeni ? $gb : $gb - $was[$u], 2);
+            $art  = round($yeni ? $gb : $gb - $was[$u], 3);
             if ($art <= 0) continue;            // büyümeyen ya da küçülen 'artış' değil
             $rows[] = [$u, $art, $yeni];
         }
@@ -745,8 +748,10 @@ function diskGrowthSet($file, $limit = 15) {
         // barı yükseliyordu — tam tersi gerekirken.
         // Asıl sorun eşik değil ÇÖZÜNÜRLÜKTÜ: kayıt 0,1 GB adımlıyken 14 satır aynı
         // "+0.1" değerinde kilitleniyordu (50 MB ile 149 MB ayırt edilemiyordu).
-        // Kayıt 0,01 GB'ye çıkınca liste gerçek bir sıralama oldu; küçük sayılar da
-        // bilgi taşıyor ("bugün kimse büyümemiş" bunu okuyarak anlaşılır).
+        // Kayıt 1 MB adımına (0,001 GB) indi ve sütun birimini kendi yazıyor
+        // (fmtGrow): günlük artışların çoğu 1 GB'ın altında ve artık 20 MB ile
+        // 140 MB ayrı görünüyor. Küçük sayılar da bilgi taşıyor ("bugün kimse
+        // büyümemiş" bunu okuyarak anlaşılır).
         $set[] = ['win' => $win, 'span' => $span, 'rows' => array_slice($rows, 0, $limit)];
     }
     return $set;
@@ -2222,6 +2227,17 @@ function diskAcctCls($gb, $totalGB) {
     return $pct >= 3 ? 'hot' : ($pct >= 1 ? 'warm' : '');
 }
 // Büyüme satırları — iki renderer'ın (PHP/JS) AYNI gövdeyi üretmesi için tek yerde.
+// Artış birimini KENDİ yazar: 1 GB altı MB. Önceden sütun "GB" idi ve günlük
+// artışların çoğu 1 GB'ın altında kaldığı için satırlar "+0.1" diye tabanda
+// kilitleniyordu — 20 MB büyüyenle 140 MB büyüyen aynı görünüyordu. Kayıt da
+// 0,01 GB'dan 0,001 GB'a (1 MB) indi; bu olmadan MB göstermek sahte hassasiyet
+// olurdu. Yuvarlama ÖNCE tam sayı MB'ye yapılır ki PHP ve JS aynı sonucu versin.
+function fmtGrow($gb) {
+    $mb = (int)round($gb * 1024);
+    if ($mb < 1024) return $mb . ' MB';
+    $g = round($mb / 1024 * 100) / 100;
+    return rtrim(rtrim(number_format($g, 2, '.', ''), '0'), '.') . ' GB';
+}
 function diskGrowRows($rows, $h) {
     if ($rows === null) {
         return '<tr><td colspan="3" style="color:var(--hint)">' . t('growth data is building up') . '</td></tr>';
@@ -2234,9 +2250,7 @@ function diskGrowRows($rows, $h) {
     $out = '';
     foreach ($rows as [$u, $gb, $yeni]) {
         $w = round($gb / $mx * 100);
-        // 1 GB altinda IKI ondalik: kayit 0,01 GB adimli, tek ondalik gosterirsek
-        // satirlar yine "+0.1" diye tabanda kilitlenirdi.
-        $n = rtrim(rtrim(number_format($gb, $gb < 1 ? 2 : 1, ".", ""), "0"), ".");
+        $n = fmtGrow($gb);
         $out .= '<tr><td class="proc-user">' . $h($u)
               . ($yeni ? '<span class="sub-ver" title="' . htmlspecialchars(t('No record at the start of the window — account is new or was not yet measured')) . '">' . t('new') . '</span>' : '')
               . '</td><td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
@@ -2265,7 +2279,10 @@ function renderDiskCard($diskAcct, $h) {
     }
     $out = '<div class="proc-card dk-size dk-w' . $defWin . '" id="disk-card"><div class="proc-title">' . t('Disk · account')
          . '<span class="proc-age dk-tabs">' . $tabs . '</span></div>'
-         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num">GB</th></tr></thead>'
+         // Sağ sütunun başlığı görünümle değişir: boyut GB, artış kendi birimini
+         // (MB/GB) hücrede yazdığı için orada yalnız "ARTIŞ" yazar.
+         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+         . '<th class="num"><span class="dkh-s">GB</span><span class="dkh-g">' . upper(t('growth')) . '</span></th></tr></thead>'
          . '<tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
@@ -2304,22 +2321,20 @@ function ioAcctCls($kb, $sum) {
 // Hesap basina disk I/O — dikey tablo (disk/PHP kartlariyla ayni stil), alt
 // satirin orta karti. Kaynak collector'dan gelir (io_src): LVE ya da /proc/io.
 // Süreç başına I/O satırları — PHP ve JS aynı gövdeyi üretsin diye tek yerde.
-// Sütunlar CPU/Bellek kartlarıyla aynı dilde: PID | KULLANICI | KOMUT | I/O.
-// Hesap görünümündeki çubuk burada YOK — "kim büyük" sorusunu sağdaki sayı zaten
-// söylüyor, dar kartta o genişlik komuta gidiyor. Komut tooltipte durmuyor:
-// kırpılan metin proc-cmd ile tıklayınca açılıyor (CPU kartındaki bileşen).
+// Sütunlar: KULLANICI | KOMUT | I/O. Hesap görünümündeki çubuk burada YOK — "kim
+// büyük" sorusunu sağdaki sayı zaten söylüyor, dar kartta o genişlik komuta
+// gidiyor. Komut tooltipte durmuyor: kırpılan metin proc-cmd ile tıklayınca
+// açılıyor (CPU kartındaki bileşen). PID de yok — ölçüldü, komut sütununun
+// %31'ini götürüyordu ve buradaki süreçlerin çoğu bakılana kadar ölmüş oluyor.
 function ioProcRows($ioProc, $h) {
     if (!$ioProc) {
-        return '<tr><td colspan="4" style="color:var(--hint)">' . t('no process I/O measured') . '</td></tr>';
+        return '<tr><td colspan="3" style="color:var(--hint)">' . t('no process I/O measured') . '</td></tr>';
     }
     $sum = 0;
     foreach ($ioProc as $p) { $sum += $p[1]; }
     $out = '';
-    foreach ($ioProc as $p) {
-        [$u, $kb, $cmd] = $p;
-        $pid = $p[3] ?? null;
-        $out .= '<tr><td class="iop-pid">' . ($pid !== null ? $h($pid) : '') . '</td>'
-              . '<td class="proc-user">' . $h($u) . '</td>'
+    foreach ($ioProc as [$u, $kb, $cmd]) {
+        $out .= '<tr><td class="proc-user">' . $h($u) . '</td>'
               . '<td class="td-fill"><span class="proc-cmd" title="' . $h($cmd) . '">' . $h($cmd) . '</span></td>'
               . '<td class="num ' . ioAcctCls($kb, $sum) . '">' . $h(fmtKbps($kb)) . '</td></tr>' . "\n";
     }
@@ -2346,7 +2361,6 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
          // PID | KULLANICI | KOMUT | I/O. Görünmeyen hücreler CSS ile düşüyor,
          // böylece başlıklar her iki gövdeyle de hizalı kalıyor.
          . '<table class="proc-table"><thead><tr>' . "\n"
-         . '<th class="ioh-p iop-pid">PID</th>'
          . '<th><span class="ioh-a">' . upper(t('Account')) . '</span><span class="ioh-p">' . upper(t('User')) . '</span></th>'
          . '<th><span class="ioh-p">' . upper(t('Command')) . '</span></th>'
          . '<th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
@@ -2630,7 +2644,6 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    PID/KULLANICI/KOMUT. Gizli hücre tabloda yer kaplamadığı için iki görünümün
    sütun sayısı farklı olabiliyor. */
 .io-acct .ioh-p,.io-proc .ioh-a{display:none;}
-.iop-pid{color:var(--hint);}
 .ic-sun{display:none;}
 /* Uyanik-kal: pasifte sade fincan, aktifte dumani cikan fincan — tema dugmesindeki
    ay/gunes ile AYNI yontem, o yuzden kurallar da ayni yerde. '.ic' display veriyor
@@ -2703,6 +2716,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   opacity:1;text-decoration:underline;text-underline-offset:3px;}
 /* Görünür gövdeyi kartın sınıfı seçer: dk-size → boyut, dk-grow + dk-wN → o pencere. */
 .dk-size .dkg,.dk-grow #pt-disk,.dk-grow .dkg{display:none;}
+.dk-size .dkh-g,.dk-grow .dkh-s{display:none;}
 .dk-grow.dk-w0 #pt-dkg-0,.dk-grow.dk-w1 #pt-dkg-1,
 .dk-grow.dk-w7 #pt-dkg-7,.dk-grow.dk-w30 #pt-dkg-30{display:table-row-group;}
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
@@ -2935,8 +2949,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .proc-row .proc-card:nth-child(2) td:nth-child(1),
   .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1),
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
-  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6),
-  .iop-pid{display:none;} /* I/O · süreç kartının PID'i — CPU/RAM/SQL ile aynı kural */
+  .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
   .proc-row-sql td.sql-empty{display:table-cell!important;}
   /* Görünür 3 kolonun (Kullanıcı/Süre/Sorgu) düzeni base kuraldan gelir:
      SORGU kalanı alır, diğerleri içeriğine göre boyutlanır — mobilde ekstra
@@ -3452,6 +3465,9 @@ function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
   return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
 function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';} // PHP fmtKbps ile ayni
+// PHP fmtGrow() ikizi — yuvarlama once tam sayi MB'ye, iki taraf ayni sonucu versin diye.
+function fmtGrow(gb){const mb=Math.round(gb*1024);if(mb<1024)return mb+' MB';
+  const g=Math.round(mb/1024*100)/100;return g.toFixed(2).replace(/\.?0+$/,'')+' GB';}
 // Kuyrugu dolduran hesap metni: "pergo 1180 (95%)" — PHP mailqTopTxt ile ayni.
 function mailqTopTxt(top,sampled){if(!top||!top.length)return '';const n=top[0][0]==='other'?t('other senders'):top[0][0];
   return n+' '+top[0][1]+(sampled>0?' ('+Math.round(top[0][1]/sampled*100)+'%)':'');}
@@ -3934,9 +3950,7 @@ function renderProcs(data){
       const mx=Math.max(0.1,...rows.map(r=>r[1]));
       return rows.map(r=>{
         const w=Math.round(r[1]/mx*100);
-        // PHP ikizi: 1 GB altında İKİ ondalık. Kayıt 0,01 GB adımlı; tek ondalık
-        // gösterirsek satırlar yine "+0.1" diye tabanda kilitlenirdi.
-        const n=(r[1]<1?r[1].toFixed(2):r[1].toFixed(1)).replace(/\.?0+$/,'');
+        const n=fmtGrow(r[1]);   // PHP fmtGrow() ikizi
         const yeni=r[2]?`<span class="sub-ver" title="${esc(t('No record at the start of the window — account is new or was not yet measured'))}">${t('new')}</span>`:'';
         return `<tr><td class="proc-user">${esc(r[0])}${yeni}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num">+${n}</td></tr>`;}).join('');
     };
@@ -3963,13 +3977,13 @@ function renderProcs(data){
   const iop=document.getElementById('pt-ioproc');
   if(iop&&data.ioProc!==undefined){
     const g=data.ioProc||[];
-    if(!g.length)iop.innerHTML=`<tr><td colspan="4" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
+    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
     else{
       const sum=g.reduce((a,p)=>a+p[1],0);
       iop.innerHTML=g.map(p=>{
         const sh=sum>0?p[1]/sum:0;
         const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
-        return `<tr><td class="iop-pid">${p[3]!=null?esc(p[3]):''}</td><td class="proc-user">${esc(p[0])}</td>`+
+        return `<tr><td class="proc-user">${esc(p[0])}</td>`+
           `<td class="td-fill"><span class="proc-cmd" title="${esc(p[2])}">${esc(p[2])}</span></td>`+
           `<td class="num ${cls}">${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
     }

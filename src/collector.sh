@@ -970,7 +970,7 @@ except Exception:
     DAHTODAY=$(date +%F)
     if [ -s "$DAC.all" ] \
        && [ "$(tail -1 "$DAH" 2>/dev/null | awk '{print $1}')" != "$DAHTODAY" ]; then
-      awk -v d="$DAHTODAY" '{printf "%s%s:%.2f", (NR==1?d FS:FS), $2, $1/1048576}
+      awk -v d="$DAHTODAY" '{printf "%s%s:%.3f", (NR==1?d FS:FS), $2, $1/1048576}
                             END{if (NR) print ""}' "$DAC.all" >> "$DAH"
       tail -40 "$DAH" > "$DAH.tmp" && mv "$DAH.tmp" "$DAH"   # 30 gunluk pencere + pay
       chown "$WEB_USER:$WEB_USER" "$DAH"; chmod 640 "$DAH"

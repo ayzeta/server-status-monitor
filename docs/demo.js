@@ -250,10 +250,11 @@
       ioAcct:ioAcct(), ioProc:ioProc(), ioSrc:'lve',
       // Artis gorunumu: pencere basina liste. Gercek panoda collector'in gunluk
       // kaydindan gelir; demoda sabit ornek.
-      acctGrowSet:[{win:1,span:1,rows:[[pick(0),1.3,false],[pick(3),0.42,false],
-                                       [pick(7),0.08,false]]},
-                   {win:7,span:7,rows:[[pick(0),4.1,false],[pick(5),2.6,true],
-                                       [pick(3),1.2,false],[pick(7),0.35,false]]}],
+      // Degerler GB; sutun birimini kendi yaziyor (1 GB alti MB).
+      acctGrowSet:[{win:1,span:1,rows:[[pick(0),1.335,false],[pick(3),0.418,false],
+                                       [pick(7),0.076,false],[pick(4),0.019,false]]},
+                   {win:7,span:7,rows:[[pick(0),4.12,false],[pick(5),2.64,true],
+                                       [pick(3),1.205,false],[pick(7),0.352,false]]}],
       acts:[ S.acts[0]!=null?Math.round(S.acts[0]):null, null, S.acts[2]!=null?Math.round(S.acts[2]):null, S.acts[3]!=null?Math.round(S.acts[3]):null ],
       // Olay kaydinin basladi/bitti gecisi ROZETTEN degil kampanyadan okunuyor
       // (urunde data.actLive). Degeri kampanyanin baslangic ani.

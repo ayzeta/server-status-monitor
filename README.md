@@ -101,12 +101,14 @@ header button (per-browser, cookie-based). The version shows in the footer.
   are not hidden — a new account that uploaded 80 GB is exactly what you want to
   see — they are tagged `new` so the number explains itself. There is no
   threshold, fixed or proportional: the list is sorted by growth, so the top row
-  is the fastest grower by definition, and if that row reads `+0.3` then nothing
-  is growing, which is worth knowing too. A proportional cut-off was tried and
-  rejected — at one tenth of the largest, an account up 10 GB would have hidden
-  one up 950 MB, raising the bar for everyone exactly when something went wrong.
-  Sizes are recorded to 10 MB, fine enough that a day's list is a real ranking
-  rather than a row of identical values at the limit of the measurement.
+  is the fastest grower by definition, and if that row reads `+40 MB` then
+  nothing is growing, which is worth knowing too. A proportional cut-off was
+  tried and rejected — at one tenth of the largest, an account up 10 GB would
+  have hidden one up 950 MB, raising the bar for everyone exactly when something
+  went wrong. Sizes are recorded to 1 MB and each row carries its own unit, so a
+  day's list is a real ranking instead of a column of identical `+0.1`s: most
+  accounts grow well under a gigabyte in a day, and 20 MB and 140 MB are not the
+  same news.
   A window appears only once enough days exist to cover it,
   and its button is labelled with the span actually measured, so a `30g` button
   never stands for twelve days of data.
