@@ -37,8 +37,8 @@ js_blok = src[jb:je]
 ORNEK = [
     None,
     [],
-    [["pergo", 12.6, False]],
-    [["tasinan", 80.0, True], ["rutin", 1.5, True], ["pergo", 1.0, False]],
+    [["bluewave", 12.6, False]],
+    [["tasinan", 80.0, True], ["rutin", 1.5, True], ["bluewave", 1.0, False]],
     [["a", 3.0, False], ["b", 1.0, False]],
     [["<script>", 2.0, True]],          # kacis: iki taraf da ayni kacmali
     # Birim sinirlari ve yuvarlama: MB/GB gecisi, yarim deger, cok kucuk artis

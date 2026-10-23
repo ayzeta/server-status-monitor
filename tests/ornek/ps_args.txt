@@ -1,8 +1,8 @@
-1234 R alici                 305 26.0 0.1 5120 lsphp:/home/alici/public_html/index.php
+1234 R acmeco                 305 26.0 0.1 5120 lsphp:/home/acmeco/public_html/index.php
 2295514 S mysql            86400 19.2 6.1 8388608 /usr/sbin/mariadbd
 412 D root                 93784 0.0 0.0 0 [jbd2/sda1-8]
 50306 S root               1000000 3.1 0.1 148000 /usr/bin/imunify-resident --quiet
-77 S alici                    5 0.5 0.0 2048 lsphp:/home/alici/wp-cron.php
+77 S acmeco                    5 0.5 0.0 2048 lsphp:/home/acmeco/wp-cron.php
 88 S other                   65 0.1 0.0 1024 lsphp:/home/other/x.php
 9001 S root                 12345 0.0 0.3 37880 lfd - sleeping
 9002 Z root                   600 0.0 0.0 0 [php74] <defunct>

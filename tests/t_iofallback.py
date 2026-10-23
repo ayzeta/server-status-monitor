@@ -41,7 +41,7 @@ kod = kod.replace("'/var/cpanel/users'", "os.environ['T_CP']")
 STUB = NL.join([
     "import sys, types",
     "_p = types.ModuleType('pwd')",
-    "_TBL = {1001: 'alici', 1002: 'ayzeta', 1003: 'cpanelsuz', 500: 'sistem'}",
+    "_TBL = {1001: 'acmeco', 1002: 'ayzeta', 1003: 'cpanelsuz', 500: 'sistem'}",
     "class _R:",
     "    def __init__(self, n): self.pw_name = n",
     "def _g(u):",
@@ -63,7 +63,7 @@ STATE = os.path.join(TMP, "io_state")
 def kur():
     shutil.rmtree(TMP, ignore_errors=True)
     os.makedirs(PROC); os.makedirs(CP)
-    for ad in ("alici", "ayzeta"):          # cpanelsuz BILEREK yok
+    for ad in ("acmeco", "ayzeta"):          # cpanelsuz BILEREK yok
         io.open(os.path.join(CP, ad), "w").write("")
 
 
@@ -122,7 +122,7 @@ ck("ilk tur: isaret bile yazilmaz", tik(), "")
 # ── Ikinci tur: 60 sn'de 60 MB -> 1024 KB/s ────────────────────
 surec(10, 1001, 0, 60 * 1024 * 1024)
 ck("fark hiza cevrilir", tik(bekle=60),
-   NL.join(["io_src proc 1m", "ioacct alici 1024.0 -"]), tolerans=True)
+   NL.join(["io_src proc 1m", "ioacct acmeco 1024.0 -"]), tolerans=True)
 
 # ── Ayni kullanicinin iki sureci toplanir ──────────────────────
 kur()
@@ -138,7 +138,7 @@ surec(10, 500, 0, 0); surec(11, 1001, 0, 0)
 tik()
 surec(10, 500, 0, 600 * 1024 * 1024); surec(11, 1001, 0, 6 * 1024 * 1024)
 ck("uid<1000 hic sayilmaz", tik(bekle=60),
-   NL.join(["io_src proc 1m", "ioacct alici 102.4 -"]), tolerans=True)
+   NL.join(["io_src proc 1m", "ioacct acmeco 102.4 -"]), tolerans=True)
 
 # ── cPanel hesabi olmayan kullanici elenir ─────────────────────
 kur()
@@ -146,7 +146,7 @@ surec(10, 1003, 0, 0); surec(11, 1001, 0, 0)
 tik()
 surec(10, 1003, 0, 600 * 1024 * 1024); surec(11, 1001, 0, 6 * 1024 * 1024)
 ck("cpanel disi hesap elenir", tik(bekle=60),
-   NL.join(["io_src proc 1m", "ioacct alici 102.4 -"]), tolerans=True)
+   NL.join(["io_src proc 1m", "ioacct acmeco 102.4 -"]), tolerans=True)
 
 # ── Hareket yoksa: satir yok ama OLCUM ISARETI var ─────────────
 ck("hareket yoksa yalniz isaret", tik(bekle=60), "io_src proc 1m")

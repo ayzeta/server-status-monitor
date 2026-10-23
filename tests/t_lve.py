@@ -1,6 +1,6 @@
 """Hesap I/O'sunu /proc/lve/list'ten okuyan kodu KAYNAKTAN cikarip sinar.
 
-Can alici noktalar:
+Can acmeco noktalar:
   - Dosya SEKME ile ayrilmis ve bos alanlar var; bosluga gore ayirirsak sutunlar
     kayar (IO 16., IOPS 23. sutun).
   - Sayaclar KUMULATIF: ilk turda cikti olmaz, sonraki turda fark/saniye.
@@ -31,7 +31,7 @@ kod = src[bas:son]
 STUB = NL.join([
     "import sys, types",
     "_p = types.ModuleType('pwd')",
-    "_TBL = {1089: 'eczashop', 1002: 'ayzeta', 0: 'root', 1500: 'sistemd'}",
+    "_TBL = {1089: 'pixelcart', 1002: 'ayzeta', 0: 'root', 1500: 'sistemd'}",
     "class _R:",
     "    def __init__(self, n): self.pw_name = n",
     "def _g(u):",
@@ -47,7 +47,7 @@ io.open(MOD, "w", encoding="utf-8", newline=NL).write(STUB + kod.replace("'/var/
 CP = os.path.join(BURASI, "t_lve_cp")
 shutil.rmtree(CP, ignore_errors=True)
 os.makedirs(CP)
-for ad in ("eczashop", "ayzeta"):
+for ad in ("pixelcart", "ayzeta"):
     io.open(os.path.join(CP, ad), "w").write("")
 
 LISTE = os.path.join(BURASI, "t_lve_list.txt")
@@ -129,7 +129,7 @@ ck("ilk tur: isaret bile yazilmaz",
 # ── Ikinci tur: 60 sn'de 136 KB -> 2.3 KB/s (uretim olcumu) ────
 ck("fark hiza cevrilir (KB -> KB/s)",
    calistir([satir(1089, 1136, 70), satir(1002, 604, 5)], yas=60),
-   NL.join(["io_src lve 1m", "ioacct eczashop 2.3 1", "ioacct ayzeta 1.7 0"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1", "ioacct ayzeta 1.7 0"]))
 
 # ── Degisim yok: satir yok ama OLCUM ISARETI var ───────────────
 ck("hareket yoksa yalniz isaret",
@@ -144,7 +144,7 @@ ck("sayac sifirlanmis hesap atlanir",
 calistir([satir(0, 0, 0), satir(1500, 0, 0), satir(1089, 100, 0)])
 ck("cpanel disi uid elenir",
    calistir([satir(0, 600000, 0), satir(1500, 600000, 0), satir(1089, 160, 0)], yas=60),
-   NL.join(["io_src lve 1m", "ioacct eczashop 1.0 0"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 1.0 0"]))
 
 # ── Bosluga gore ayirsaydik ne olurdu (regresyon korumasi) ─────
 bos_ayrim = BASLIK.replace(TAB, " ")

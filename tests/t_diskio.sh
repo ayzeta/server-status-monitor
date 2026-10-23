@@ -67,7 +67,8 @@ ck "durum dosyasi yazildi" "$(awk '{print NF}' "$DATA_DIR/.diskio_state")" "3"
 # ── Bolum (partition) cift saymaz: sda1 satiri eklenmemeli ─────
 printf '%s 1000 2000\n' "$(( $(date +%s) - 60 ))" > "$DATA_DIR/.diskio_state"
 yaz 121000 2000
-ck "bolumler cift sayilmaz (sda1 haric)" "$(kosu | head -1)" "diskio_r 1000"
+# sda1 satirinda 999999 sektor var: sayilsaydi deger ~1000 degil ~10000 olurdu.
+ck_hiz "bolumler cift sayilmaz (sda1 haric)" "$(kosu)" diskio_r 1000
 
 rm -rf "$DATA_DIR" "$DS"
 echo

@@ -1764,7 +1764,7 @@ foreach ($actDefs as $ai => $ad) {
     $actEndsP[$ai] = ($aEndP !== '' && $aEndP !== '-' && $aEndP !== 'incremental') ? $aEndP : null;
     // Bitis TURU ('<anahtar>_end_k'): "bitti" satirinda islemin ne oldugu da yazsin.
     // Eskiden yalnizca kapsam tasiniyordu: "Ayzeta Backup basladi · geri yukleme ·
-    // abdesthane" ile basliyor, "Ayzeta Backup bitti · abdesthane" ile bitiyordu —
+    // oakhost" ile basliyor, "Ayzeta Backup bitti · oakhost" ile bitiyordu —
     // islem turu dusuyordu. Toplayici turu kampanya boyunca degismediyse tasir;
     // degistiyse hic yayinlamaz (yanlis tur yazmaktansa yazmamak dogru).
     $aEndK = $rootFresh ? preg_replace('/[^A-Za-z0-9_.\-]/', '', (string)($procSec[$ad[1] . '_end_k'] ?? '')) : '';
@@ -3514,7 +3514,7 @@ function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.ro
 // PHP fmtGrow() ikizi — yuvarlama once tam sayi MB'ye, iki taraf ayni sonucu versin diye.
 function fmtGrow(gb){const mb=Math.round(gb*1024);if(mb<1024)return mb+' MB';
   const g=Math.round(mb/1024*100)/100;return g.toFixed(2).replace(/\.?0+$/,'')+' GB';}
-// Kuyrugu dolduran hesap metni: "pergo 1180 (95%)" — PHP mailqTopTxt ile ayni.
+// Kuyrugu dolduran hesap metni: "bluewave 1180 (95%)" — PHP mailqTopTxt ile ayni.
 function mailqTopTxt(top,sampled){if(!top||!top.length)return '';const n=top[0][0]==='other'?t('other senders'):top[0][0];
   return n+' '+top[0][1]+(sampled>0?' ('+Math.round(top[0][1]/sampled*100)+'%)':'');}
 
@@ -4109,7 +4109,7 @@ function checkAlerts(data){
   const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;
   const suffix=txt=>snapFresh&&txt?' — '+t('top:')+' '+txt+tf(' (snap %ss)',data.procAge):'';
   // Kullanici cPanel'de hesap adidir. Betik varsa o da eklenir:
-  // 'lsphp · kayserik · public_html/index.php 76.0%'
+  // 'lsphp · acmeco · public_html/index.php 76.0%'
   const rowTop=(row,val)=>{const n=pname(row[5]);if(!n)return '';
     const u=row[1]?' · '+row[1]:'',sc=pscript(row[5]);
     return n+u+(sc?' · '+sc:'')+' '+val;};

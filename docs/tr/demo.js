@@ -18,7 +18,7 @@
   // Mail kuyrugu esik tabani: urundeki $mqBase ile AYNI formul —
   // min(max(hesapSayisi, 25), 100). 374 hesap icin 100.
   var ACCOUNTS = 374, MQ_BASE = Math.min(Math.max(ACCOUNTS, 25), 100);
-  var ACC = ['bluewave','shopfast','pixelcart','acmeco','nordvps','ledger','brightmail',
+  var ACC = ['bluewave','shopfast','pixelcart','acmeco','ayzeta','ledger','brightmail',
              'zencache','oakhost','riverside','maplebox','summitio','harborlab','delta7',
              'novastore','quibble','fernpost','glacier','tandem','vector9'];
   function pick(i){ return ACC[i % ACC.length]; }
@@ -290,7 +290,7 @@
       seedHistory('ramp');
       logs.length=0;
       [['err','MySQL threads_running very high: 26 (query pileup) — top: delta7 · delta7_wp3 82s (snap 32s)','15:07:41'],
-       ['err','PHP workers very high: 60 — top: eczashop 6 (snap 32s)','15:07:26'],
+       ['err','PHP workers very high: 60 — top: pixelcart 6 (snap 32s)','15:07:26'],
        ['err','Mail queue very high: 1180 messages','15:07:18'],
        ['warn','Inode usage high: 82%','15:07:12'],
        ['warn','RAID1 rebuilding 46% — array rebuilding','15:06:55'],

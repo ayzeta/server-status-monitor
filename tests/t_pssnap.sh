@@ -42,7 +42,7 @@ done
 # ── 1) CPU listesi ─────────────────────────────────────────────
 CPU_OUT="$(eval "$CPU_PIPE")"
 ck "CPU: en yuksek pcpu basta" "$(echo "$CPU_OUT" | head -1)" \
-   "1234 alici 26.0 0.1 05:05 lsphp:/home/alici/public_html/index.php"
+   "1234 acmeco 26.0 0.1 05:05 lsphp:/home/acmeco/public_html/index.php"
 ck "CPU: 1 gun = 1-00:00:00" "$(echo "$CPU_OUT" | sed -n '2p')" \
    "2295514 mysql 19.2 6.1 1-00:00:00 /usr/sbin/mariadbd"
 ck "CPU: 11 gunluk surec" "$(echo "$CPU_OUT" | sed -n '3p' | awk '{print $5}')" "11-13:46:40"
@@ -58,7 +58,7 @@ ck "RSS: en buyuk basta, KB olarak" "$(echo "$RSS_OUT" | head -1)" \
    "2295514 mysql 19.2 6.1 8388608 /usr/sbin/mariadbd"
 
 # ── 3) Hesap basina lsphp (comm dosyasindan) ───────────────────
-ck "lsphp: alici 2, other 1" "$(eval "$LSPHP_PIPE" | tr '\n' '|')" "2 alici lsphp|1 other lsphp|"
+ck "lsphp: acmeco 2, other 1" "$(eval "$LSPHP_PIPE" | tr '\n' '|')" "2 acmeco lsphp|1 other lsphp|"
 
 # ── 4) Dort sayim tek geciste ──────────────────────────────────
 eval "$SAYIM_PIPE"
@@ -69,14 +69,14 @@ ck "sayim: R durumu"          "$PS_RS" "1"
 
 # ── 5) Tarihce kolonlari ───────────────────────────────────────
 eval "$TOPP_PIPE"; eval "$TOPR_PIPE"
-ck "TOPP: ad:cpu:kullanici" "$TOPP" "lsphp:26:alici"
+ck "TOPP: ad:cpu:kullanici" "$TOPP" "lsphp:26:acmeco"
 ck "TOPR: ad:rss_mb:kullanici" "$TOPR" "mariadbd:8192:mysql"
 
 # ── 6) Surec I/O python'una verilen bicim ──────────────────────
 IOP_STATE="$BURASI/t_iop"
 eval "$IOP_PIPE"
 ck "ioproc girisi: pid etimes user args" "$(head -1 "$IOP_STATE.ps")" \
-   "1234 305 alici lsphp:/home/alici/public_html/index.php"
+   "1234 305 acmeco lsphp:/home/acmeco/public_html/index.php"
 rm -f "$IOP_STATE.ps"
 
 # ── 7) Eski "ps axo" ciktilarinin ikizleri ─────────────────────

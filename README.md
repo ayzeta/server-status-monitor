@@ -173,7 +173,7 @@ header button (per-browser, cookie-based). The version shows in the footer.
   with its account and script; RAM the top-RSS process; PHP-worker and MySQL
   lines the busiest account / longest query; disk the fullest account; IO wait
   the account doing the most disk I/O; the mail-queue line the account behind
-  most of the queue (`— top: pergo 1180 (95%)`), read from Exim's spool headers
+  most of the queue (`— top: bluewave 1180 (95%)`), read from Exim's spool headers
   only while the queue is high. Same text live, on first render and in
   the mail attachment.
 - **Background jobs, named** — cPanel backups, `upcp`, WP Toolkit, Imunify

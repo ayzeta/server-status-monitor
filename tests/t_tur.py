@@ -1,7 +1,7 @@
 """Is turunun bitise tasinmasini KAYNAKTAN cikarip sinar.
 
-Kullanicinin gordugu kusur: "Ayzeta Backup basladi · geri yukleme · abdesthane"
-ile baslayan is "Ayzeta Backup bitti · abdesthane" ile bitiyordu — tur dusuyordu.
+Kullanicinin gordugu kusur: "Ayzeta Backup basladi · geri yukleme · oakhost"
+ile baslayan is "Ayzeta Backup bitti · oakhost" ile bitiyordu — tur dusuyordu.
 Kapsam ('ps') icin kurulu mekanizmanin tur ('pk') ikizi burada olculuyor.
 """
 import io
@@ -35,12 +35,12 @@ betik = NL.join([
     "",
     '# ── Tur kampanya boyunca ayni: bitise tasinir ──────────────',
     'sifirla',
-    'ck "1. tik: suruyor" "$(tik 60 abdesthane geri_yukleme)" "60|-|-|-"',
+    'ck "1. tik: suruyor" "$(tik 60 oakhost geri_yukleme)" "60|-|-|-"',
     'ACT_NOW=$((ACT_NOW+60))',
-    'ck "2. tik: hala suruyor" "$(tik 120 abdesthane geri_yukleme)" "120|-|-|-"',
+    'ck "2. tik: hala suruyor" "$(tik 120 oakhost geri_yukleme)" "120|-|-|-"',
     'ACT_NOW=$((ACT_NOW+700))   # pay penceresi asildi, kampanya kapanir',
     'ck "bitis: KAPSAM ve TUR birlikte" "$(tik "" "" "")"'
-    ' "-|1700000060|abdesthane|geri_yukleme"',
+    ' "-|1700000060|oakhost|geri_yukleme"',
     "",
     '# ── Tur degistiyse yazilmaz (yanlis tur yazmaktansa hic) ───',
     'sifirla',

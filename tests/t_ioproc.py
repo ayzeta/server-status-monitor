@@ -1,6 +1,6 @@
 """Surec basina I/O olcumunu KAYNAKTAN cikarip sahte /proc ile sinar.
 
-Can alici noktalar:
+Can acmeco noktalar:
   - Ilk turda hicbir sey yazilmaz (omur boyu sayaci bir dakikaya yazilamaz).
   - Hiz iki olcum FARKINDAN gelir.
   - PID yeniden kullanimi yakalanir: biten surecin sayaci yenisine yazilmaz.

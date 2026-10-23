@@ -30,9 +30,9 @@ rm -rf "$SEED"; mkdir -p "$SEED"
 cp demo/seed.snapshot "$SEED/.proc_snapshot"
 # Artış görünümü için iki günlük kayıt: dünkü ve bugünkü.
 { printf "%s" "$(date -d yesterday +%F 2>/dev/null || date +%F)"
-  printf " pergo:21.300 ladoor:13.050 hitacomt:10.200 akenturc:8.550 alici:8.400\n"
+  printf " bluewave:21.300 shopfast:13.050 zencache:10.200 harborlab:8.550 acmeco:8.400\n"
   printf "%s" "$(date +%F)"
-  printf " pergo:22.635 ladoor:13.068 hitacomt:10.342 akenturc:8.573 alici:8.400\n"
+  printf " bluewave:22.635 shopfast:13.068 zencache:10.342 harborlab:8.573 acmeco:8.400\n"
 } > "$SEED/.diskacct_history"
 printf "<?php\nreturn ['home_dir' => '%s'];\n" "$SEED" > src/config.php
 temizle(){ rm -rf "$SEED"; rm -f src/config.php; }
