@@ -520,6 +520,7 @@ PYEOF
   # SMART on-arizasi (SAATLIK cache): smartd zaten mail atiyor — burada SADECE
   # sorunlu diski gosteririz (FAILED saglik / realloc / pending sektorler).
   # Saglikli disk hic gorunmez (alarm-only). smartctl yoksa sessizce atlanir.
+  prof "temel sayimlar (hesap, mailq, mysql ping, disk)"
   SMC=$DATA_DIR/.smart_cache
   if command -v smartctl >/dev/null 2>&1 && { [ ! -f "$SMC" ] || [ $(( $(date +%s) - $(stat -c %Y "$SMC" 2>/dev/null || echo 0) )) -gt 3600 ]; }; then
     : > "$SMC.tmp"
@@ -556,6 +557,7 @@ PYEOF
       $1 ~ /^D/ {c++}
       $1 ~ /^R/ {d++}
       END{print a+0, b+0, c+0, d+0}' "$PS_COMM")
+  prof "SMART / RAID / inode / ag hizi"
   echo "lsphp_total $PS_LT"
   echo "lsphp_idle $PS_LI"
   # D-state: diskte bloklanan surec sayisi — "load yuksek ama CPU dusuk" teshisinin anahtari
@@ -867,6 +869,7 @@ PYEOF
     fi
     echo "act_csfag_end $CAG_END"
   fi
+  prof "etkinlik tarayicilari (backup, wpt, imunify tarama, csf-autogroup)"
   # ── Guncelleme durumu ───────────────────────────────────────────
   # REPO_DIR config.env'den gelir (kurulumun calistigi git kopyasi). Yoksa bu blok
   # tamamen atlanir — panoda guncelleme satiri hic gorunmez.
@@ -951,6 +954,7 @@ PYEOF
   # degisen-dosya gurultusu (incremental).
   # 5 DK CACHE: CLI ~1.2 sn CPU/dakika ederdi; tarama yasi/hedefi yavas degisir,
   # 5 dk bayat veri sorun degil. Cache "yas dosya tip" satiri tutar (bos olabilir).
+  prof "guncelleme kontrolu (git)"
   IMC=$DATA_DIR/.imunify_cache
   if [ ! -f "$IMC" ] || [ $(( $(date +%s) - $(stat -c %Y "$IMC" 2>/dev/null || echo 0) )) -gt 300 ]; then
     if timeout 10 imunify360-agent malware on-demand list --json 2>/dev/null | python3 -c '
@@ -1021,7 +1025,7 @@ except Exception:
   echo "diskio_r $(( (R2-R1)*512/1024 ))"
   echo "diskio_w $(( (W2-W1)*512/1024 ))"
   echo
-  prof "root denetimleri (mailq, mysql, disk, smart, etkinlikler)"
+  prof "imunify + kalan root denetimleri"
   echo "--- Service ages ---"
   # Ana daemon'larin calisma suresi (etimes, sn). Coklu surecte en eskisi = daemon.
   # Dashboard <1 saatlik servisi "restarted X ago" notuyla gosterir (renk yok).
