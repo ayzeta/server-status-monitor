@@ -345,8 +345,17 @@ remember where the checkout lives:
 | `ssmon update` | pull and redeploy if GitHub is ahead |
 | `ssmon reinstall` | re-run the installer (change settings) |
 | `ssmon collect` | run the collector once, in the foreground |
+| `ssmon profile` | same, but timed: prints how long each section took |
 | `ssmon uninstall` | remove it (add `--purge` to drop `config.php` too) |
 | `ssmon version` | print the deployed version |
+
+`ssmon profile` is there because a cron job is hard to time from the outside:
+run the collector by hand and it either collides with the scheduled run and
+exits on the single-instance lock, or it includes the 20-second wait that keeps
+it clear of the top-of-minute cron storm. The profile run skips both, collects
+for real, and prints a line per section — so a change's cost is measured rather
+than guessed. It does advance the counters the next scheduled run differences
+against, so that run covers a shorter window.
 
 Run it **as root**. `sudo ssmon …` often answers *command not found*: the command
 lives in `/usr/local/bin`, which sudo's `secure_path` leaves out of `PATH` on

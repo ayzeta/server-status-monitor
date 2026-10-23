@@ -17,11 +17,35 @@ HOME_DIR="/home/$WEB_USER"
 # ya da bir çalışma sonraki cron'a taşınca, iki instance aynı .tmp dosyalarına
 # yazıp "mv: cannot stat" üretmesin. Kilit alınamazsa (başka örnek çalışıyor)
 # sessizce çık; kilit dosyası açılamazsa kilitsiz devam; flock yoksa atla.
-if command -v flock >/dev/null 2>&1 && exec 9>"/var/run/ssm-collector-$WEB_USER.lock" 2>/dev/null; then
+#
+# PROFIL MODU (SSM_PROFILE=1, "ssmon profile"): kilidi ve uykuyu atlar, her
+# bolumun suresini stderr'e yazar. Kilidi atlamasinin sebebi olculdu: elle
+# calistirilan bir olcum cron turuna denk geldiginde kilide takilip sessizce
+# cikiyor ve "profil bos dondu" diye dakikalar kaybediliyordu. Veri normal
+# akisiyla uretilir — yani olculen sey GERCEK turun maliyetidir.
+# NOT: "exec 9>dosya 2>/dev/null" YANLISTI — exec'e komut verilmeyince yanindaki
+# yonlendirme KABUGUN KENDISINE kalici uygulanir, yani o satirdan sonra betigin
+# TUM stderr'i /dev/null'a gidiyordu. Hatalar sessizce kayboluyordu ve bash -x
+# ile profil almak imkansizdi (iz tam burada kesiliyordu). Susturma artik
+# yalnizca exec'in kendi hatasini kapsiyor.
+if [ "${SSM_PROFILE:-0}" != "1" ] && command -v flock >/dev/null 2>&1 \
+   && { exec 9>"/var/run/ssm-collector-$WEB_USER.lock"; } 2>/dev/null; then
   flock -n 9 || exit 0
 fi
 export PATH=/usr/local/cpanel/bin:/usr/local/cpanel/3rdparty/bin:/usr/sbin:/usr/bin:/sbin:/bin
-sleep 20   # dodge the top-of-minute cron storm
+# Bolum suresi olcumu: yalniz profil modunda calisir, normal turda tek "if".
+PROF_T0=0; PROF_TB=0
+if [ "${SSM_PROFILE:-0}" = "1" ]; then
+  PROF_T0=$(date +%s%3N); PROF_TB=$PROF_T0
+  echo "profil modu: 20 sn uyku ve tek-ornek kilidi atlandi; veri normal akisiyla uretiliyor" >&2
+fi
+prof(){
+  [ "${SSM_PROFILE:-0}" = "1" ] || return 0
+  local n; n=$(date +%s%3N)
+  printf '%7d ms  %s\n' "$(( n - PROF_T0 ))" "$1" >&2
+  PROF_T0=$n
+}
+[ "${SSM_PROFILE:-0}" = "1" ] || sleep 20   # dodge the top-of-minute cron storm
 
 # --- TEK SUREC ANLIK GORUNTUSU ----------------------------------------------
 # Eskiden ayni turda ON BIR ayri "ps" calisiyordu ve her biri /proc'u bastan
@@ -270,6 +294,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # Uc liste de TEK anlik goruntuden (bkz. PS_SNAP). Baslik satiri korunuyor:
   # ayristirici ilk satiri "ps basligi" diye atliyor ve guncelleme sirasindaki
   # bir turda diskte eski bicim kalabilir.
+  prof "hazirlik (ps anlik goruntuleri, cpu/ag sayaclari)"
   echo "--- Top 15 by CPU ---"
   echo "PID USER %CPU %MEM ELAPSED COMMAND"
   sort -k5,5 -rn "$PS_SNAP" | head -15 | awk "$PS_ELAPSED"'{
@@ -285,6 +310,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   echo "--- lsphp per user ---"
   awk '$6=="lsphp"{c[$2]++} END{for(u in c) printf "%d %s lsphp\n", c[u], u}' "$PS_COMM" | sort -rn | head -15
   echo
+  prof "surec listeleri (cpu/rss/lsphp)"
   echo "--- Security checks ---"
   # CSF durumu TEK bir dosyadan okunamaz. "csf.disable yoksa acik" demek yetmiyor:
   # bir CSF yukseltmesi guvenlik duvarini YUKLENMEMIS birakabiliyordu (CSF 16.33-1
@@ -370,6 +396,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   [ -n "$C" ] && echo "cagefs $C"
   [ -n "$C" ] && [ "$CAG_AT" != "0" ] && echo "cagefs_at $CAG_AT"
   echo
+  prof "guvenlik denetimleri (csf, modsec, cagefs)"
   echo "--- WHM services ---"
   # whmapi1 servicestatus UCUZ DEGIL: uretimde olculdu, 2,86 saniye (bir turun
   # en pahali adimi). Ama verdigi sey chkservd'nin SON TURUNUN sonucu; chkservd
@@ -399,6 +426,7 @@ OUT="$HOME_DIR/.proc_snapshot"
   # Olcum ani: chkservd'nin kendi tur zamani (dosya yoksa 0 = bilinmiyor).
   [ "$CHK_AT" != "0" ] && echo "svc_at $CHK_AT"
   echo
+  prof "whm servis durumlari"
   echo "--- Root checks ---"
   echo "acct $(find /var/cpanel/users -maxdepth 1 -type f ! -name system 2>/dev/null | wc -l)"
   MQN=$(exim -bpc 2>/dev/null || echo -1)
@@ -993,6 +1021,7 @@ except Exception:
   echo "diskio_r $(( (R2-R1)*512/1024 ))"
   echo "diskio_w $(( (W2-W1)*512/1024 ))"
   echo
+  prof "root denetimleri (mailq, mysql, disk, smart, etkinlikler)"
   echo "--- Service ages ---"
   # Ana daemon'larin calisma suresi (etimes, sn). Coklu surecte en eskisi = daemon.
   # Dashboard <1 saatlik servisi "restarted X ago" notuyla gosterir (renk yok).
@@ -1005,6 +1034,7 @@ except Exception:
       for(j=1;j<=n;j++){ p=L[j]; if(c==p || index(c, p " ")==1){ if(e>m[p]) m[p]=e } } }
     END{ for(p in m) print "svcage", p, m[p] }'
   echo
+  prof "servis yaslari"
   echo "--- Versions ---"
   # Kart basliklarinin altinda gosterilen surumler — CSF mail ekinde
   # guncelleme-sonrasi teshis icin ("hangi surumdeyken bozuldu").
@@ -1037,6 +1067,7 @@ except Exception:
   # Kernel cache disinda: uname bedava ve reboot sonrasi aninda dogru olmali
   echo "ver kernel Linux $(uname -r)"
   echo
+  prof "surumler"
   echo "--- Top disk accounts ---"
   # En cok disk kullanan 5 cPanel HESABI (sistem kullanicilari haric). Kaynak:
   # repquota CSV (kota dosyasini okur, filesystem gezmez → ucuz). SAATLIK cache
@@ -1078,6 +1109,7 @@ except Exception:
   fi
   cat "$DAC" 2>/dev/null
   echo
+  prof "disk hesaplari (kota)"
   echo "--- Top IO accounts ---"
   # Hesap basina DISK I/O (KB/s, okuma+yazma, son 1 dakikanin ortalamasi).
   # KAYNAK 1 — /proc/lve/list (CEKIRDEK ARAYUZU). Eskiden burada "lveinfo"
@@ -1212,6 +1244,7 @@ PYEOF
   fi
   [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
   echo
+  prof "hesap I/O (lve)"
   echo "--- Top IO processes ---"
   # SUREC basina disk I/O (KB/s). Kaynak /proc/<pid>/io: read_bytes+write_bytes
   # BLOK katmanindan okunur (sayfa onbelleginden degil), yani IO beklemeyi ureten
@@ -1299,9 +1332,11 @@ PYEOF
   # Tarihce 15. kolonu icin: o dakikanin en cok I/O yapan hesabi "hesap:kbps".
   TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5)}')
   echo
+  prof "surec I/O (/proc io)"
   echo "--- MySQL queries ---"
   timeout 3 mysql -N -B -e "SELECT id, user, IFNULL(db,'-'), time, IFNULL(state,'-'), REPLACE(REPLACE(REPLACE(LEFT(info,150),'\n',' '),'\r',' '),'\t',' ') FROM information_schema.PROCESSLIST WHERE command <> 'Sleep' AND info IS NOT NULL AND time >= 5 AND id <> CONNECTION_ID() ORDER BY time DESC LIMIT 10" 2>/dev/null || true
 } > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"
+prof "mysql sorgulari + anlik goruntuyu yaz"
 chown "$WEB_USER:$WEB_USER" "$OUT"
 chmod 640 "$OUT"
 
@@ -1373,4 +1408,9 @@ if [ "$(tail -1 "$DHIST" 2>/dev/null | awk '{print $1}')" != "$DTODAY" ]; then
   echo "$DTODAY $DUSED" >> "$DHIST"
   tail -400 "$DHIST" > "$DHIST.tmp" && mv "$DHIST.tmp" "$DHIST"
   chown "$WEB_USER:$WEB_USER" "$DHIST"; chmod 640 "$DHIST"
+fi
+# Profil modunda toplam: bolum sureleri ile uyumlu olsun diye en sonda.
+if [ "${SSM_PROFILE:-0}" = "1" ]; then
+  prof "tarihce satirlari"
+  printf '%7d ms  TOPLAM (uyku haric)\n' "$(( $(date +%s%3N) - PROF_TB ))" >&2
 fi
