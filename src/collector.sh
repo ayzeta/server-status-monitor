@@ -346,11 +346,58 @@ OUT="$HOME_DIR/.proc_snapshot"
   fi
   M=$(awk '/^[[:space:]]*SecRuleEngine/{print $2; exit}' /etc/apache2/conf.d/modsec/modsec2.cpanel.conf 2>/dev/null)
   [ -n "$M" ] && echo "modsec $M"
-  C=$(cagefsctl --cagefs-status 2>/dev/null | head -1)
+  # cagefsctl python baslatiyor: olculdu, 814 ms. CageFS'in acik/kapali olmasi
+  # dakikalik degisen bir sey degil; ayrica degistiginde /etc/cagefs altinda bir
+  # seyler degisir. Bu yuzden DIZIN MTIME'I degistiginde (ya da en gec 15 dakikada
+  # bir) soruluyor. Yaniti ne zaman aldigimiz cagefs_at ile yaziliyor ki ekran
+  # "su an boyle" demek yerine ne zaman olculdugunu soyleyebilsin.
+  CAG_CACHE="$DATA_DIR/.cagefs_cache"
+  CAG_MARK="$DATA_DIR/.cagefs_mark"
+  CAG_DIRT=$(stat -c %Y /etc/cagefs 2>/dev/null || echo 0)
+  CAG_PREV=$(cat "$CAG_MARK" 2>/dev/null || echo "")
+  CAG_AT=$(stat -c %Y "$CAG_CACHE" 2>/dev/null || echo 0)
+  if [ ! -s "$CAG_CACHE" ] || [ "$CAG_DIRT" != "$CAG_PREV" ] \
+     || [ $(( $(date +%s) - CAG_AT )) -gt 900 ]; then
+    C=$(cagefsctl --cagefs-status 2>/dev/null | head -1)
+    if [ -n "$C" ]; then
+      printf '%s\n' "$C" > "$CAG_CACHE.tmp" && mv -f "$CAG_CACHE.tmp" "$CAG_CACHE"
+      chmod 600 "$CAG_CACHE" 2>/dev/null
+      printf '%s' "$CAG_DIRT" > "$CAG_MARK"; chmod 600 "$CAG_MARK" 2>/dev/null
+      CAG_AT=$(date +%s)
+    fi
+  fi
+  C=$(cat "$CAG_CACHE" 2>/dev/null)
   [ -n "$C" ] && echo "cagefs $C"
+  [ -n "$C" ] && [ "$CAG_AT" != "0" ] && echo "cagefs_at $CAG_AT"
   echo
   echo "--- WHM services ---"
-  whmapi1 servicestatus 2>/dev/null | awk '$1=="enabled:"{e=$2} $1=="installed:"{i=$2} $1=="name:"{n=$2} $1=="running:"{print "svc", n, e+0, i+0, $2+0}'
+  # whmapi1 servicestatus UCUZ DEGIL: uretimde olculdu, 2,86 saniye (bir turun
+  # en pahali adimi). Ama verdigi sey chkservd'nin SON TURUNUN sonucu; chkservd
+  # dakikada bir calismiyor (olculdu: durum dosyalarinin mtime'i 60 saniyede
+  # degismedi). Yani her dakika sormak ayni cevabi tekrar satin almakti.
+  #
+  # Artik chkservd YENI OLCUM YAPTIGINDA soruyoruz: durum dosyalarinin en yeni
+  # mtime'i degistiyse whmapi1 calisir, degismediyse onceki cevap aynen yazilir.
+  # Bu BAYATLATMA DEGIL — ayni soruyu tekrar sormamak; altindaki olcum zaten o
+  # anda yapilmis olan. Kart "ne zaman olculdu"yu svc_at'ten okuyup yaziyor.
+  # Guvenlik agi: chkservd dursa bile (mtime donar) 15 dakikada bir yine sorulur.
+  SVC_CACHE="$DATA_DIR/.svc_cache"
+  SVC_MARK="$DATA_DIR/.svc_mark"
+  CHK_AT=$(stat -c %Y /var/run/chkservd/* 2>/dev/null | sort -rn | head -1)
+  [ -n "$CHK_AT" ] || CHK_AT=0
+  SVC_PREV=$(cat "$SVC_MARK" 2>/dev/null || echo "")
+  SVC_AGE=$(( $(date +%s) - $(stat -c %Y "$SVC_CACHE" 2>/dev/null || echo 0) ))
+  if [ ! -s "$SVC_CACHE" ] || [ "$CHK_AT" != "$SVC_PREV" ] || [ "$SVC_AGE" -gt 900 ]; then
+    SVC_NEW=$(whmapi1 servicestatus 2>/dev/null | awk '$1=="enabled:"{e=$2} $1=="installed:"{i=$2} $1=="name:"{n=$2} $1=="running:"{print "svc", n, e+0, i+0, $2+0}')
+    if [ -n "$SVC_NEW" ]; then
+      printf '%s\n' "$SVC_NEW" > "$SVC_CACHE.tmp" && mv -f "$SVC_CACHE.tmp" "$SVC_CACHE"
+      chmod 600 "$SVC_CACHE" 2>/dev/null
+      printf '%s' "$CHK_AT" > "$SVC_MARK"; chmod 600 "$SVC_MARK" 2>/dev/null
+    fi
+  fi
+  cat "$SVC_CACHE" 2>/dev/null
+  # Olcum ani: chkservd'nin kendi tur zamani (dosya yoksa 0 = bilinmiyor).
+  [ "$CHK_AT" != "0" ] && echo "svc_at $CHK_AT"
   echo
   echo "--- Root checks ---"
   echo "acct $(find /var/cpanel/users -maxdepth 1 -type f ! -name system 2>/dev/null | wc -l)"
@@ -1033,65 +1080,78 @@ except Exception:
   echo
   echo "--- Top IO accounts ---"
   # Hesap basina DISK I/O (KB/s, okuma+yazma, son 1 dakikanin ortalamasi).
-  # KAYNAK 1 — CloudLinux LVE (lveinfo): cgroup duzeyinde sayar, tur arasinda
-  # bitmis kisa omurlu surecleri (lsphp istekleri) de kapsar; en dogru kaynak.
-  # KAYNAK 2 — LVE yoksa /proc/<pid>/io: kullanici bazinda read_bytes+write_bytes
-  # toplaminin bir onceki turla farki (.io_state, CPU'daki .cpu_state yontemi).
-  # Tur arasinda bitmis surecler sayilmaz, yani EKSIK sayar; yine de "hangi
-  # hesap" sorusuna cevap verir. Ilk turda (onceki ornek yok) bos kalir.
-  # Yalnizca cPanel hesaplari (/var/cpanel/users). Satir: "ioacct hesap kbps iops"
-  # (iops yalnizca LVE'de). "io_src lve|proc" karta kaynagi soyler. Hicbir kaynak
-  # yoksa bolum bos kalir ve kart "veri bekleniyor" der.
+  # KAYNAK 1 — /proc/lve/list (CEKIRDEK ARAYUZU). Eskiden burada "lveinfo"
+  # calisiyordu: lvestats VERITABANINI sorguluyor, uretimde 1205 ms suruyor ve
+  # SON TAMAMLANAN dakikayi veriyordu. Yani hesap listesi ile surec listesi
+  # komsu iki dakikayi anlatiyor, toplamlari tutmuyordu.
+  #
+  # /proc/lve/list ayni cekirdek sayaclarini dogrudan veriyor; fark iki tur
+  # arasinda aliniyor (CPU'da /proc/stat icin yaptigimizin aynisi). Boylece
+  # pencere TOPLAYICININ KENDI ARALIGI olur — surec listesiyle AYNI 60 saniye.
+  #
+  # BICIM: dosya SEKME ile ayrilmis ve bos alanlar var; bosluga gore ayirmak
+  # sutunlari kaydirir. 25 sutun: 1=ID("0,<uid>") 16=IO 23=IOPS.
+  # BIRIM: uretimde olculdu — IO sayaci KB. Iki hesapta lveinfo ile karsilastirildi
+  # (136 KB/60 sn = 2,3 KB/s <-> lveinfo aIO 2; 104/60 = 1,7 <-> 1).
   IO_OUT=""
-  if command -v lveinfo >/dev/null 2>&1; then
-    LVEJ="$DATA_DIR/.lve_io.json"
-    for IOP in 1m 5m; do
-      timeout 10 lveinfo --period="$IOP" --show-columns=ID,aIO,aIOPS --display-username --json > "$LVEJ" 2>/dev/null || true
-      IO_OUT=$(python3 -I - "$LVEJ" "$IOP" <<'PYEOF'
-import json, sys, os, pwd, re
-try:
-    d = json.load(open(sys.argv[1]))
-except Exception:
-    sys.exit(0)
-def rows(o):
-    if isinstance(o, list) and o and isinstance(o[0], dict): return o
-    if isinstance(o, dict):
-        for v in o.values():
-            r = rows(v)
-            if r: return r
-    return []
+  if [ -r /proc/lve/list ]; then
+    IO_OUT=$(python3 -I - "$DATA_DIR/.lve_state" /proc/lve/list <<'PYEOF'
+import os, sys, time, pwd, re
+state = sys.argv[1]; now = time.time()
 cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else None
 ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
-out = []; gecerli = 0
-for r in rows(d):
-    io = next((r[k] for k in ('aIO', 'IO', 'io', 'aio') if k in r), None)
-    iops = next((r[k] for k in ('aIOPS', 'IOPS', 'iops', 'aiops') if k in r), None)
-    try: io = float(io)
-    except (TypeError, ValueError): continue
-    name = str(r.get('ID', ''))
-    if name.isdigit():
-        try: name = pwd.getpwuid(int(name)).pw_name
-        except KeyError: continue
+cur = {}
+# Veri dosyasi ARGUMAN olarak gelir: stdin'i python'un kendisi (program metni)
+# kullaniyor, oraya ayrica veri beslenemez.
+try:
+    satirlar = open(sys.argv[2]).read().splitlines()
+except Exception:
+    sys.exit(0)
+for ln in satirlar:
+    f = ln.split('\t')
+    if len(f) < 23 or ',' not in f[0]: continue          # baslik satiri ve bozuklar
+    try:
+        uid = int(f[0].split(',')[1]); io = int(f[15]); iops = int(f[22])
+    except (ValueError, IndexError):
+        continue
+    cur[uid] = (io, iops)
+prev = {}; pt = None
+try:
+    with open(state) as fh:
+        for ln in fh:
+            p = ln.split()
+            if len(p) == 2 and p[0] == 't': pt = float(p[1])
+            elif len(p) == 3: prev[int(p[0])] = (int(p[1]), int(p[2]))
+except Exception:
+    pass
+try:
+    with open(state + '.tmp', 'w') as fh:
+        fh.write('t %f\n' % now)
+        for u, (io, iops) in cur.items(): fh.write('%d %d %d\n' % (u, io, iops))
+    os.chmod(state + '.tmp', 0o600); os.replace(state + '.tmp', state)
+except Exception:
+    pass
+# Ilk tur / cok eski ornek: olcum YOK demektir, isaret de yazilmaz.
+if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)
+dt = now - pt
+out = []
+for uid, (io, iops) in cur.items():
+    if uid not in prev: continue                 # ilk gorulen hesap
+    pio, piops = prev[uid]
+    d = io - pio
+    if d < 0: continue                           # sayac sifirlanmis (LVE yeniden kuruldu)
+    try: name = pwd.getpwuid(uid).pw_name
+    except KeyError: continue
     if not ok.match(name) or (cp is not None and name not in cp): continue
-    try: iops = str(int(float(iops)))
-    except (TypeError, ValueError): iops = '-'
-    gecerli += 1
-    if io > 0: out.append((io, name, iops))
-# Olcum YAPILDI isareti: hic satir olmasa bile yazilir, cunku "I/O yapan hesap
-# yok" ile "olcum yok" ayri seyler. Pencere de yazilir (1m / 5m) — kart hangi
-# araligi gosterdigini artik varsaymiyor.
-if not gecerli: sys.exit(0)
-print("io_src lve %s" % (sys.argv[2] if len(sys.argv) > 2 else '?'))
-# SIFIR SATIRI YAZILMAZ: liste eskiden 15'e kadar "0 KB/s" hesaplarla
-# dolduruluyordu — kart boyu sabit kalsin diyeydi ama hicbir soruya cevap
-# vermiyordu ve iki gorunumun satir sayisi da yine tutmuyordu.
+    out.append((d / dt, name, max(0, iops - piops) / dt))
+# Olcum yapildi isareti: satir cikmasa bile yazilir ("yapan yok" != "olculemedi").
+print("io_src lve 1m")
 out.sort(reverse=True)
-for io, name, iops in out[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
+for kb, name, iops in out[:15]:
+    if kb <= 0: continue                         # sifir satiri yazilmaz
+    print("ioacct %s %.1f %d" % (name, kb, round(iops)))
 PYEOF
 )
-      [ -n "$IO_OUT" ] && break
-    done
-    rm -f "$LVEJ"
   fi
   if [ -z "$IO_OUT" ]; then
     IO_OUT=$(python3 -I - "$DATA_DIR/.io_state" <<'PYEOF'

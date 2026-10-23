@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.50'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.51'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -134,11 +134,14 @@ $TR = [
     'CPU · process' => 'İşlemci · süreç', 'RAM · process' => 'Bellek · süreç',
     'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
     'account' => 'hesap', 'process' => 'süreç', 'no process I/O measured' => 'süreç I/O ölçülemedi',
+    "Service up/down comes from cPanel's own chkservd round, which does not run every minute; the port checks beside them are probed live. This is when that round ran."
+        => 'Servislerin çalışıp çalışmadığı cPanel’in kendi chkservd turundan gelir ve chkservd her dakika koşmaz; yanlarındaki port kontrolleri ise canlı yapılır. Buradaki saat o turun zamanıdır.',
+    'measured %s' => '%s ölçüldü',
     'no account is doing I/O right now' => 'şu an disk I/O yapan hesap yok',
     'no process is doing I/O right now' => 'şu an disk I/O yapan süreç yok',
-    'Per-process disk I/O (read+write), average over the last 60 seconds. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, and this window is newer than the account view, so the two do not add up.'
-        => 'Süreç başına disk I/O (okuma+yazma), son 60 saniyenin ortalaması. Kaynak: /proc/<pid>/io farkları — iki ölçüm arasında doğup ölen süreç sayılmaz; ayrıca bu pencere hesap görünümünden daha yeni, o yüzden ikisinin toplamı tutmaz.',
-    'Per-account disk I/O (read+write). Source: CloudLinux LVE — counts every process of the account, short-lived ones included, but reports the last COMPLETED minute, so it can trail the process view by about a minute. Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma). Kaynak: CloudLinux LVE — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar, ama SON TAMAMLANAN dakikayı verir; bu yüzden süreç görünümünden yaklaşık bir dakika geride olabilir. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu',
+    'Per-process disk I/O (read+write), average over the last 60 seconds — the same window as the account view. Source: /proc/<pid>/io deltas: a process that started and ended between two samples is not counted, and root processes appear here but never in the account list, so the two do not add up.'
+        => 'Süreç başına disk I/O (okuma+yazma), son 60 saniyenin ortalaması — hesap görünümüyle aynı pencere. Kaynak: /proc/<pid>/io farkları: iki ölçüm arasında doğup ölen süreç sayılmaz, ayrıca root süreçleri burada görünür ama hesap listesinde asla görünmez; bu yüzden ikisinin toplamı tutmaz.',
+    'Per-account disk I/O (read+write), averaged over the last 60 seconds. Source: CloudLinux LVE kernel counters, differenced between two runs — counts every process of the account, short-lived ones included. Same window as the process view. Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), son 60 saniyenin ortalaması. Kaynak: CloudLinux LVE çekirdek sayaçlarının iki tur arasındaki farkı — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar. Süreç görünümüyle aynı pencere. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu',
     'Per-account disk I/O (read+write), average over the last minute. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), son dakikanın ortalaması. Kaynak: /proc/<pid>/io farkları — iki örnek arasında biten süreçler sayılmaz (eksik sayar). Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
     'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
@@ -236,7 +239,7 @@ function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (stri
 // root yazıp web kullanıcısına chown eder). Dosya yoksa bölüm görünmez.
 $procSnapFile = $HOME_DIR . '/.proc_snapshot';
 $sqlMinSec = 5; // cron'daki 'time >= N' ile aynı olmalı; placeholder metni de bunu kullanır
-$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $ioWin = ''; $ioProcOk = false; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
+$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAt = 0; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $ioWin = ''; $ioProcOk = false; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -281,6 +284,11 @@ if (is_readable($procSnapFile)) {
         } elseif (stripos($title, 'WHM services') !== false) {
             foreach ($lines as $ln) {
                 $p = preg_split('/\s+/', trim($ln)); // svc name enabled installed running
+                // "svc_at <epoch>": durumun NE ZAMAN ölçüldüğü (chkservd'nin tur
+                // zamanı). Pano bunu gösterir — "şu an" demek yerine ölçüm anını
+                // söylemek için; collector whmapi1'i chkservd her tur attığında
+                // çağırıyor, her dakika değil.
+                if (count($p) === 2 && $p[0] === 'svc_at') { $svcAt = (int)$p[1]; continue; }
                 if (count($p) === 5 && $p[0] === 'svc') {
                     $rootSvc[$p[1]] = ['name' => $p[1], 'enabled' => (int)$p[2],
                                        'installed' => (int)$p[3], 'running' => (int)$p[4]];
@@ -1311,9 +1319,14 @@ $secRoot[] = $msVal !== null
     ? ['label' => 'ModSecurity', 'ok' => strcasecmp($msVal, 'on') === 0, 'type' => 'check',
        'note' => 'SecRuleEngine ' . $msVal]
     : ['label' => 'ModSecurity', 'type' => 'cmd', 'cmd' => 'systemctl status httpd'];
+// CageFS durumu dakikada bir ölçülmez: cagefsctl 0,8 sn'lik bir python çağrısı ve
+// bu durum dakikalık değişen bir şey değil. Collector /etc/cagefs değiştiğinde
+// (ya da en geç 15 dakikada bir) soruyor; ölçüm anı ipucunda yazıyor.
 $secRoot[] = isset($procSec['cagefs'])
     ? ['label' => 'CageFS', 'ok' => stripos($procSec['cagefs'], 'enabled') !== false, 'type' => 'check',
-       'note' => strtolower($procSec['cagefs'])] // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
+       'note' => strtolower($procSec['cagefs']), // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
+       'noteT' => isset($procSec['cagefs_at']) && is_numeric($procSec['cagefs_at'])
+                ? tf('measured %s', date('H:i', (int)$procSec['cagefs_at'])) : null]
     : ['label' => 'CageFS', 'type' => 'cmd', 'cmd' => 'cagefsctl --cagefs-status'];
 
 $secChecks = array_merge([
@@ -2091,7 +2104,9 @@ function renderChecks($checks) {
                   // olmaz: bu panoda sarı, ölçülmüş bir değerin eşiği aşması.
                   . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : (!empty($c['unknown']) ? 'muted' : 'err')) . '"></span>'
                   . '<span class="sub-lbl">' . htmlspecialchars($c['label']) . $ver . '</span>'
-                  . '<span class="sub-note">' . $note . '</span>'
+                  // noteT: notun KAYNAĞI/ÖLÇÜM ANI (ör. CageFS durumu dakikada bir
+                  // değil, değiştiğinde ölçülüyor — ekran bunu söyleyebilsin).
+                  . '<span class="sub-note"' . (isset($c['noteT']) ? ' title="' . htmlspecialchars($c['noteT'], ENT_QUOTES, 'UTF-8') . '"' : '') . '>' . $note . '</span>'
                   . $age
                   . '</div>' . "\n";
         }
@@ -2349,19 +2364,22 @@ function ioProcRows($ioProc, $h, $olctu = false) {
 }
 function renderIoCard($ioAcct, $ioSrc, $h) {
     global $ioProc, $ioWin, $ioProcOk;
-    // ÖLÇÜLEN (2026-10-22): LVE'nin verdiği kova SON TAMAMLANAN dakikadır; süreç
-    // listesi ise collector'ın kendi son 60 saniyesidir. Aynı anlık görüntüde
-    // yan yana dursalar da komşu iki dakikayı anlatabiliyorlar — bir hesabın
-    // süreçte 67 KB/s, hesap listesinde 32 KB/s görünmesinin sebebi buydu; o
-    // değer bir periyot sonra LVE'ye de geldi (65). İpucu artık bunu söylüyor.
+    // KAPANDI (2026-10-23): iki liste artık AYNI pencereyi anlatıyor. Eskiden
+    // hesap tarafı lveinfo'dan geliyordu ve o SON TAMAMLANAN dakikayı veriyordu;
+    // bir hesap süreçte 67 KB/s, hesap listesinde 32 KB/s görünüyordu (değer bir
+    // periyot sonra LVE'ye de geldi, 65). Artık collector LVE çekirdek
+    // sayaçlarının farkını alıyor, yani pencere süreç listesiyle aynı 60 saniye.
+    // Kalan tek fark KAPSAM: LVE yalnız cPanel hesaplarını görür ama kısa ömürlü
+    // süreçleri de sayar; /proc tarafı root dahil her şeyi görür ama iki ölçüm
+    // arasında ölen süreci göremez. Toplamların tutmaması bundan — ipucu bunu der.
     $tip = $ioSrc === 'proc'
          ? t('Per-account disk I/O (read+write), average over the last minute. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total')
-         : t('Per-account disk I/O (read+write). Source: CloudLinux LVE — counts every process of the account, short-lived ones included, but reports the last COMPLETED minute, so it can trail the process view by about a minute. Color: red ≥60%, orange ≥30% of the listed total');
+         : t('Per-account disk I/O (read+write), averaged over the last 60 seconds. Source: CloudLinux LVE kernel counters, differenced between two runs — counts every process of the account, short-lived ones included. Same window as the process view. Color: red ≥60%, orange ≥30% of the listed total');
     // İki görünüm aynı kartta: hesap ve süreç. KAPSAMLARI FARKLI, biri ötekinin
     // yerine geçmez — hesap tarafı kısa ömürlü süreçleri de kapsar ama yalnız
     // cPanel hesaplarını görür; süreç tarafı root dahil her şeyi görür ama iki
     // ölçüm arasında ölen süreci göremez. Bu yüzden toplamları birbirini tutmaz.
-    $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), average over the last 60 seconds. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, and this window is newer than the account view, so the two do not add up.'), ENT_QUOTES, 'UTF-8');
+    $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), average over the last 60 seconds — the same window as the account view. Source: /proc/<pid>/io deltas: a process that started and ended between two samples is not counted, and root processes appear here but never in the account list, so the two do not add up.'), ENT_QUOTES, 'UTF-8');
     // Pencere etikette yazar: LVE 1 dakikalık kova veremezse collector 5'e düşüyor.
     $winLbl = preg_match('/^(\d+)m$/', (string)$ioWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '';
     $out = '<div class="proc-card io-acct" id="io-card"><div class="proc-title">' . t('I/O')
@@ -3183,7 +3201,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
 </div>
 
-<div class="sec" style="margin-top:12px"><span><?=upper(t('Services'))?></span><i class="sec-hair"></i></div>
+<?php
+/* Servis durumlarinin OLCUM ANI gorunur: bunlar cPanel'in chkservd turundan
+   gelir ve chkservd dakikada bir kosmaz. Yanlarindaki port kontrolleri canli.
+   "Su an" demek yerine ne zaman olculdugunu yaziyoruz. */
+?>
+<div class="sec" style="margin-top:12px"><span><?=upper(t('Services'))?></span><i class="sec-hair"></i><span class="sec-range" id="svc-at" title="<?=htmlspecialchars(t("Service up/down comes from cPanel's own chkservd round, which does not run every minute; the port checks beside them are probed live. This is when that round ran."), ENT_QUOTES, 'UTF-8')?>"><?=$svcAt ? 'chkservd ' . date('H:i', $svcAt) : ''?></span></div>
 <div class="svcs-row1">
   <div class="svc-card">
     <div class="svc-top">

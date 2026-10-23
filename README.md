@@ -155,11 +155,13 @@ header button (per-browser, cookie-based). The version shows in the footer.
   The process view comes from `/proc/<pid>/io` deltas, which sees everything
   including root — `mariadbd`, a backup, a scanner — but cannot see a process
   that started and ended between two readings. It lists the user and the full
-  command, so the answer is on the row rather than in a tooltip. The two are
-  also **one window apart**: LVE reports the last *completed* minute while the
-  process list measures the last 60 seconds, which is why a burst can show up
-  in one before the other — the account tab states the window it is showing
-  (`LVE 1m`, or `5m` when the shorter bucket is unavailable). Neither list pads
+  command, so the answer is on the row rather than in a tooltip. Both sides
+  measure **the same 60 seconds**: the account view differences CloudLinux's LVE
+  kernel counters between two collector runs rather than querying the lvestats
+  database, which reported the last *completed* minute and so trailed the
+  process list by about a minute. What still differs is scope, not timing — a
+  root process shows up in the process list and can never appear in the account
+  list. Neither list pads
   itself with `0 KB/s` rows: an account that is doing nothing is not news, so
   an empty list says so in one line, and "measured, nobody is doing I/O" and
   "no measurement yet" are different sentences. The card carries both, and an
@@ -234,7 +236,7 @@ header button (per-browser, cookie-based). The version shows in the footer.
 - PHP 7.4+ served for the web account (defaults work; no extensions required
   beyond `posix` for user auto-detect).
 - Optional tools are feature-detected: `smartctl`, `mdadm`/`/proc/mdstat`,
-  `imunify360-agent`, `csf`, `repquota`, `lveinfo`. Missing ones are silently
+  `imunify360-agent`, `csf`, `repquota`. Missing ones are silently
   skipped. `python3` is used for the I/O and Ayzeta Backup readers.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for which cPanel and CSF releases the
@@ -512,10 +514,14 @@ web account ── index.php ◀──────────────┘  r
   can read it. No world-readable root files. Its own state (`.act_state`,
   `.io_state`, `.upd_state`, caches, `.act_matches.log`) stays root-only under
   the collector directory.
-- **Per-account I/O** comes from CloudLinux LVE (`lveinfo`, 1-minute average,
-  short-lived processes included) and, where LVE is absent, from the per-process
-  `/proc/<pid>/io` counters diffed between runs (processes that end between two
-  samples are not counted — the card says which source it is using).
+- **Per-account I/O** comes from CloudLinux's LVE counters in `/proc/lve/list`,
+  differenced between runs (short-lived processes included), and where LVE is
+  absent from the per-process `/proc/<pid>/io` counters diffed the same way
+  (processes that end between two samples are not counted — the card says which
+  source it is using). The kernel file is read directly rather than through
+  `lveinfo`, which queries the lvestats database: a tenth of a second instead of
+  over one, and the figure covers the collector's own interval instead of the
+  last minute lvestats had finished writing.
 - The dashboard renders server-side (also for the email attachment) and refreshes
   every 30 s via `?json=1`. The same thresholds live in PHP and JS, kept in sync.
 - **CPU, IO wait and network throughput are 60-second averages**, computed by the
