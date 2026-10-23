@@ -643,6 +643,32 @@ and the *Clear* marker.
 dashboard on synthetic data (no backend), cycling through a load spike, a MySQL
 query pileup, and recovery.
 
+## Tests
+
+```bash
+bash tests/calistir.sh          # all of them
+bash tests/calistir.sh lve io   # only tests whose name matches
+```
+
+Around 250 assertions over 26 tests, and they run in seconds: there is no
+server, no database and no browser involved. **Each test pulls the code it
+checks out of the source file and runs that** — the awk program from
+`collector.sh`, the Python embedded in it, the JavaScript twin inside
+`index.php` — so a test cannot quietly pass against a copy that has drifted
+from the product.
+
+They cover the parts that fail silently rather than loudly: the snapshot
+contract between collector and dashboard (every section written is a section
+read), the PHP and JavaScript twins producing byte-identical rows, the CSF
+state machine's two-sample confirmation, counter-difference arithmetic for
+disk and per-account I/O, the `/proc` fallback used on servers without
+CloudLinux, the 900-byte SMTP line limit in the rendered page, and the
+uninstaller's list of what it removes.
+
+`python3` is required; tests needing `php` or `node` are skipped with a note
+when those are missing, and one test that needs Linux's own `ps` is skipped
+elsewhere. Everything else runs on Linux, macOS and Git Bash alike.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

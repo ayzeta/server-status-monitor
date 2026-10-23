@@ -1,0 +1,23 @@
+# Testlerin KOŞARKEN ürettiği dosyalar: ürün kodunu kaynaktan çıkarıp geçici
+# bir koşum dosyasına yazıyorlar. Bunlar çıktı, kaynak değil.
+*_mod.py
+t_*.php
+t_*.json
+t_*.txt
+t_*_state
+t_iop.ps
+# Üretilen koşum betikleri (aynı adlı .py testleri yazıyor)
+t_csf.sh
+t_dahist.sh
+t_kanit.sh
+t_pay.sh
+t_tur.sh
+t_growikiz.js
+t_ioikiz.js
+t_sslikiz.js
+# Geçici çalışma dizinleri
+t_ioproc/
+t_lve_cp/
+t_iofb/
+t_diskio_data/
+bosdurum/
