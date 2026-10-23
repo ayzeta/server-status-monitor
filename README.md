@@ -643,6 +643,20 @@ and the *Clear* marker.
 dashboard on synthetic data (no backend), cycling through a load spike, a MySQL
 query pileup, and recovery.
 
+Both the demo pages and the screenshots above are generated from the product,
+never drawn by hand:
+
+```bash
+bash demo/build.sh          # render docs/index.html and docs/tr/index.html
+python demo/screenshots.py  # refresh the four images from those pages
+```
+
+`build.sh` runs `src/index.php` against a fixture snapshot, so every card in the
+demo is the product's own markup; `screenshots.py` then shoots fixed scenes
+(`?snap=issues|recovery|calm`) at fixed sizes in headless Chrome, so the same
+input always yields the same image. It needs Chrome or Chromium — set `CHROME`
+if it isn't on `PATH` — and Pillow for the PNG-to-JPEG step.
+
 ## Tests
 
 ```bash
