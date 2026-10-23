@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.53'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.54'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -538,7 +538,9 @@ if ($d1 && $d2) {
 }
 // CageFS /proc/diskstats'ı sanallaştırıp GİZLİYOR (canlı testte doğrulandı:
 // loadavg/meminfo görünür, diskstats görünmez) — kendi örneklememiz boşsa
-// root cron'un 1 sn'lik ölçümüne (KB/s) düşülür.
+// root cron'un ölçümüne (KB/s) düşülür. O değer 2026-10-23'ten beri 1 saniyelik
+// anlık örnek değil, iki cron turu arasındaki sayaç farkı: yani CPU ve ağ gibi
+// ~60 saniyelik ortalama (hem bedava hem gürültüsüz).
 if ($ioRead === null && $rootFresh && isset($procSec['diskio_r']) && is_numeric($procSec['diskio_r'])) {
     $ioRead  = max(0, (int)$procSec['diskio_r'] * 1024);
     $ioWrite = max(0, (int)($procSec['diskio_w'] ?? 0) * 1024);

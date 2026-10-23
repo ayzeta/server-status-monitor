@@ -1018,12 +1018,29 @@ except Exception:
   # Disk R/W hizi (KB/s, 1 sn ornek): CageFS icindeki PHP /proc/diskstats'i
   # GOREMIYOR (canli testte dogrulandi) — IO Wait metasinin R/W kismi root'tan gelir.
   # Sadece tam diskler (partition cift sayar); sektor = 512 bayt.
+  # ESKIDEN BURADA "sleep 1" VARDI: iki ornek arasinda bir saniye bekleyip anlik
+  # hiz cikariliyordu. Olculdu — turun tam 1 saniyesi buna gidiyordu (toplam
+  # ~2,3 sn'nin neredeyse yarisi). Ayrica 1 saniyelik pencere yogun paylasimli
+  # sunucuda gurultulu: bir yedekleme parcasi o saniyeye denk gelirse tavan,
+  # denk gelmezse sifir gorunur. Artik CPU/ag/LVE'de oldugu gibi KUMULATIF
+  # sayaclarin bir onceki turla farki aliniyor — bedava ve 60 saniyelik ortalama.
+  # Ilk turda onceki ornek yok: deger hic yazilmaz (kart "—" gosterir).
   DRE='^(sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+)$'
-  read R1 W1 < <(awk -v re="$DRE" '$3 ~ re {r+=$6; w+=$10} END{print r+0, w+0}' /proc/diskstats)
-  sleep 1
+  DIO_STATE="$DATA_DIR/.diskio_state"
   read R2 W2 < <(awk -v re="$DRE" '$3 ~ re {r+=$6; w+=$10} END{print r+0, w+0}' /proc/diskstats)
-  echo "diskio_r $(( (R2-R1)*512/1024 ))"
-  echo "diskio_w $(( (W2-W1)*512/1024 ))"
+  DIO_NOW=$(date +%s)
+  if [ -r "$DIO_STATE" ]; then
+    read DIO_PT R1 W1 < "$DIO_STATE" 2>/dev/null
+    DIO_DT=$(( DIO_NOW - ${DIO_PT:-0} ))
+    # 5-600 sn arasi makul bir aralik; disi (ilk tur, uyku, saat atlamasi) atlanir.
+    if [ "$DIO_DT" -ge 5 ] && [ "$DIO_DT" -le 600 ] \
+       && [ "$R2" -ge "${R1:-0}" ] && [ "$W2" -ge "${W1:-0}" ]; then
+      echo "diskio_r $(( (R2 - R1) * 512 / 1024 / DIO_DT ))"
+      echo "diskio_w $(( (W2 - W1) * 512 / 1024 / DIO_DT ))"
+    fi
+  fi
+  echo "$DIO_NOW $R2 $W2" > "$DIO_STATE" 2>/dev/null
+  chmod 600 "$DIO_STATE" 2>/dev/null
   echo
   prof "imunify + kalan root denetimleri"
   echo "--- Service ages ---"
