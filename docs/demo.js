@@ -247,7 +247,7 @@
       mysqlThr:Math.round(S.mysqlThr), mysqlThrCol:thrCol(Math.round(S.mysqlThr)),
       procAge:32, snapMtime:(snap++),
       procCpu:procCpu(), procRam:procRam(), procPhp:procPhp(), procSql:procSql(), diskAcct:diskAcct(),
-      ioAcct:ioAcct(), ioProc:ioProc(), ioSrc:'lve',
+      ioAcct:ioAcct(), ioProc:ioProc(), ioSrc:'lve', ioWin:'1m', ioProcOk:true,
       // Artis gorunumu: pencere basina liste. Gercek panoda collector'in gunluk
       // kaydindan gelir; demoda sabit ornek.
       // Degerler GB; sutun birimini kendi yaziyor (1 GB alti MB).

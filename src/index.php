@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.48'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.49'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -134,10 +134,12 @@ $TR = [
     'CPU · process' => 'İşlemci · süreç', 'RAM · process' => 'Bellek · süreç',
     'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
     'account' => 'hesap', 'process' => 'süreç', 'no process I/O measured' => 'süreç I/O ölçülemedi',
-    'Per-process disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, so this does not add up to the account view.'
-        => 'Süreç başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: /proc/<pid>/io farkları — iki ölçüm arasında doğup ölen süreç sayılmaz, bu yüzden hesap görünümüyle toplamı tutmaz.',
-    'Per-account disk I/O (read+write), 1-minute average. Source: CloudLinux LVE — counts every process of the account, short-lived ones included. Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: CloudLinux LVE — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu',
-    'Per-account disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), 1 dakikalık ortalama. Kaynak: /proc/<pid>/io farkları — iki örnek arasında biten süreçler sayılmaz (eksik sayar). Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
+    'no account is doing I/O right now' => 'şu an disk I/O yapan hesap yok',
+    'no process is doing I/O right now' => 'şu an disk I/O yapan süreç yok',
+    'Per-process disk I/O (read+write), average over the last 60 seconds. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, and this window is newer than the account view, so the two do not add up.'
+        => 'Süreç başına disk I/O (okuma+yazma), son 60 saniyenin ortalaması. Kaynak: /proc/<pid>/io farkları — iki ölçüm arasında doğup ölen süreç sayılmaz; ayrıca bu pencere hesap görünümünden daha yeni, o yüzden ikisinin toplamı tutmaz.',
+    'Per-account disk I/O (read+write). Source: CloudLinux LVE — counts every process of the account, short-lived ones included, but reports the last COMPLETED minute, so it can trail the process view by about a minute. Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma). Kaynak: CloudLinux LVE — kısa ömürlü süreçler dahil hesabın tüm süreçlerini sayar, ama SON TAMAMLANAN dakikayı verir; bu yüzden süreç görünümünden yaklaşık bir dakika geride olabilir. Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu',
+    'Per-account disk I/O (read+write), average over the last minute. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total' => 'Hesap başına disk I/O (okuma+yazma), son dakikanın ortalaması. Kaynak: /proc/<pid>/io farkları — iki örnek arasında biten süreçler sayılmaz (eksik sayar). Renk: listelenen toplamın ≥%60 kırmızı, ≥%30 turuncu', 'PHP · account' => 'PHP · hesap', 'GB used' => 'GB dolu', 'active+idle' => 'aktif+boşta',
     'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
     'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
@@ -182,7 +184,7 @@ $TR = [
     'Keep screen awake' => 'Ekranı uyanık tut',
     'not installed' => 'kurulu değil', 'disabled (csf.disable)' => 'devre dışı (csf.disable)',
     'rules not loaded' => 'kurallar yüklü değil', 'no iptables' => 'iptables yok',
-    'growth' => 'artış', '%sd' => '%sg', 'new' => 'yeni',
+    'growth' => 'artış', '%sd' => '%sg', '%sm' => '%sdk', 'new' => 'yeni',
     '%s — AutoSSL renews within %s days of expiry; warning at %s days, critical at %s'
         => '%s — AutoSSL bitişe %s gün kala yeniliyor; uyarı %s günde, kritik %s',
     '%s — automatic renewal is not assumed; warning at %s days, critical at %s'
@@ -234,7 +236,7 @@ function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (stri
 // root yazıp web kullanıcısına chown eder). Dosya yoksa bölüm görünmez.
 $procSnapFile = $HOME_DIR . '/.proc_snapshot';
 $sqlMinSec = 5; // cron'daki 'time >= N' ile aynı olmalı; placeholder metni de bunu kullanır
-$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
+$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $ioWin = ''; $ioProcOk = false; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -315,8 +317,11 @@ if (is_readable($procSnapFile)) {
             }
         } elseif (stripos($title, 'Top IO accounts') !== false) {
             foreach ($lines as $ln) {
-                $p = preg_split('/\s+/', trim($ln)); // ioacct user kbps iops | io_src lve|proc
-                if (count($p) === 2 && $p[0] === 'io_src') $ioSrc = $p[1];
+                // "ioacct hesap kbps iops" | "io_src lve|proc <pencere>"
+                // Pencere (1m/5m) collector'dan gelir: LVE 1 dakikalık kova
+                // vermezse 5 dakikalığa düşüyor ve kart bunu artık varsaymıyor.
+                $p = preg_split('/\s+/', trim($ln));
+                if ($p[0] === 'io_src' && count($p) >= 2) { $ioSrc = $p[1]; $ioWin = $p[2] ?? ''; }
                 elseif (count($p) === 4 && $p[0] === 'ioacct' && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null];
             }
         } elseif (stripos($title, 'Top IO processes') !== false) {
@@ -329,6 +334,7 @@ if (is_readable($procSnapFile)) {
             // anlık görüntü bir tur boyunca eski collector'ın yazdığı hali olabilir.
             foreach ($lines as $ln) {
                 $p = preg_split('/\s+/', trim($ln), 5);
+                if ($p[0] === 'ioproc_ok') { $ioProcOk = true; continue; }
                 if ($p[0] !== 'ioproc') continue;
                 if (count($p) === 5 && ctype_digit($p[1]) && is_numeric($p[3]))
                     $ioProc[] = [$p[2], (float)$p[3], str_replace('_', ' ', $p[4])];
@@ -2029,7 +2035,7 @@ if (isset($_GET['json'])) {
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'mailqTop' => $mailqTop, 'mailqSampled' => $mailqSampled, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
         'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
-        'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioProc' => $ioProc, 'ioSrc' => $ioSrc,
+        'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioProc' => $ioProc, 'ioSrc' => $ioSrc, 'ioWin' => $ioWin, 'ioProcOk' => $ioProcOk,
         'acctGrowSet' => $acctGrowSet,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
@@ -2326,9 +2332,10 @@ function ioAcctCls($kb, $sum) {
 // gidiyor. Komut tooltipte durmuyor: kırpılan metin proc-cmd ile tıklayınca
 // açılıyor (CPU kartındaki bileşen). PID de yok — ölçüldü, komut sütununun
 // %31'ini götürüyordu ve buradaki süreçlerin çoğu bakılana kadar ölmüş oluyor.
-function ioProcRows($ioProc, $h) {
+function ioProcRows($ioProc, $h, $olctu = false) {
     if (!$ioProc) {
-        return '<tr><td colspan="3" style="color:var(--hint)">' . t('no process I/O measured') . '</td></tr>';
+        return '<tr><td colspan="3" style="color:var(--hint)">'
+             . ($olctu ? t('no process is doing I/O right now') : t('no process I/O measured')) . '</td></tr>';
     }
     $sum = 0;
     foreach ($ioProc as $p) { $sum += $p[1]; }
@@ -2341,31 +2348,45 @@ function ioProcRows($ioProc, $h) {
     return $out;
 }
 function renderIoCard($ioAcct, $ioSrc, $h) {
-    global $ioProc;
+    global $ioProc, $ioWin, $ioProcOk;
+    // ÖLÇÜLEN (2026-10-22): LVE'nin verdiği kova SON TAMAMLANAN dakikadır; süreç
+    // listesi ise collector'ın kendi son 60 saniyesidir. Aynı anlık görüntüde
+    // yan yana dursalar da komşu iki dakikayı anlatabiliyorlar — bir hesabın
+    // süreçte 67 KB/s, hesap listesinde 32 KB/s görünmesinin sebebi buydu; o
+    // değer bir periyot sonra LVE'ye de geldi (65). İpucu artık bunu söylüyor.
     $tip = $ioSrc === 'proc'
-         ? t('Per-account disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total')
-         : t('Per-account disk I/O (read+write), 1-minute average. Source: CloudLinux LVE — counts every process of the account, short-lived ones included. Color: red ≥60%, orange ≥30% of the listed total');
+         ? t('Per-account disk I/O (read+write), average over the last minute. Source: /proc/<pid>/io deltas — processes that ended between two samples are not counted (undercounts). Color: red ≥60%, orange ≥30% of the listed total')
+         : t('Per-account disk I/O (read+write). Source: CloudLinux LVE — counts every process of the account, short-lived ones included, but reports the last COMPLETED minute, so it can trail the process view by about a minute. Color: red ≥60%, orange ≥30% of the listed total');
     // İki görünüm aynı kartta: hesap ve süreç. KAPSAMLARI FARKLI, biri ötekinin
     // yerine geçmez — hesap tarafı kısa ömürlü süreçleri de kapsar ama yalnız
     // cPanel hesaplarını görür; süreç tarafı root dahil her şeyi görür ama iki
     // ölçüm arasında ölen süreci göremez. Bu yüzden toplamları birbirini tutmaz.
-    $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), 1-minute average. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, so this does not add up to the account view.'), ENT_QUOTES, 'UTF-8');
+    $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), average over the last 60 seconds. Source: /proc/<pid>/io deltas — a process that started and ended between two samples is not counted, and this window is newer than the account view, so the two do not add up.'), ENT_QUOTES, 'UTF-8');
+    // Pencere etikette yazar: LVE 1 dakikalık kova veremezse collector 5'e düşüyor.
+    $winLbl = preg_match('/^(\d+)m$/', (string)$ioWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '';
     $out = '<div class="proc-card io-acct" id="io-card"><div class="proc-title">' . t('I/O')
          // Her düğme AYRI satırda: ipuçları uzun (TR'de daha uzun) ve hepsi tek
          // satıra basılınca CSF mail ekinin 900 baytlık satır sınırı aşılıyordu.
          . '<span class="proc-age io-tabs">' . "\n"
-         . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . '</button>' . "\n"
+         . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . $winLbl . '</button>' . "\n"
          . '<button type="button" class="io-tab io-t-proc" data-io="proc" title="' . $ptip . '">' . t('process') . '</button>'
          . '</span></div>'
          // Tek başlık, iki görünüm: hesapta HESAP | (çubuk) | I/O, süreçte
          // PID | KULLANICI | KOMUT | I/O. Görünmeyen hücreler CSS ile düşüyor,
          // böylece başlıklar her iki gövdeyle de hizalı kalıyor.
+         // Tablo bir SARMAL içinde: yükseklik rezervi (sekme değişince sayfa
+         // kaymasın diye) buraya konuyor. Doğrudan tabloya konunca satırlar
+         // esneyip araları açılıyordu — tablo kendi boyunda kalmalı.
+         . '<div class="io-wrap">'
          . '<table class="proc-table"><thead><tr>' . "\n"
          . '<th><span class="ioh-a">' . upper(t('Account')) . '</span><span class="ioh-p">' . upper(t('User')) . '</span></th>'
          . '<th><span class="ioh-p">' . upper(t('Command')) . '</span></th>'
          . '<th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
+    // "Ölçüm yok" ile "ölçtük, kimse I/O yapmıyor" ayrı şeyler — eskiden liste
+    // 15 satıra sıfırlarla dolduruluyordu ve ikisi de aynı görünüyordu.
     if (!$ioAcct) {
-        $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('I/O data pending') . '</td></tr>';
+        $out .= '<tr><td colspan="3" style="color:var(--hint)">'
+              . ($ioSrc ? t('no account is doing I/O right now') : t('I/O data pending')) . '</td></tr>';
     }
     $mx = 0.1; $sum = 0;
     foreach ($ioAcct as $p) { if ($p[1] > $mx) $mx = $p[1]; $sum += $p[1]; }
@@ -2375,8 +2396,8 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
               . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
               . '<td class="num ' . ioAcctCls($p[1], $sum) . '"' . ($p[2] !== null ? ' title="' . $h($p[2]) . ' IOPS"' : '') . '>' . $h(fmtKbps($p[1])) . '</td></tr>' . "\n";
     }
-    $out .= '</tbody><tbody class="iop" id="pt-ioproc">' . "\n" . ioProcRows($ioProc, $h);
-    return $out . '</tbody></table></div>';
+    $out .= '</tbody><tbody class="iop" id="pt-ioproc">' . "\n" . ioProcRows($ioProc, $h, $ioProcOk);
+    return $out . '</tbody></table></div></div>';
 }
 
 function sqlTimeClass($t) { $t = (int)$t; return $t >= 60 ? 'hot' : ($t >= 10 ? 'warm' : ''); }
@@ -3965,22 +3986,33 @@ function renderProcs(data){
     });
   }
   const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
-  if(io&&data.ioAcct&&data.ioAcct.length){
+  // Bos liste artik olagan (sifir satiri yazilmiyor): eski satirlar kalirsa
+  // ekranda bayat veri durur. "Olctuk, kimse yapmiyor" ile "olcum yok" ayri.
+  if(io&&data.ioAcct!==undefined&&!(data.ioAcct||[]).length){
+    io.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioSrc?'no account is doing I/O right now':'I/O data pending')}</td></tr>`;
+  }else if(io&&data.ioAcct&&data.ioAcct.length){
     const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
     io.innerHTML=data.ioAcct.map(p=>{
       const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
       const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
   }
+  // Pencere etiketi tikte de tazelenir: LVE 1 dakikalık kovayı veremezse
+  // collector 5'e düşüyor; etiket bunu söylemek zorunda (ölçmediğimizi yazmayız).
+  const ioTab=document.querySelector('.io-t-acct');
+  if(ioTab&&data.ioSrc!==undefined){
+    const w=/^(\d+)m$/.exec(data.ioWin||'');
+    ioTab.textContent=t('account')+(data.ioSrc==='lve'?' · LVE':data.ioSrc==='proc'?' · /proc':'')+(w?' '+tf('%sm',w[1]):'');
+  }
   // Süreç başına I/O gövdesi — PHP ioProcRows() ikizi. Gizliyken de güncellenir
   // ki sekmeye geçildiğinde bayat veri görünmesin.
   const iop=document.getElementById('pt-ioproc');
   if(iop&&data.ioProc!==undefined){
     const g=data.ioProc||[];
-    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
+    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioProcOk?'no process is doing I/O right now':'no process I/O measured')}</td></tr>`;
     else{
       const sum=g.reduce((a,p)=>a+p[1],0);
-      iop.innerHTML=g.map(p=>{
+      iop.innerHTML=g.map(p=>{   // (yükseklik eşitlemesi aşağıda, gövde dolduktan sonra)
         const sh=sum>0?p[1]/sum:0;
         const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
         return `<tr><td class="proc-user">${esc(p[0])}</td>`+
@@ -3988,6 +4020,9 @@ function renderProcs(data){
           `<td class="num ${cls}">${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
     }
   }
+  // Satır sayıları tikle değişiyor: kartın ayırdığı yer de tazelensin, yoksa
+  // 30 sn'de bir sayfa aşağı yukarı oynar.
+  if(window.azIoEsitle)window.azIoEsitle();
   const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')
   const sql=document.getElementById('pt-sql');
   if(sql&&data.procSql){
@@ -4603,9 +4638,26 @@ if(location.protocol==='file:'){
   // I/O kartı görünüm seçicisi — disk kartındakiyle aynı desen.
   const ioCard=document.getElementById('io-card');
   if(ioCard){
+    // Sekme değişince SAYFA KAYMASIN: iki gövdenin satır sayısı farklı (hesap
+    // listesi kısa olabiliyor, süreç listesi 10'a kadar). Kart her zaman UZUN
+    // olanı kadar yer ayırır; ızgara kartları zaten eşitlediği için bu, alttaki
+    // MySQL kartının yerinden oynamasını önler. Satır yüksekliği ölçülerek
+    // alınır (yazı tipi/zum değişebilir), sabit piksel varsayılmaz.
+    const ioEsitle=()=>{
+      const sar=ioCard.querySelector('.io-wrap'),t=ioCard.querySelector('table'),
+            a=document.getElementById('pt-io'),p=document.getElementById('pt-ioproc');
+      if(!sar||!t||!a||!p)return;
+      const gor=ioCard.classList.contains('io-proc')?p:a;
+      const satir=gor.rows[0]?gor.rows[0].offsetHeight:0;
+      if(!satir)return;
+      const n=Math.max(a.rows.length,p.rows.length);
+      sar.style.minHeight=((t.tHead?t.tHead.offsetHeight:0)+n*satir)+'px';
+    };
+    window.azIoEsitle=ioEsitle;          // tik sonrası da çağrılır
     const ioSet=v=>{ioCard.classList.toggle('io-proc',v==='proc');
-      ioCard.classList.toggle('io-acct',v!=='proc');};
+      ioCard.classList.toggle('io-acct',v!=='proc'); ioEsitle();};
     try{const v=localStorage.getItem('az-io-view');if(v)ioSet(v);}catch(e){}
+    ioEsitle();                          // sunucu render'ından sonraki ilk ölçüm
     document.addEventListener('click',e=>{
       const b=e.target.closest&&e.target.closest('.io-tab');
       if(!b)return;

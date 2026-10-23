@@ -19,10 +19,11 @@ diskacct ladoor 13.1
 diskacct hitacomt 10.8
 
 --- Top IO accounts ---
-io_src lve
+io_src lve 1m
 ioacct makinem 45.0 12
 ioacct izmirdepo 35.0 9
 
 --- Top IO processes ---
+ioproc_ok 1m
 ioproc 2295514 mysql 2048.0 /usr/sbin/mariadbd
 ioproc 3728089 root 512.0 /usr/local/cpanel/bin/backup_-x

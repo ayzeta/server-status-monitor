@@ -550,7 +550,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2015ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +2">Web 2015ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +2</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2029ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +2">Web 2029ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; Cache Offline &#183; +2</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -560,7 +560,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">17:24:38</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">18:03:39</span></div></div>
   </div>
 </div>
 
@@ -648,7 +648,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2015</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2029</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -755,7 +755,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="sec" style="margin-top:12px"><span>PROCESSES</span><i class="sec-hair"></i>
-  <span class="proc-age" id="proc-age">root snapshot, 1s ago</span>
+  <span class="proc-age" id="proc-age">root snapshot, 0s ago</span>
   <span id="act-chips"></span>
 </div>
 <div class="proc-row" id="proc-row"><div class="proc-card"><div class="proc-title">CPU &#183; process</div><table class="proc-table"><thead><tr><th>PID</th><th>USER</th><th class="num" title="Percent of a single core &#8212; multi-threaded processes can exceed 100">CPU%</th><th class="num">MEM%</th><th>TIME</th><th>COMMAND</th></tr></thead><tbody id="pt-cpu">
@@ -769,15 +769,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <tr><td class="proc-user">mdtekcom</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num ">3</td></tr>
 <tr><td class="proc-user">wholesale</td><td class="php-bar-cell"><span class="php-bar" style="width:67%"></span></td><td class="num ">2</td></tr>
 </tbody></table></div><div class="proc-card io-acct" id="io-card"><div class="proc-title">I/O<span class="proc-age io-tabs">
-<button type="button" class="io-tab io-t-acct" data-io="acct" title="Per-account disk I/O (read+write), 1-minute average. Source: CloudLinux LVE &#8212; counts every process of the account, short-lived ones included. Color: red &#8805;60%, orange &#8805;30% of the listed total">account &#183; LVE</button>
-<button type="button" class="io-tab io-t-proc" data-io="proc" title="Per-process disk I/O (read+write), 1-minute average. Source: /proc/&lt;pid&gt;/io deltas &#8212; a process that started and ended between two samples is not counted, so this does not add up to the account view.">process</button></span></div><table class="proc-table"><thead><tr>
+<button type="button" class="io-tab io-t-acct" data-io="acct" title="Per-account disk I/O (read+write). Source: CloudLinux LVE &#8212; counts every process of the account, short-lived ones included, but reports the last COMPLETED minute, so it can trail the process view by about a minute. Color: red &#8805;60%, orange &#8805;30% of the listed total">account &#183; LVE 1m</button>
+<button type="button" class="io-tab io-t-proc" data-io="proc" title="Per-process disk I/O (read+write), average over the last 60 seconds. Source: /proc/&lt;pid&gt;/io deltas &#8212; a process that started and ended between two samples is not counted, and this window is newer than the account view, so the two do not add up.">process</button></span></div><div class="io-wrap"><table class="proc-table"><thead><tr>
 <th><span class="ioh-a">ACCOUNT</span><span class="ioh-p">USER</span></th><th><span class="ioh-p">COMMAND</span></th><th class="num">I/O</th></tr></thead><tbody id="pt-io">
 <tr><td class="proc-user">makinem</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num " title="12 IOPS">45 KB/s</td></tr>
 <tr><td class="proc-user">izmirdepo</td><td class="php-bar-cell"><span class="php-bar" style="width:78%"></span></td><td class="num " title="9 IOPS">35 KB/s</td></tr>
 </tbody><tbody class="iop" id="pt-ioproc">
 <tr><td class="proc-user">mysql</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td><td class="num hot">2 MB/s</td></tr>
 <tr><td class="proc-user">root</td><td class="td-fill"><span class="proc-cmd" title="/usr/local/cpanel/bin/backup -x">/usr/local/cpanel/bin/backup -x</span></td><td class="num ">512 KB/s</td></tr>
-</tbody></table></div><div class="proc-card dk-size dk-w1" id="disk-card"><div class="proc-title">Disk &#183; account<span class="proc-age dk-tabs"><button type="button" class="dk-tab dk-t-size" data-dk="size" title="cPanel account disk usage from quota (hourly). Color: red &gt;3%, orange &gt;1.5% of total disk">GB used</button><button type="button" class="dk-tab" data-dk="grow" data-win="1" title="Growth over the window, from the daily per-account record. Accounts that did not grow are not listed.">1d</button></span></div><table class="proc-table"><thead><tr><th>ACCOUNT</th><th></th><th class="num"><span class="dkh-s">GB</span><span class="dkh-g">GROWTH</span></th></tr></thead><tbody id="pt-disk">
+</tbody></table></div></div><div class="proc-card dk-size dk-w1" id="disk-card"><div class="proc-title">Disk &#183; account<span class="proc-age dk-tabs"><button type="button" class="dk-tab dk-t-size" data-dk="size" title="cPanel account disk usage from quota (hourly). Color: red &gt;3%, orange &gt;1.5% of total disk">GB used</button><button type="button" class="dk-tab" data-dk="grow" data-win="1" title="Growth over the window, from the daily per-account record. Accounts that did not grow are not listed.">1d</button></span></div><table class="proc-table"><thead><tr><th>ACCOUNT</th><th></th><th class="num"><span class="dkh-s">GB</span><span class="dkh-g">GROWTH</span></th></tr></thead><tbody id="pt-disk">
 <tr><td class="proc-user">pergo</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num warm">22.6</td></tr>
 <tr><td class="proc-user">ladoor</td><td class="php-bar-cell"><span class="php-bar" style="width:58%"></span></td><td class="num warm">13.1</td></tr>
 <tr><td class="proc-user">hitacomt</td><td class="php-bar-cell"><span class="php-bar" style="width:48%"></span></td><td class="num warm">10.8</td></tr>
@@ -798,19 +798,19 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">Cache went offline &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web response time high: 2015ms</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">Web response time high: 2029ms</span><span class="log-ts">18:03</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">17:24</span></div>
+<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">18:03</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="Drag to resize &#183; double-click for automatic height"></div>
 </div>
@@ -818,7 +818,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.48">v1.5.48</span> &middot; 2026-10-22 17:24:38</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.49">v1.5.49</span> &middot; 2026-10-22 18:03:39</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -897,7 +897,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="en";
-const PAGE_VER="1.5.48"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.49"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -925,7 +925,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'17:24:38'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'18:03:39'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -952,49 +952,49 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP went offline \u00b7 FTP service, Kernel state",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "err",
         "msg": "Cache went offline \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "err",
         "msg": "DNS went offline \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "err",
         "msg": "Mail services went offline \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "err",
         "msg": "Web server went offline \u00b7 Apache, HTTPS (443) +3",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "err",
-        "msg": "Web response time high: 2015ms",
-        "ts": "17:24",
-        "t": 1792689878
+        "msg": "Web response time high: 2029ms",
+        "ts": "18:03",
+        "t": 1792692219
     },
     {
         "type": "warn",
         "msg": "Service feed unavailable (root snapshot stale?)",
-        "ts": "17:24",
-        "t": 1792689878
+        "ts": "18:03",
+        "t": 1792692219
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1792689878,TZOFF=0;
+let srvNow=1792692219,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1457,7 +1457,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1792689858; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1792692199; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -1617,22 +1617,33 @@ function renderProcs(data){
     });
   }
   const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
-  if(io&&data.ioAcct&&data.ioAcct.length){
+  // Bos liste artik olagan (sifir satiri yazilmiyor): eski satirlar kalirsa
+  // ekranda bayat veri durur. "Olctuk, kimse yapmiyor" ile "olcum yok" ayri.
+  if(io&&data.ioAcct!==undefined&&!(data.ioAcct||[]).length){
+    io.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioSrc?'no account is doing I/O right now':'I/O data pending')}</td></tr>`;
+  }else if(io&&data.ioAcct&&data.ioAcct.length){
     const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
     io.innerHTML=data.ioAcct.map(p=>{
       const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
       const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
       return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
   }
+  // Pencere etiketi tikte de tazelenir: LVE 1 dakikalık kovayı veremezse
+  // collector 5'e düşüyor; etiket bunu söylemek zorunda (ölçmediğimizi yazmayız).
+  const ioTab=document.querySelector('.io-t-acct');
+  if(ioTab&&data.ioSrc!==undefined){
+    const w=/^(\d+)m$/.exec(data.ioWin||'');
+    ioTab.textContent=t('account')+(data.ioSrc==='lve'?' · LVE':data.ioSrc==='proc'?' · /proc':'')+(w?' '+tf('%sm',w[1]):'');
+  }
   // Süreç başına I/O gövdesi — PHP ioProcRows() ikizi. Gizliyken de güncellenir
   // ki sekmeye geçildiğinde bayat veri görünmesin.
   const iop=document.getElementById('pt-ioproc');
   if(iop&&data.ioProc!==undefined){
     const g=data.ioProc||[];
-    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t('no process I/O measured')}</td></tr>`;
+    if(!g.length)iop.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioProcOk?'no process is doing I/O right now':'no process I/O measured')}</td></tr>`;
     else{
       const sum=g.reduce((a,p)=>a+p[1],0);
-      iop.innerHTML=g.map(p=>{
+      iop.innerHTML=g.map(p=>{   // (yükseklik eşitlemesi aşağıda, gövde dolduktan sonra)
         const sh=sum>0?p[1]/sum:0;
         const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
         return `<tr><td class="proc-user">${esc(p[0])}</td>`+
@@ -1640,6 +1651,9 @@ function renderProcs(data){
           `<td class="num ${cls}">${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
     }
   }
+  // Satır sayıları tikle değişiyor: kartın ayırdığı yer de tazelensin, yoksa
+  // 30 sn'de bir sayfa aşağı yukarı oynar.
+  if(window.azIoEsitle)window.azIoEsitle();
   const sqlMin=5; // $sqlMinSec ile aynı tutulmalı (cron 'time >= N')
   const sql=document.getElementById('pt-sql');
   if(sql&&data.procSql){
@@ -1862,7 +1876,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.48 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.49 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -2255,9 +2269,26 @@ if(location.protocol==='file:'){
   // I/O kartı görünüm seçicisi — disk kartındakiyle aynı desen.
   const ioCard=document.getElementById('io-card');
   if(ioCard){
+    // Sekme değişince SAYFA KAYMASIN: iki gövdenin satır sayısı farklı (hesap
+    // listesi kısa olabiliyor, süreç listesi 10'a kadar). Kart her zaman UZUN
+    // olanı kadar yer ayırır; ızgara kartları zaten eşitlediği için bu, alttaki
+    // MySQL kartının yerinden oynamasını önler. Satır yüksekliği ölçülerek
+    // alınır (yazı tipi/zum değişebilir), sabit piksel varsayılmaz.
+    const ioEsitle=()=>{
+      const sar=ioCard.querySelector('.io-wrap'),t=ioCard.querySelector('table'),
+            a=document.getElementById('pt-io'),p=document.getElementById('pt-ioproc');
+      if(!sar||!t||!a||!p)return;
+      const gor=ioCard.classList.contains('io-proc')?p:a;
+      const satir=gor.rows[0]?gor.rows[0].offsetHeight:0;
+      if(!satir)return;
+      const n=Math.max(a.rows.length,p.rows.length);
+      sar.style.minHeight=((t.tHead?t.tHead.offsetHeight:0)+n*satir)+'px';
+    };
+    window.azIoEsitle=ioEsitle;          // tik sonrası da çağrılır
     const ioSet=v=>{ioCard.classList.toggle('io-proc',v==='proc');
-      ioCard.classList.toggle('io-acct',v!=='proc');};
+      ioCard.classList.toggle('io-acct',v!=='proc'); ioEsitle();};
     try{const v=localStorage.getItem('az-io-view');if(v)ioSet(v);}catch(e){}
+    ioEsitle();                          // sunucu render'ından sonraki ilk ölçüm
     document.addEventListener('click',e=>{
       const b=e.target.closest&&e.target.closest('.io-tab');
       if(!b)return;

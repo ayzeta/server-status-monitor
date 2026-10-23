@@ -995,7 +995,7 @@ except Exception:
     LVEJ="$DATA_DIR/.lve_io.json"
     for IOP in 1m 5m; do
       timeout 10 lveinfo --period="$IOP" --show-columns=ID,aIO,aIOPS --display-username --json > "$LVEJ" 2>/dev/null || true
-      IO_OUT=$(python3 -I - "$LVEJ" <<'PYEOF'
+      IO_OUT=$(python3 -I - "$LVEJ" "$IOP" <<'PYEOF'
 import json, sys, os, pwd, re
 try:
     d = json.load(open(sys.argv[1]))
@@ -1010,7 +1010,7 @@ def rows(o):
     return []
 cp = set(os.listdir('/var/cpanel/users')) if os.path.isdir('/var/cpanel/users') else None
 ok = re.compile(r'^[a-z][a-z0-9_.-]{0,31}$')
-out = []; zeros = []
+out = []; gecerli = 0
 for r in rows(d):
     io = next((r[k] for k in ('aIO', 'IO', 'io', 'aio') if k in r), None)
     iops = next((r[k] for k in ('aIOPS', 'IOPS', 'iops', 'aiops') if k in r), None)
@@ -1023,16 +1023,23 @@ for r in rows(d):
     if not ok.match(name) or (cp is not None and name not in cp): continue
     try: iops = str(int(float(iops)))
     except (TypeError, ValueError): iops = '-'
-    (out if io > 0 else zeros).append((io, name, iops))
-out.sort(reverse=True); zeros.sort(key=lambda r: r[1])
-# Diger kartlarla ayni boy: I/O yapan hesaplar once, 15'e kadar sifirlar adla sirali.
-for io, name, iops in (out + zeros)[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
+    gecerli += 1
+    if io > 0: out.append((io, name, iops))
+# Olcum YAPILDI isareti: hic satir olmasa bile yazilir, cunku "I/O yapan hesap
+# yok" ile "olcum yok" ayri seyler. Pencere de yazilir (1m / 5m) — kart hangi
+# araligi gosterdigini artik varsaymiyor.
+if not gecerli: sys.exit(0)
+print("io_src lve %s" % (sys.argv[2] if len(sys.argv) > 2 else '?'))
+# SIFIR SATIRI YAZILMAZ: liste eskiden 15'e kadar "0 KB/s" hesaplarla
+# dolduruluyordu — kart boyu sabit kalsin diyeydi ama hicbir soruya cevap
+# vermiyordu ve iki gorunumun satir sayisi da yine tutmuyordu.
+out.sort(reverse=True)
+for io, name, iops in out[:15]: print("ioacct %s %.1f %s" % (name, io, iops))
 PYEOF
 )
       [ -n "$IO_OUT" ] && break
     done
     rm -f "$LVEJ"
-    [ -n "$IO_OUT" ] && echo "io_src lve"
   fi
   if [ -z "$IO_OUT" ]; then
     IO_OUT=$(python3 -I - "$DATA_DIR/.io_state" <<'PYEOF'
@@ -1075,20 +1082,21 @@ try:
 except Exception:
     pass
 if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)   # ilk tur / cok eski ornek
-dt = now - pt; out = []; zeros = []
+dt = now - pt; out = []
 for u, b in cur.items():
     if u not in prev: continue                 # ilk gorulen kullanici: omur boyu sayaci bu dakikaya yazma
     d = max(0, b - prev[u])
     try: name = pwd.getpwuid(u).pw_name
     except KeyError: continue
     if not ok.match(name) or (cp and name not in cp): continue
-    (out if d > 0 else zeros).append((d / dt / 1024.0, name))
-out.sort(reverse=True); zeros.sort(key=lambda r: r[1])
-# Diger kartlarla ayni boy: I/O yapan hesaplar once, 15'e kadar sifirlar adla sirali.
-for kb, name in (out + zeros)[:15]: print("ioacct %s %.1f -" % (name, kb))
+    if d > 0: out.append((d / dt / 1024.0, name))
+# LVE dalindaki ile ayni kural: olcum yapildi isareti + sifir satiri yok.
+# Pencere burada her zaman bir tur (yaklasik 1 dakika).
+print("io_src proc 1m")
+out.sort(reverse=True)
+for kb, name in out[:15]: print("ioacct %s %.1f -" % (name, kb))
 PYEOF
 )
-    [ -n "$IO_OUT" ] && echo "io_src proc"
   fi
   [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
   echo
@@ -1150,6 +1158,9 @@ try:
 except Exception:
     pass
 if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)   # ilk tur / cok eski ornek
+# Olcum YAPILDI isareti (hesap tarafindaki io_src ile ayni mantik): tek satir
+# cikmasa bile "I/O yapan surec yok" ile "henuz olculemedi" ayrilabilsin.
+print("ioproc_ok 1m")
 dt = now - pt
 out = []
 for pid, (et, b, u, c) in cur.items():

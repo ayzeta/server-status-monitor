@@ -154,9 +154,15 @@ header button (per-browser, cookie-based). The version shows in the footer.
   the short-lived `lsphp` of every request, but only ever sees cPanel accounts.
   The process view comes from `/proc/<pid>/io` deltas, which sees everything
   including root — `mariadbd`, a backup, a scanner — but cannot see a process
-  that started and ended between two readings. It lists PID, user and command,
-  the same columns as the CPU table, so the answer is on the row rather than in
-  a tooltip. The card carries both, and an
+  that started and ended between two readings. It lists the user and the full
+  command, so the answer is on the row rather than in a tooltip. The two are
+  also **one window apart**: LVE reports the last *completed* minute while the
+  process list measures the last 60 seconds, which is why a burst can show up
+  in one before the other — the account tab states the window it is showing
+  (`LVE 1m`, or `5m` when the shorter bucket is unavailable). Neither list pads
+  itself with `0 KB/s` rows: an account that is doing nothing is not news, so
+  an empty list says so in one line, and "measured, nobody is doing I/O" and
+  "no measurement yet" are different sentences. The card carries both, and an
   IO-wait alert names both, largest first. Naming only one meant going blind on
   whichever side the load happened to be: an alert once read `account 15 KB/s`
   while IO wait sat at 18%, because the real writer was a root process that the
