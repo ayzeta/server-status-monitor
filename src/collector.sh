@@ -23,6 +23,42 @@ fi
 export PATH=/usr/local/cpanel/bin:/usr/local/cpanel/3rdparty/bin:/usr/sbin:/usr/bin:/sbin:/bin
 sleep 20   # dodge the top-of-minute cron storm
 
+# --- TEK SUREC ANLIK GORUNTUSU ----------------------------------------------
+# Eskiden ayni turda ON BIR ayri "ps" calisiyordu ve her biri /proc'u bastan
+# geziyordu. Uretimde olculdu (706 surec): tarama basina 50-100 ms, toplami
+# ~0,8 sn. Artik tek tarama aliniyor, butun bolumler ondan besleniyor.
+#
+# YAN FAYDA DOGRULUK: bolumler artik AYNI ANI anlatiyor. Eskiden CPU listesi,
+# lsphp sayimi ve surec I/O listesi saniyeler arayla alinmis AYRI anlardi;
+# "su an calisanlar" diye yan yana gosterdigimiz seyler birbirini tutmuyordu.
+#
+# IKI dosya, cunku HEM args HEM comm bosluk icerebilir ve awk alanlari bosluga
+# gore ayirir. Gercek sistemde olculdu: comm "lfd - sleeping", "php74 <defunct>"
+# olabiliyor. Bu yuzden her dosyada bosluklu alan EN SONDA duruyor:
+#   PS_SNAP: 1=pid 2=state 3=user 4=etimes 5=pcpu 6=pmem 7=rss 8+=args
+#   PS_COMM: 1=state 2=user 3=etimes 4=pcpu 5=rss 6+=comm
+# Iki tarama, on dort yerine (uretimde ~800 ms -> ~150 ms).
+PS_SNAP="$DATA_DIR/.ps_snap"
+PS_COMM="$DATA_DIR/.ps_comm"
+ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= 2>/dev/null > "$PS_SNAP.tmp" \
+  && mv -f "$PS_SNAP.tmp" "$PS_SNAP"
+ps axo state=,user:19=,etimes=,pcpu=,rss=,comm= 2>/dev/null > "$PS_COMM.tmp" \
+  && mv -f "$PS_COMM.tmp" "$PS_COMM"
+chmod 600 "$PS_SNAP" "$PS_COMM" 2>/dev/null
+# "ps axo etimes=,args=" ve "ps axo etimes=,comm=" ciktilarinin birebir ayni
+# bicimde yeniden uretimi — cagiran awk programlari degismeden calissin diye.
+ps_etimes_args(){ awk '{a=$8; for(i=9;i<=NF;i++) a=a " " $i; print $4, a}' "$PS_SNAP"; }
+ps_etimes_comm(){ awk '{print $3, $6}' "$PS_COMM"; }
+ps_etimes_pcpu_args(){ awk '{a=$8; for(i=9;i<=NF;i++) a=a " " $i; print $4, $5, a}' "$PS_SNAP"; }
+# etimes (saniye) -> ps'in ELAPSED bicimi ([[gg-]ss:]dd:ss). Anlik goruntude
+# saniye tutuluyor (hesap yapilabilsin diye); CPU listesi insan bicimini yaziyor.
+PS_ELAPSED='function gecen(e,  d,h,m,s,r){ e=e+0; d=int(e/86400); r=e%86400;
+  h=int(r/3600); m=int((r%3600)/60); s=r%60;
+  if(d>0) return sprintf("%d-%02d:%02d:%02d",d,h,m,s);
+  if(h>0) return sprintf("%02d:%02d:%02d",h,m,s);
+  return sprintf("%02d:%02d",m,s); }
+'
+
 # --- CPU / IO wait: GERCEK ~60 sn ORTALAMA -----------------------------------
 # /proc/stat kumulatif sayaclarinin bir onceki cron calismasiyla farki = tum cron
 # araligi boyunca ortalama. Anlik ornekleme (dashboard'da 250 ms) yogun paylasimli
@@ -231,14 +267,23 @@ act_emit() {  # $1=anahtar  $2=etimes
 
 OUT="$HOME_DIR/.proc_snapshot"
 {
+  # Uc liste de TEK anlik goruntuden (bkz. PS_SNAP). Baslik satiri korunuyor:
+  # ayristirici ilk satiri "ps basligi" diye atliyor ve guncelleme sirasindaki
+  # bir turda diskte eski bicim kalabilir.
   echo "--- Top 15 by CPU ---"
-  ps axo pid,user:19,pcpu,pmem,etime,args --sort=-pcpu | head -16 | cut -c1-280
+  echo "PID USER %CPU %MEM ELAPSED COMMAND"
+  sort -k5,5 -rn "$PS_SNAP" | head -15 | awk "$PS_ELAPSED"'{
+      a=$8; for(i=9;i<=NF;i++) a=a " " $i;
+      print $1, $3, $5, $6, gecen($4), a }' | cut -c1-280
   echo
   echo "--- Top 15 by RSS ---"
-  ps axo pid,user:19,pcpu,pmem,rss,args --sort=-rss | head -16 | cut -c1-280
+  echo "PID USER %CPU %MEM RSS COMMAND"
+  sort -k7,7 -rn "$PS_SNAP" | head -15 | awk '{
+      a=$8; for(i=9;i<=NF;i++) a=a " " $i;
+      print $1, $3, $5, $6, $7, a }' | cut -c1-280
   echo
   echo "--- lsphp per user ---"
-  ps axo user:19,comm --no-headers | awk '$2=="lsphp"{c[$1]++} END{for(u in c) printf "%d %s lsphp\n", c[u], u}' | sort -rn | head -15
+  awk '$6=="lsphp"{c[$2]++} END{for(u in c) printf "%d %s lsphp\n", c[u], u}' "$PS_COMM" | sort -rn | head -15
   echo
   echo "--- Security checks ---"
   # CSF durumu TEK bir dosyadan okunamaz. "csf.disable yoksa acik" demek yetmiyor:
@@ -429,13 +474,20 @@ PYEOF
     SP=$(cat "$IF/speed" 2>/dev/null || echo -1)
     [ "$SP" -gt 0 ] 2>/dev/null && echo "netspeed $N $SP"
   done
-  echo "lsphp_total $(ps -eo state,comm --no-headers | awk '$2=="lsphp" && ($1 ~ /^R/ || $1 ~ /^D/){c++} END{print c+0}')"
-  echo "lsphp_idle $(ps -eo state,comm --no-headers | awk '$2=="lsphp" && $1 ~ /^S/{c++} END{print c+0}')"
+  # Dort sayim TEK geciste, tek anlik goruntuden (eskiden 4 ayri "ps" idi).
+  read PS_LT PS_LI PS_DS PS_RS < <(awk '
+      $6=="lsphp" && $1 ~ /^[RD]/ {a++}
+      $6=="lsphp" && $1 ~ /^S/    {b++}
+      $1 ~ /^D/ {c++}
+      $1 ~ /^R/ {d++}
+      END{print a+0, b+0, c+0, d+0}' "$PS_COMM")
+  echo "lsphp_total $PS_LT"
+  echo "lsphp_idle $PS_LI"
   # D-state: diskte bloklanan surec sayisi — "load yuksek ama CPU dusuk" teshisinin anahtari
-  echo "dstate $(ps -eo state --no-headers | awk '$1 ~ /^D/{c++} END{print c+0}')"
+  echo "dstate $PS_DS"
   # rstate: kosan (R) surec sayisi. Load anatomisi: load ~ R + D (uninterruptible).
   # Root'tan alinir cunku CageFS surec sayimini cage'e sanallastirabilir.
-  echo "rstate $(ps -eo state --no-headers | awk '$1 ~ /^R/{c++} END{print c+0}')"
+  echo "rstate $PS_RS"
   # CPU/IO wait 60 sn ortalamasi (yukarida hesaplandi) — dashboard'un anlik
   # olcumunun yerine gecer; ilk calismada bos oldugu icin hic yazilmaz.
   [ -n "$CPU" ] && echo "cpu_pct $CPU"
@@ -463,7 +515,7 @@ PYEOF
   # olan satirlar atlanir. Eskiden hesap deseni duz /pkgacct$/ idi ve yaris
   # kaybedilince yasi 0, hesabi olmayan sahte "yedekleme basladi/bitti" ciftleri
   # dusuyordu (takvim disi gunlerde gorulen anonim yedek satirlari).
-  read A ABK AFULL < <(ps axo etimes=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
+  read A ABK AFULL < <(ps_etimes_args | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
     /[p]kgacct|[c]pbackup|cpanel\/[b]in\/backup/ {
       print ts, "act_backup", $0 >> tr
       if ($1 > m) { m = $1
@@ -485,7 +537,7 @@ PYEOF
       [ -n "$ACT_END_K" ] && echo "act_backup_end_k $ACT_END_K"
   # update: cPanel upcp/updatenow + sistem paket guncellemeleri (dnf/yum) —
   # gece yuku faillerinden; backup gibi gorev-omurlu, esik gerekmez.
-  A=$(ps axo etimes=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{print ts, "act_update", $0 >> tr; if($1>m)m=$1} END{if(m)print m}')
+  A=$(ps_etimes_args | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'/[u]pcp|[u]pdatenow|[d]nf (upgrade|update)|[y]um (upgrade|update)/{print ts, "act_update", $0 >> tr; if($1>m)m=$1} END{if(m)print m}')
   act_emit act_update "$A"
   # wpt: PARTININ KENDISI izlenir. execute-background-task.php parti basinda dogar,
   # parti bitince olur — yani etimes'i DOGRUDAN kampanya yasidir, esige de grace'e de
@@ -501,7 +553,7 @@ PYEOF
   # hesap; tur = --path'ten sonraki iki duz kelime ("plugin update"). Parti bircok
   # hesabi dolasir: baslangic satirina hesap yazilmaz (cipte gorunur), bitiste
   # kapsam "*" -> "birden fazla hesap"; tek hesaplik iste adi.
-  read A AWP AWK < <(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
+  read A AWP AWK < <(ps_etimes_pcpu_args | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
     /[e]xecute-background-task/ || ($2>=15 && /[w]p-toolkit|[w]ordpress-toolkit/) {
       print ts, "act_wpt", $0 >> tr
       if ($1 > m) m = $1
@@ -528,7 +580,7 @@ PYEOF
   # 'wappspector:inspect [<path>]' aliyor ve cPanel onu /home/<hesap>/... uzerinde
   # kosturuyor. /home2 gibi ikincil koklar da kabul edilir. Yalnizca cPanel
   # kullanici adi bicimine uyan jeton alinir; yol parcasi rozete cop basmasin.
-  read A APD < <(ps axo etimes=,pcpu=,args= | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
+  read A APD < <(ps_etimes_pcpu_args | awk -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP3"'
     $2 >= 15 && /[w]appspector/ {
       print ts, "act_appdisc", $0 >> tr
       if ($1 > m) { m = $1; u = ""
@@ -687,7 +739,7 @@ PYEOF
     # ESKIDEN "yol ile biten her satir" sayiliyordu: 'vim <yol>', 'cat <yol>' ve
     # (ps satir sonunu ham basan surumlerde) bu awk'in kendi '-v sh=<yol>' argumani
     # da eslesiyor, takvim disi sahte "csf-autogroup basladi" dusuyordu.
-    A=$(ps axo etimes=,args= | awk -v sh="$CAG_SH" -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
+    A=$(ps_etimes_args | awk -v sh="$CAG_SH" -v tr="$ACT_TRACE" -v ts="$ACT_TS" "$PS_SKIP2"'
       (NF <= 2 && $2 == sh) || (NF <= 3 && $2 ~ /(^|\/)(bash|sh|dash)$/ && $3 == sh) { print ts, "act_csfag", $0 >> tr; if ($1 > m) m = $1 }
       END { if (m) print m }')
     # SON TAMAMLANAN TUR: events.jsonl'in son '"type":"run"' satiri. Satir tur
@@ -900,7 +952,7 @@ except Exception:
   # NOT: perl daemon'lari (lfd, cpsrvd) $0 uzerinden comm'unu degistirir
   # ("lfd - sleeping", "cpsrvd (SSL) - ..."), bu yuzden ps -C tam eslesmesi
   # onlari bulamaz — "isim" veya "isim + bosluk" on-ek eslesmesi kullanilir.
-  ps axo etimes=,comm= | awk '
+  ps_etimes_comm | awk '
     { e=$1+0; c=$2; for(i=3;i<=NF;i++) c=c" "$i
       n=split("mariadbd mysqld litespeed lshttpd httpd exim dovecot named pdns_server pure-ftpd proftpd cpsrvd cpsrvd-dormant lfd imunify360-agen imunify-residen redis-server memcached", L, " ")
       for(j=1;j<=n;j++){ p=L[j]; if(c==p || index(c, p " ")==1){ if(e>m[p]) m[p]=e } } }
@@ -1117,7 +1169,10 @@ PYEOF
   # yeni surece yazilir ve ucuk bir hiz cikardi. Kimlik pid + surecin YASI ile
   # dogrulanir: yas gecen sureden kucukse o surec yeni dogmustur, atlanir.
   IOP_STATE="$DATA_DIR/.ioproc_state"
-  ps axo pid=,etimes=,user:19=,args= 2>/dev/null | cut -c1-200 > "$IOP_STATE.ps"
+  # Ayni anlik goruntuden; python'un bekledigi "pid etimes user args" bicimine
+  # cevriliyor (eskiden burada 14. bir "ps" taramasi vardi).
+  awk '{a=$8; for(i=9;i<=NF;i++) a=a " " $i; print $1, $4, $3, substr(a,1,160)}' \
+      "$PS_SNAP" > "$IOP_STATE.ps"
   IOP_OUT=$(python3 - "$IOP_STATE" <<'PYEOF'
 import os, sys, time
 state = sys.argv[1]; now = time.time()
@@ -1218,7 +1273,7 @@ RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d", int(((t-a)/t
 # formuluyle hesaplanir: (toplam - kullanilabilir) / toplam, yarim yukari.
 # df -P sutunlari: $2=1024-blok toplam, $3=kullanilan, $4=kullanilabilir.
 DSK=$(df -P / | awk 'NR==2 && $2>0 {printf "%d", int((($2-$4)/$2)*100 + 0.5)}')
-WRK=$(ps -eo state,comm --no-headers | awk '$2=="lsphp" && ($1 ~ /^R/ || $1 ~ /^D/){c++} END{print c+0}')
+WRK=$PS_LT   # lsphp_total ile AYNI sayi; ikinci kez saymaya gerek yok
 # Ag hizi (KB/s): yukaridaki 60 sn ortalamasinin arayuz toplami — eskiden burada
 # ayri bir 1 sn ornek aliniyordu; grafik artik kartla ayni metrigi gosterir ve
 # cron calismasi 1 sn daha kisalir.
@@ -1234,11 +1289,11 @@ MQ=$(exim -bpc 2>/dev/null || echo 0)
 # lsphp surecinin kullanicisi ZATEN hesap adidir; "top: lsphp 76%" neredeyse
 # bilgi vermezken "top: lsphp . enesoto 76%" dogrudan eyleme donusur. Eski
 # satirlar iki alanli kalir, PHP tarafi ucuncuyu yoksa atlar.
-TOPP=$(ps axo pcpu,user:32,comm --sort=-pcpu --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, $1, u}')
+TOPP=$(sort -k4,4 -rn "$PS_COMM" | head -1 | awk '{u=$2; n=$6; for(i=7;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, $4, u}')
 # 14. kolon: en cok BELLEK (RSS) tutan surec "ad:rss_mb:kullanici". RAM uyarisinin
 # faili top-CPU sureci degildir; sayfa acilisinda tarihceden uretilen RAM satiri
 # bu sayede canli satirla ayni bilgiyi tasir ("— top: mariadbd · mysql 8.3 GB").
-TOPR=$(ps axo rss,user:32,comm --sort=-rss --no-headers | head -1 | awk '{u=$2; n=$3; for(i=4;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, int($1/1024), u}')
+TOPR=$(sort -k5,5 -rn "$PS_COMM" | head -1 | awk '{u=$2; n=$6; for(i=7;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, int($5/1024), u}')
 # 15. kolon: en cok I/O yapan HESAP "hesap:kbps" (Top IO accounts bolumunden).
 # IO wait uyarisinin faili top-CPU sureci degil, en cok disk I/O yapan hesaptir.
 echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}" >> "$HIST"

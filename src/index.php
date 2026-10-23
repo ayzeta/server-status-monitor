@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.49'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.50'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.

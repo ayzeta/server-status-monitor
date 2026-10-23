@@ -500,6 +500,14 @@ root cron ── collector.sh ──▶ /home/<user>/.proc_snapshot   (chown <us
 web account ── index.php ◀──────────────┘  reads the feed, renders + ?json=1 tick
 ```
 
+- **The collector reads the process table twice per run, not once per list.**
+  Everything that needs processes — the CPU and memory tables, the PHP worker
+  counts, the run-state counters, the activity detectors, per-process I/O, the
+  history columns — comes from two snapshots taken at the start of the run. Two
+  rather than one because both a command line and a process name can contain
+  spaces (`lfd - sleeping`), so each snapshot keeps its variable-width field
+  last. Besides the cost, this makes the sections agree: they now describe the
+  same instant instead of moments seconds apart.
 - The collector writes to the web user's home and `chown`s it, so the jailed PHP
   can read it. No world-readable root files. Its own state (`.act_state`,
   `.io_state`, `.upd_state`, caches, `.act_matches.log`) stays root-only under
