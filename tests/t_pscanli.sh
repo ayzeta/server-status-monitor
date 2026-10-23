@@ -18,18 +18,18 @@ ck "pid alani sayisal" "$(awk '$1 !~ /^[0-9]+$/' "$S" | wc -l)" "0"
 ck "etimes alani sayisal" "$(awk '$4 !~ /^[0-9]+$/' "$S" | wc -l)" "0"
 ck "rss alani sayisal" "$(awk '$7 !~ /^[0-9]+$/' "$S" | wc -l)" "0"
 
-# ELAPSED bicimi: ps'in kendi cikisiyla ayni mi. UZUN OMURLU bir surec secilir
-# (pid 1) ve SANIYE alani atilarak karsilastirilir: iki olcum arasinda bir
-# saniye gecmesi bicim hatasi degil, olcum kaymasidir.
+# ELAPSED bicimi: ps'in kendi cikisiyla ayni mi.
+# Iki alan TEK ps cagrisindan alinir (etimes + etime): ayri cagrilarda olcumler
+# saniyeler ayri dusup dakika sinirini gecebiliyordu ve test ARA SIRA bicim
+# hatasi diye bagiriyordu. Ayni andan okununca karsilastirma birebir olur.
 PID=1
-ESKI=$(ps -o etime= -p $PID | tr -d ' ')
-ESKI=${ESKI%:*}
-YENI=$(awk -v p=$PID '$1==p{
-   e=$4+0; d=int(e/86400); r=e%86400; h=int(r/3600); m=int((r%3600)/60); s=r%60;
+read ETS ESKI < <(ps -o etimes=,etime= -p $PID | awk '{print $1, $2}')
+YENI=$(awk -v e="$ETS" 'BEGIN{
+   e=e+0; d=int(e/86400); r=e%86400; h=int(r/3600); m=int((r%3600)/60); s=r%60;
    if(d>0) printf "%d-%02d:%02d:%02d",d,h,m,s;
    else if(h>0) printf "%02d:%02d:%02d",h,m,s;
-   else printf "%02d:%02d",m,s}' "$S")
-ck "ELAPSED bicimi ps ile ayni" "${YENI%:*}" "$ESKI"
+   else printf "%02d:%02d",m,s}')
+ck "ELAPSED bicimi ps ile ayni" "$YENI" "$ESKI"
 
 # Sayimlar: eski komutlarla yeni turetim (ayni anda degil, 1-2 fark normal)
 E_D=$(ps -eo state --no-headers | awk '$1 ~ /^D/{c++} END{print c+0}')
@@ -41,14 +41,26 @@ ck "D sayimi makul (fark <=2)" "$([ $((E_D>Y_D?E_D-Y_D:Y_D-E_D)) -le 2 ] && echo
 ck "R sayimi makul (fark <=2)" "$([ $((E_R>Y_R?E_R-Y_R:Y_R-E_R)) -le 2 ] && echo evet || echo hayir)" "evet"
 
 # En cok CPU yiyen surec: eski ps sortu ile yeni sort ayni pid'i mi veriyor
-E_TOP=$(ps axo pid=,pcpu= --sort=-pcpu | head -1 | awk '{print $1}')
-Y_TOP=$(sort -k5,5 -rn "$S" | head -1 | awk '{print $1}')
-ck "en yuksek CPU ayni surec" "$([ "$E_TOP" = "$Y_TOP" ] && echo evet || echo "hayir($E_TOP/$Y_TOP)")" "evet"
+# Siralama denkligi: "sort -k5,5 -rn" ile ps'in "--sort=-pcpu"su ayni mi?
+#
+# ONCE BOYLE DEGILDI ve testi guvenilmez yapiyordu: iki AYRI ps cagrisinin en
+# tepedeki sureci karsilastiriliyordu. Bos bir makinede en cok CPU yiyen sey
+# TESTIN KENDI alt surecleri (awk, sort) oluyor ve her cagrida degisiyor —
+# dortte bir kosu yanlis alarm veriyordu.
+#
+# Simdi karsilastirma AYNI VERI uzerinde: dosyayi ps kendi siralamasiyla
+# yaziyor, biz de kendi siralamamizi uyguluyoruz; ikisi ayni satiri basa
+# koymali. Beraberlige takilmamak icin pid degil DEGER karsilastirilir.
+ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= --sort=-pcpu > "$S.cpu" 2>/dev/null
+ck "pcpu siralamasi ps ile ayni" \
+   "$(sort -k5,5 -rn "$S.cpu" | head -1 | awk '{print $5}')" \
+   "$(head -1 "$S.cpu" | awk '{print $5}')"
 
 # En cok RSS: ayni
-E_TOPR=$(ps axo pid=,rss= --sort=-rss | head -1 | awk '{print $1}')
-Y_TOPR=$(sort -k7,7 -rn "$S" | head -1 | awk '{print $1}')
-ck "en yuksek RSS ayni surec" "$([ "$E_TOPR" = "$Y_TOPR" ] && echo evet || echo "hayir($E_TOPR/$Y_TOPR)")" "evet"
+ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= --sort=-rss > "$S.rss" 2>/dev/null
+ck "rss siralamasi ps ile ayni" \
+   "$(sort -k7,7 -rn "$S.rss" | head -1 | awk '{print $7}')" \
+   "$(head -1 "$S.rss" | awk '{print $7}')"
 
 # Bosluklu comm gercekten var mi (varsa dosya bicimi onu tasiyabiliyor mu)
 BOS=$(awk 'NF>6' "$C" | wc -l)
@@ -60,7 +72,7 @@ ck "bosluklu comm ilk alani bozulmadan okunuyor" \
 T0=$(date +%s%3N); for i in 1 2 3; do ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= >/dev/null; done; T1=$(date +%s%3N)
 printf '  bilgi: tarama basina ~%s ms\n' "$(( (T1-T0)/3 ))"
 
-rm -f "$S" "$C"
+rm -f "$S" "$C" "$S.cpu" "$S.rss"
 echo
 echo "GECEN: $gecen  KALAN: $kalan"
 [ "$kalan" -eq 0 ]

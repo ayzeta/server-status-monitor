@@ -680,8 +680,10 @@ CloudLinux, the 900-byte SMTP line limit in the rendered page, and the
 uninstaller's list of what it removes.
 
 `python3` is required; tests needing `php` or `node` are skipped with a note
-when those are missing, and one test that needs Linux's own `ps` is skipped
-elsewhere. Everything else runs on Linux, macOS and Git Bash alike.
+when those are missing. One test compares the collector's assumptions against
+Linux's own `ps` — on Windows the runner hands that one to WSL instead of
+skipping it, since those assumptions are exactly the kind that break quietly.
+Everything else runs on Linux, macOS and Git Bash alike.
 
 ## License
 

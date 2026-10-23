@@ -34,6 +34,22 @@ LINUX_GEREK=" t_pscanli.sh "
 HAS_PROCPS=0
 ps --version 2>&1 | grep -qi procps && HAS_PROCPS=1
 
+# Gercek Linux yoksa ama WSL varsa, o testi WSL ICINDE kosariz: korumayi
+# "bu makinede calismiyor" diye kaybetmeyelim. Dagitim adi SABIT DEGIL —
+# varsayilan dagitim kullanilir, istenirse WSL_DISTRO ile secilir.
+WSL_KOK=""
+if [ "$HAS_PROCPS" = "0" ] && command -v wsl.exe >/dev/null 2>&1; then
+  WSL_SEC=""; [ -n "${WSL_DISTRO:-}" ] && WSL_SEC="-d $WSL_DISTRO"
+  # cygpath -w DEGIL -m: ters boluleri Git Bash yolda yutuyor ("D:Projelerdepo"
+  # cikiyordu). Egik bolulu Windows yolunu wslpath sorunsuz ceviriyor.
+  if command -v cygpath >/dev/null 2>&1; then
+    WSL_KOK="$(wsl.exe $WSL_SEC wslpath -a "$(cygpath -m "$KOK")" 2>/dev/null | tr -d '\r')"
+  else
+    WSL_KOK="/mnt${KOK}"      # /d/depo -> /mnt/d/depo
+  fi
+  wsl.exe $WSL_SEC -e bash -lc "[ -r /proc/stat ] && [ -d '$WSL_KOK' ]" >/dev/null 2>&1 || WSL_KOK=""
+fi
+
 gecen=0; kalan=0; atlanan=0; bozuk=()
 
 kosu(){ # dosya
@@ -47,8 +63,26 @@ kosu(){ # dosya
   if [ "$HAS_NODE" = "0" ] && [[ "$NODE_GEREK" == *" $f "* ]]; then
     printf '  %-20s ATLANDI (node yok)\n' "$ad"; atlanan=$((atlanan+1)); return
   fi
+  local wsl_ile=0
   if [[ "$LINUX_GEREK" == *" $f "* ]] && [ "$HAS_PROCPS" = "0" ]; then
-    printf '  %-20s ATLANDI (Linux ps/procps gerekiyor)\n' "$ad"; atlanan=$((atlanan+1)); return
+    if [ -n "$WSL_KOK" ]; then
+      wsl_ile=1
+    else
+      printf '  %-20s ATLANDI (Linux ps gerekiyor; WSL de yok)\n' "$ad"; atlanan=$((atlanan+1)); return
+    fi
+  fi
+  if [ "$wsl_ile" = "1" ]; then
+    cikti="$(wsl.exe $WSL_SEC -e bash -lc "cd '$WSL_KOK' && bash tests/$f" 2>&1)"
+    durum=$?
+    cikti="${cikti//$'\r'/}"
+    son="$(printf '%s\n' "$cikti" | grep -E 'GECEN|KALAN' | tail -1)"
+    if [ "$durum" -eq 0 ]; then
+      gecen=$((gecen+1)); printf '  %-20s OK    %s   [WSL]\n' "$ad" "$son"
+    else
+      kalan=$((kalan+1)); bozuk+=("$ad"); printf '  %-20s HATA  %s   [WSL]\n' "$ad" "$son"
+      printf '%s\n' "$cikti" | tail -12 | sed 's/^/        /'
+    fi
+    return
   fi
   case "$f" in
     *.py) cikti="$("$PY" "$f" 2>&1)" ;;
