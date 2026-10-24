@@ -26,9 +26,14 @@ php_fn = src[pb:pe]
 ab = src.index("function ioAcctCls(")
 ae = src.index(NL + "}", ab) + 2
 php_cls = src[ab:ae]
-fb = src.index("function fmtKbps(")
-fe = src.index(NL, fb) + 1
+# PHP ve JS fmtKbps'in IKISI DE kaynaktan cikarilir (ikisi de cok satirli:
+# 1 KB/s alti B/s yazildigindan beri birim secimi uc dallı).
+fb = src.index("function fmtKbps($kb) {")
+fe = src.index(NL + "}", fb) + 2
 php_fmt = src[fb:fe]
+jb0 = src.index("function fmtKbps(kb){")
+je0 = src.index("B/s';}", jb0) + len("B/s';}")
+js_fmt = src[jb0:je0]
 
 # ── JS dali ────────────────────────────────────────────────────────────
 jb = src.index("    const g=data.ioProc||[];")
@@ -42,6 +47,10 @@ ORNEK = [
     [["root", 900.0, "a"], ["nobody", 100.0, "b"]],      # %60+ ama 1 MB alti
     [["root", 2000.0, "a"], ["nobody", 900.0, "b"]],     # hot + warm
     [["<script>", 10.0, "cmd \"x\" & 'y'"]],             # kacis
+    # Birim sinirlari: 1 KB/s alti B/s yazilir (0 KB/s gorunumu bu yuzden kalkti),
+    # 1 MB/s ustu MB/s. Yuvarlama once bayta yapiliyor.
+    [["a", 0.3, "x"], ["b", 0.999, "y"], ["c", 1.0, "z"],
+     ["d", 1023.9, "w"], ["e", 1024.0, "v"], ["f", 5555.5, "u"]],
 ]
 
 php = NL.join([
@@ -64,7 +73,8 @@ js = NL.join([
     "function t(s){return TRD[s]||s;}",
     "function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')"
     ".replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#039;');}",
-    "function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';}",
+    js_fmt,   # JS fmtKbps de KAYNAKTAN: testin icine elle yazilan kopya, urun
+              # degisince sessizce eskiyor ve ikiz testi anlamsizlasiyordu.
     "const giris=require('./t_io_in.json');",
     "function govde(rows){",
     "  const iop={innerHTML:''}, data={ioProc:rows};",

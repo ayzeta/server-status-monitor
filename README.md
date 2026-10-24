@@ -27,7 +27,11 @@ barred from other users' processes.)
 > the type is the system font stack — so the attachment looks the same whether or
 > not the mail client allows remote content. All non-ASCII characters are emitted
 > as HTML entities, because sanitizing webmail clients (Roundcube among them) drop
-> the `<head>` and with it the `charset` declaration.
+> the `<head>` and with it the `charset` declaration. **The cards that have two
+> views — I/O by account or by process, disk by size or by growth — still switch
+> in the attachment**, because the tabs are a hidden radio button and a `<label>`
+> rather than a click handler: no script runs, yet the same structure as the live
+> page works. Where a client strips the inputs, the default view stays put.
 
 **Version 1.5.0** · bilingual UI — English (default) / Türkçe, switched from the
 header button (per-browser, cookie-based). The version shows in the footer.

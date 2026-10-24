@@ -24,9 +24,14 @@ src = io.open(KAYNAK, encoding="utf-8", errors="replace").read()
 hata = 0
 
 # ── 1) Yorum icinde kapanis etiketi ────────────────────────────
+# '#' YALNIZ KABUK dosyasinda yorumdur. PHP/CSS'te '#' bir ID SECICISIDIR
+# ("#dkv-1:checked~...") ve icinde <?=...?> gecebiliyor — bu lint onlari
+# "yorum icinde kapanis etiketi" sanip yanlis alarm veriyordu.
+KABUK = KAYNAK.endswith((".sh", ".bash"))
 for no, satir in enumerate(src.split("\n"), 1):
     s = satir.strip()
-    if not (s.startswith("//") or s.startswith("#") or " // " in satir):
+    yorum = s.startswith("//") or " // " in satir or (KABUK and s.startswith("#"))
+    if not yorum:
         continue
     # Yorumun basladigi yerden sonrasinda '?>' arariz
     i = satir.find("//")

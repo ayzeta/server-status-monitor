@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.54'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.55'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -2286,21 +2286,27 @@ function renderDiskCard($diskAcct, $h) {
     // İki görünüm AYNI kartta: başlıktaki ipucu seçiciye dönüştü. Her iki gövde de
     // basılır, görünen olanı CSS seçer — böylece canlı tik ikisini de güncel tutar
     // ve geçiş ağ beklemeden olur.
-    // Pencere düğmeleri yalnız VERİSİ OLANLAR için çizilir; en genişi açılışta seçili.
-    $wins   = array_column($acctGrowSet, 'win');
-    $defWin = $wins ? max($wins) : 0;
+    // Pencere düğmeleri yalnız VERİSİ OLANLAR için çizilir.
     $gTip   = htmlspecialchars(t('Growth over the window, from the daily per-account record. Accounts that did not grow are not listed.'));
-    $tabs   = '<button type="button" class="dk-tab dk-t-size" data-dk="size" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">' . t('GB used') . '</button>';
-    if (!$acctGrowSet) {
-        // Henüz iki günlük kayıt yok: tek düğme, aralık iddia etmeden.
-        $tabs .= '<button type="button" class="dk-tab" data-dk="grow" data-win="0" title="' . $gTip . '">' . t('growth') . '</button>';
-    } else {
-        foreach ($acctGrowSet as $g) {
-            $tabs .= '<button type="button" class="dk-tab" data-dk="grow" data-win="' . (int)$g['win'] . '" title="' . $gTip . '">'
-                   . tf('%sd', $g['span']) . '</button>';
-        }
+    // I/O kartıyla aynı yöntem: görünümü gizli radyo + <label> seçer, JS değil.
+    // Pencere sayısı değişken olduğu için radyolar ve kurallar burada üretiliyor.
+    // VARSAYILAN HER ZAMAN BOYUT. Eski sürümde kart "dk-size dk-w30" sınıfıyla
+    // açılıyordu: görünen boyut, 30g ise "artışa basarsan hangi pencere" demekti.
+    // Radyoda her pencere kendi sekmesi olduğu için o ayrım yok — açılışta
+    // boyut seçili, pencereyi kullanıcı seçiyor (ya da JS hatırlıyor).
+    $radio = '<input type="radio" name="dkv" id="dkv-s" class="vw-radio" checked>';
+    $tabs  = '<label for="dkv-s" class="dk-tab dk-t-size" title="' . htmlspecialchars(t('cPanel account disk usage from quota (hourly). Color: red >3%, orange >1.5% of total disk')) . '">' . t('GB used') . '</label>';
+    // Pencere kümesi sabit (GROW_WINS + kayıt yoksa 0), kurallar baştaki stil
+    // bloğunda duruyor — kart içine <style> koymak webmail'de siliniyordu.
+    $wlist = $acctGrowSet ? array_map(fn($g) => [(int)$g['win'], $g['span']], $acctGrowSet)
+                          : [[0, null]];   // kayıt yoksa aralık iddia etmeyen tek sekme
+    foreach ($wlist as [$w, $span]) {
+        $radio .= '<input type="radio" name="dkv" id="dkv-' . $w . '" class="vw-radio">';
+        $tabs  .= '<label for="dkv-' . $w . '" class="dk-tab" title="' . $gTip . '">'
+                . ($span === null ? t('growth') : tf('%sd', $span)) . '</label>';
     }
-    $out = '<div class="proc-card dk-size dk-w' . $defWin . '" id="disk-card"><div class="proc-title">' . t('Disk · account')
+    $out = '<div class="proc-card" id="disk-card">' . $radio
+         . '<div class="proc-title">' . t('Disk · account')
          . '<span class="proc-age dk-tabs">' . $tabs . '</span></div>'
          // Sağ sütunun başlığı görünümle değişir: boyut GB, artış kendi birimini
          // (MB/GB) hücrede yazdığı için orada yalnız "ARTIŞ" yazar.
@@ -2332,7 +2338,17 @@ function renderDiskCard($diskAcct, $h) {
 }
 
 // KB/s -> "512 KB/s" / "1.3 MB/s". JS fmtKbps ile ayni yuvarlama (yarim yukari, 1 ondalik).
-function fmtKbps($kb) { return $kb >= 1024 ? round($kb / 1024, 1) . ' MB/s' : round($kb) . ' KB/s'; }
+// 1 KB/s ALTI B/s YAZILIR: liste 0,1-0,4 KB/s yapan hesaplarda "0 KB/s"
+// gösteriyordu — sıfır değil, yuvarlamanın yuttuğu bir değer. Okuyan "sıfırsa
+// niye listede?" diye soruyordu. Artış sütunundaki MB/GB kararının aynısı:
+// satır kendi birimini yazsın. Yuvarlama ÖNCE bayta yapılır ki 1023,9 B/s
+// "1024 B/s" diye tuhaf görünmek yerine 1 KB/s olsun.
+function fmtKbps($kb) {
+    $b = round($kb * 1024);
+    if ($b >= 1048576) return round($b / 1048576, 1) . ' MB/s';
+    if ($b >= 1024)    return round($b / 1024) . ' KB/s';
+    return $b . ' B/s';
+}
 // Hesap I/O rengi — PAYA gore (listelenen toplamin yuzdesi): mutlak esik diskin
 // turune baglidir (NVMe'de 10 MB/s hic, HDD'de cok). "I/O'yu bu hesap yapiyor"
 // sinyali: toplamin >=%60'i ve en az 1 MB/s kirmizi; >=%30 ve 512 KB/s turuncu.
@@ -2384,12 +2400,20 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
     $ptip = htmlspecialchars(t('Per-process disk I/O (read+write), average over the last 60 seconds — the same window as the account view. Source: /proc/<pid>/io deltas: a process that started and ended between two samples is not counted, and root processes appear here but never in the account list, so the two do not add up.'), ENT_QUOTES, 'UTF-8');
     // Pencere etikette yazar: LVE 1 dakikalık kova veremezse collector 5'e düşüyor.
     $winLbl = preg_match('/^(\d+)m$/', (string)$ioWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '';
-    $out = '<div class="proc-card io-acct" id="io-card"><div class="proc-title">' . t('I/O')
-         // Her düğme AYRI satırda: ipuçları uzun (TR'de daha uzun) ve hepsi tek
+    // SEKMEYI JS DEGIL CSS CEVIRIR: gizli radyo düğmesi + <label>. Böylece CSF
+    // mail ekinde de — script çalışmadığı halde — sekmeler tıklanıyor; canlı
+    // sayfayla BIREBIR AYNI yapı. JS'e kalan tek iş seçimi hatırlamak.
+    // Radyolar kartın BASINDA: CSS'in "~" seçicisi yalnız SONRAKI kardeşleri
+    // görür, görünürlük kuralları onlara bakıyor.
+    $out = '<div class="proc-card" id="io-card">'
+         . '<input type="radio" name="iov" id="iov-a" class="vw-radio" checked>'
+         . '<input type="radio" name="iov" id="iov-p" class="vw-radio">'
+         . '<div class="proc-title">' . t('I/O')
+         // Her etiket AYRI satırda: ipuçları uzun (TR'de daha uzun) ve hepsi tek
          // satıra basılınca CSF mail ekinin 900 baytlık satır sınırı aşılıyordu.
          . '<span class="proc-age io-tabs">' . "\n"
-         . '<button type="button" class="io-tab io-t-acct" data-io="acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . $winLbl . '</button>' . "\n"
-         . '<button type="button" class="io-tab io-t-proc" data-io="proc" title="' . $ptip . '">' . t('process') . '</button>'
+         . '<label for="iov-a" class="io-tab io-t-acct" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">' . t('account') . ($ioSrc === 'lve' ? ' · LVE' : ($ioSrc === 'proc' ? ' · /proc' : '')) . $winLbl . '</label>' . "\n"
+         . '<label for="iov-p" class="io-tab io-t-proc" title="' . $ptip . '">' . t('process') . '</label>'
          . '</span></div>'
          // Tek başlık, iki görünüm: hesapta HESAP | (çubuk) | I/O, süreçte
          // PID | KULLANICI | KOMUT | I/O. Görünmeyen hücreler CSS ile düşüyor,
@@ -2678,13 +2702,28 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .io-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
   font:inherit;opacity:.5;transition:opacity .15s;}
 .io-tab:hover{opacity:.8;}
-.io-acct .io-t-acct,.io-proc .io-t-proc{opacity:1;text-decoration:underline;
+/* Sekmeyi RADYO tutar, JS değil. Gizli ama erişilebilir kalsın diye görünmez
+   yapılıyor (display:none klavyeyle de ulaşılmaz kılardı). */
+.vw-radio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+/* VARSAYILAN (radyo yoksa da geçerli): hesap görünümü. Bazı webmail'ler
+   <input>'u siliyor; o zaman :checked hiç eşleşmez ve bu kurallar kalır —
+   yani ek, bugünküyle aynı görünür, boş değil. */
+.iop{display:none;}
+#iov-a:checked ~ .io-wrap #pt-io{display:table-row-group;}
+#iov-a:checked ~ .io-wrap .iop{display:none;}
+#iov-p:checked ~ .io-wrap #pt-io{display:none;}
+#iov-p:checked ~ .io-wrap .iop{display:table-row-group;}
+#iov-a:checked ~ .proc-title .io-t-acct,
+#iov-p:checked ~ .proc-title .io-t-proc{opacity:1;text-decoration:underline;
   text-underline-offset:3px;}
-.io-acct .iop,.io-proc #pt-io{display:none;}
 /* Başlık etiketleri gövdeyle birlikte değişir: hesapta HESAP, süreçte
    PID/KULLANICI/KOMUT. Gizli hücre tabloda yer kaplamadığı için iki görünümün
    sütun sayısı farklı olabiliyor. */
-.io-acct .ioh-p,.io-proc .ioh-a{display:none;}
+.ioh-p{display:none;}
+#iov-a:checked ~ .io-wrap .ioh-a{display:inline;}
+#iov-a:checked ~ .io-wrap .ioh-p{display:none;}
+#iov-p:checked ~ .io-wrap .ioh-a{display:none;}
+#iov-p:checked ~ .io-wrap .ioh-p{display:inline;}
 .ic-sun{display:none;}
 /* Uyanik-kal: pasifte sade fincan, aktifte dumani cikan fincan — tema dugmesindeki
    ay/gunes ile AYNI yontem, o yuzden kurallar da ayni yerde. '.ic' display veriyor
@@ -2751,15 +2790,27 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .dk-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
   font:inherit;opacity:.5;transition:opacity .15s;}
 .dk-tab:hover{opacity:.8;}
-.dk-size .dk-t-size,
-.dk-grow.dk-w0 .dk-tab[data-win="0"],.dk-grow.dk-w1 .dk-tab[data-win="1"],
-.dk-grow.dk-w7 .dk-tab[data-win="7"],.dk-grow.dk-w30 .dk-tab[data-win="30"]{
-  opacity:1;text-decoration:underline;text-underline-offset:3px;}
-/* Görünür gövdeyi kartın sınıfı seçer: dk-size → boyut, dk-grow + dk-wN → o pencere. */
-.dk-size .dkg,.dk-grow #pt-disk,.dk-grow .dkg{display:none;}
-.dk-size .dkh-g,.dk-grow .dkh-s{display:none;}
-.dk-grow.dk-w0 #pt-dkg-0,.dk-grow.dk-w1 #pt-dkg-1,
-.dk-grow.dk-w7 #pt-dkg-7,.dk-grow.dk-w30 #pt-dkg-30{display:table-row-group;}
+/* Görünümü RADYO seçer (I/O kartıyla aynı yöntem), kartın sınıfı değil.
+   VARSAYILAN: boyut görünümü — webmail <input>'u silerse :checked hiç
+   eşleşmez ve ek, bugünküyle aynı görünür. */
+.dkg,.dkh-g{display:none;}
+#dkv-s:checked~.proc-title .dk-t-size{opacity:1;text-decoration:underline;
+  text-underline-offset:3px;}
+#dkv-s:checked~.proc-table #pt-disk{display:table-row-group;}
+#dkv-s:checked~.proc-table .dkg{display:none;}
+#dkv-s:checked~.proc-table .dkh-s{display:inline;}
+#dkv-s:checked~.proc-table .dkh-g{display:none;}
+<?php /* Pencere kümesi sabit: GROW_WINS + kayıt yokken kullanılan 0. Olmayan
+         pencerenin kuralı zararsız, böylece CSS üretime bağlı kalmıyor. */ ?>
+<?php foreach (array_merge([0], GROW_WINS) as $w): ?>
+#dkv-<?=$w?>:checked~.proc-table #pt-disk{display:none;}
+#dkv-<?=$w?>:checked~.proc-table .dkg{display:none;}
+#dkv-<?=$w?>:checked~.proc-table #pt-dkg-<?=$w?>{display:table-row-group;}
+#dkv-<?=$w?>:checked~.proc-table .dkh-s{display:none;}
+#dkv-<?=$w?>:checked~.proc-table .dkh-g{display:inline;}
+#dkv-<?=$w?>:checked~.proc-title [for="dkv-<?=$w?>"]{opacity:1;
+  text-decoration:underline;text-underline-offset:3px;}
+<?php endforeach; ?>
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
@@ -3510,7 +3561,11 @@ function timeMinus(ts,sec){var p=(''+(ts||'')).split(' ')[1]||'',m=p.split(':');
   var z=function(n){return(n<10?'0':'')+n;};
   return z(Math.floor(s/3600))+':'+z(Math.floor(s/60)%60)+':'+z(s%60);}
 function fmtCount(n){return n>=1e6?(Math.round(n/1e5)/10)+'M':n>=1000?Math.round(n/1000)+'k':''+(n|0);}
-function fmtKbps(kb){return kb>=1024?(Math.round(kb/1024*10)/10)+' MB/s':Math.round(kb)+' KB/s';} // PHP fmtKbps ile ayni
+// PHP fmtKbps ile ayni: yuvarlama once bayta, sonra birim secilir.
+function fmtKbps(kb){const b=Math.round(kb*1024);
+  if(b>=1048576)return (Math.round(b/1048576*10)/10)+' MB/s';
+  if(b>=1024)return Math.round(b/1024)+' KB/s';
+  return b+' B/s';}
 // PHP fmtGrow() ikizi — yuvarlama once tam sayi MB'ye, iki taraf ayni sonucu versin diye.
 function fmtGrow(gb){const mb=Math.round(gb*1024);if(mb<1024)return mb+' MB';
   const g=Math.round(mb/1024*100)/100;return g.toFixed(2).replace(/\.?0+$/,'')+' GB';}
@@ -4661,58 +4716,57 @@ if(location.protocol==='file:'){
   // geliyor, ileride yeniden kurulsa da dinleyici kaybolmasın. Seçim tarayıcıda
   // hatırlanır — hangi görünümü istediği kişisel tercih, sunucu ayarı değil.
   // I/O kartı görünüm seçicisi — disk kartındakiyle aynı desen.
+  // ── Kart görünümleri (I/O: hesap/süreç, Disk: boyut/artış) ─────────────
+  // GÖRÜNÜRLÜĞÜ CSS TUTAR: gizli radyo düğmesi + <label>. Böylece CSF mail
+  // ekinde, script hiç çalışmadan da sekmeler tıklanıyor ve yapı canlı
+  // sayfayla birebir aynı kalıyor. JS'e kalan iki iş var:
+  //   1) seçimi hatırlamak — hangi görünümü istediği KİŞİSEL tercih,
+  //      sunucu ayarı değil; o yüzden localStorage'da, config'te değil.
+  //   2) kart yüksekliğini eşitlemek (aşağıda) ki sekme değişince sayfa kaymasın.
   const ioCard=document.getElementById('io-card');
   if(ioCard){
-    // Sekme değişince SAYFA KAYMASIN: iki gövdenin satır sayısı farklı (hesap
-    // listesi kısa olabiliyor, süreç listesi 10'a kadar). Kart her zaman UZUN
-    // olanı kadar yer ayırır; ızgara kartları zaten eşitlediği için bu, alttaki
-    // MySQL kartının yerinden oynamasını önler. Satır yüksekliği ölçülerek
-    // alınır (yazı tipi/zum değişebilir), sabit piksel varsayılmaz.
+    // İki gövdenin satır sayısı farklı (hesap listesi kısa olabiliyor, süreç
+    // listesi 10'a kadar). Kart her zaman UZUN olanı kadar yer ayırır; ızgara
+    // kartları zaten eşitlediği için bu, alttaki MySQL kartının yerinden
+    // oynamasını önler. Satır yüksekliği ÖLÇÜLÜR, sabit piksel varsayılmaz.
     const ioEsitle=()=>{
       const sar=ioCard.querySelector('.io-wrap'),t=ioCard.querySelector('table'),
             a=document.getElementById('pt-io'),p=document.getElementById('pt-ioproc');
       if(!sar||!t||!a||!p)return;
-      const gor=ioCard.classList.contains('io-proc')?p:a;
+      const pr=document.getElementById('iov-p');
+      const gor=(pr&&pr.checked)?p:a;
       const satir=gor.rows[0]?gor.rows[0].offsetHeight:0;
       if(!satir)return;
       const n=Math.max(a.rows.length,p.rows.length);
       sar.style.minHeight=((t.tHead?t.tHead.offsetHeight:0)+n*satir)+'px';
     };
     window.azIoEsitle=ioEsitle;          // tik sonrası da çağrılır
-    const ioSet=v=>{ioCard.classList.toggle('io-proc',v==='proc');
-      ioCard.classList.toggle('io-acct',v!=='proc'); ioEsitle();};
-    try{const v=localStorage.getItem('az-io-view');if(v)ioSet(v);}catch(e){}
+    try{const v=localStorage.getItem('az-io-view');
+        const r=document.getElementById(v==='proc'?'iov-p':'iov-a');
+        if(v&&r)r.checked=true;}catch(e){}
     ioEsitle();                          // sunucu render'ından sonraki ilk ölçüm
-    document.addEventListener('click',e=>{
-      const b=e.target.closest&&e.target.closest('.io-tab');
-      if(!b)return;
-      const v=b.getAttribute('data-io');
-      ioSet(v); try{localStorage.setItem('az-io-view',v);}catch(e){}
+    ioCard.addEventListener('change',e=>{
+      if(!e.target.classList.contains('vw-radio'))return;
+      ioEsitle();
+      try{localStorage.setItem('az-io-view',e.target.id==='iov-p'?'proc':'acct');}catch(e){}
     });
   }
 
   const dkCard=document.getElementById('disk-card');
   if(dkCard){
-    const dkSet=(v,w)=>{
-      dkCard.classList.toggle('dk-grow',v==='grow');
-      dkCard.classList.toggle('dk-size',v!=='grow');
-      if(w!==undefined&&w!==null&&document.getElementById('pt-dkg-'+w)){
-        [...dkCard.classList].forEach(c=>{if(/^dk-w\d+$/.test(c))dkCard.classList.remove(c);});
-        dkCard.classList.add('dk-w'+w);
-      }
-    };
-    // Kayıtlı pencere artık yoksa (geçmiş kısaldı) sunucunun seçtiği varsayılan kalır.
-    try{dkSet(localStorage.getItem('az-disk-view'),localStorage.getItem('az-disk-win'));}catch(e){}
-    document.addEventListener('click',e=>{
-      const b=e.target.closest&&e.target.closest('.dk-tab');
-      if(!b)return;
-      const v=b.getAttribute('data-dk'),w=b.getAttribute('data-win');
-      dkSet(v,w);
-      try{localStorage.setItem('az-disk-view',v);
-          if(w!==null)localStorage.setItem('az-disk-win',w);}catch(e){}
+    // Kayıtlı pencere artık yoksa (geçmiş kısaldı, 30g düştü) sunucunun
+    // seçtiği varsayılan kalır — olmayan bir sekmeyi seçmeye çalışmaz.
+    try{const v=localStorage.getItem('az-disk-view');
+        const id=(v==='grow')?('dkv-'+localStorage.getItem('az-disk-win')):'dkv-s';
+        const r=document.getElementById(id);
+        if(v&&r)r.checked=true;}catch(e){}
+    dkCard.addEventListener('change',e=>{
+      if(!e.target.classList.contains('vw-radio'))return;
+      const w=e.target.id.slice(4);   // 'dkv-s' -> 's', 'dkv-7' -> '7'
+      try{localStorage.setItem('az-disk-view',w==='s'?'size':'grow');
+          if(w!=='s')localStorage.setItem('az-disk-win',w);}catch(e){}
     });
   }
-
   const awBtn=document.getElementById('awake-btn');
   if(awBtn&&navigator.wakeLock&&navigator.wakeLock.request){
     let wl=null,on=KEEP_AWAKE;
