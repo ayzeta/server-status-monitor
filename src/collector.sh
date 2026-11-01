@@ -492,6 +492,52 @@ PYEOF
     rm -f "$MQC"
   fi
   echo "mysql_ping $(timeout 3 mysqladmin ping >/dev/null 2>&1 && echo 1 || echo 0)"
+  # ── Onbellek: NIYET + KULLANICI BASINA REDIS ────────────────────
+  # YOKLUK ARIZA DEGILDIR. Pano eskiden "port kapali = hata" diyordu; Redis ya
+  # da Memcached kullanmayan her sunucuda kart kirmizi yaniyordu. Oysa kapali
+  # port tek basina bir sey sOylemez — sorulmasi gereken "calismasi bekleniyor
+  # muydu". Cevabi systemd biliyor: birim enabled ise evet, degilse hayir.
+  #
+  # SUREC SINYALI KULLANILMIYOR, bilerek: LiteSpeed'in kullanici basina Redis'i
+  # de "redis-server" adiyla calisiyor (olculdu: 121 surec). Surece bakan bir
+  # kural, ortak Redis kapaliyken onu "cokmus" sanardi.
+  #
+  # Tek cagri (iki birim), ~15 ms. Cikti: "unit <ad> <dosya durumu> <etkinlik>".
+  systemctl show redis.service memcached.service --no-pager \
+      -p Id -p UnitFileState -p ActiveState 2>/dev/null \
+    | awk '# Ozellikler VERILEN SIRAYLA gelmiyor: blok bitince yazilir.
+           # (Once ActiveState satirinda yazdiriliyordu ve UnitFileState hic
+           #  okunmadan bos kaliyordu — "unit redis  inactive" gibi.)
+           function bas(){ if(id!="") print "unit", id, (f==""?"notfound":f), (a==""?"unknown":a); id=f=a="" }
+           /^Id=/          {id=substr($0,4); sub(/\.service$/,"",id); next}
+           /^UnitFileState=/{f=substr($0,15); next}
+           /^ActiveState=/  {a=substr($0,13); next}
+           /^$/            {bas(); next}
+           END             {bas()}'
+  # Kullanici basina Redis (LiteSpeed "Cache Redis for Users"): ag portu yok,
+  # her hesabin kendi soketi var. Sayim: soketi olan Y hesap, PING'e PONG
+  # donen X tanesi. redis-cli DEGIL — 121 hesapta 121 surec baslatmak turun
+  # maliyetini geri getirirdi; tek python butun soketlere siraile baglaniyor
+  # (uretimde olculdu: 121 soket, 21 ms).
+  python3 -I - <<'PYEOF'
+import glob, socket
+sok = sorted(glob.glob('/home/*/.cagefs/tmp/redis.sock'))
+if sok:
+    ok, kotu = 0, []
+    for p in sok:
+        try:
+            c = socket.socket(socket.AF_UNIX); c.settimeout(0.3)
+            c.connect(p); c.sendall(b'PING\r\n')
+            if c.recv(16).startswith(b'+PONG'): ok += 1
+            else: kotu.append(p.split('/')[2])
+            c.close()
+        except Exception:
+            kotu.append(p.split('/')[2])
+    print("userredis %d %d" % (ok, len(sok)))
+    # Yanit vermeyenlerin ADI yazilir (ilk 5): "3 hesap yanit vermiyor" deyip
+    # hangileri oldugunu sOylememek, bakan kisiyi tek tek aramaya birakirdi.
+    if kotu: print("userredis_bad %s" % " ".join(kotu[:5]))
+PYEOF
   echo "websrv $(pgrep -x litespeed >/dev/null 2>&1 && echo litespeed || echo apache)"
   # Inode kullanimi (%): disk ALANI bos olsa da inode tukenince sunucu coker
   # (dosya olusturulamaz). Milyonlarca kucuk dosya (LiteSpeed cache vb) tuketir.

@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.55'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.56'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -146,6 +146,11 @@ $TR = [
     'User' => 'Kullanıcı', 'Command' => 'Komut', 'Account' => 'Hesap', 'State' => 'Durum', 'Query' => 'Sorgu',
     'Time' => 'Süre', 'Procs' => 'Süreç', 'quota data pending' => 'kota verisi bekleniyor',
     'no response' => 'yanıt yok', 'stopped' => 'durdu', 'unknown' => 'bilinmiyor', 'up %s' => '%s ayakta',
+    // Yokluk arıza değildir: servis bu sunucuda kullanılmıyorsa kart kırmızı yanmaz.
+    'not in use' => 'kullanılmıyor', 'unverified' => 'doğrulanamadı',
+    'Not in use' => 'Kullanılmıyor', '%s not in use' => '%s kullanılmıyor',
+    '%s unverified' => '%s doğrulanamadı', '%s no response' => '%s yanıt vermiyor',
+    'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -239,7 +244,7 @@ function tnote($n) { return implode(' · ', array_map('t', explode(' · ', (stri
 // root yazıp web kullanıcısına chown eder). Dosya yoksa bölüm görünmez.
 $procSnapFile = $HOME_DIR . '/.proc_snapshot';
 $sqlMinSec = 5; // cron'daki 'time >= N' ile aynı olmalı; placeholder metni de bunu kullanır
-$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcAt = 0; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $ioWin = ''; $ioProcOk = false; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
+$procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $rootSvc = []; $svcUnit = []; $svcAt = 0; $svcAge = []; $svcVer = []; $diskAcct = []; $ioAcct = []; $ioProc = []; $ioSrc = ''; $ioWin = ''; $ioProcOk = false; $mailqTop = []; $smartBad = []; $netSpeed = []; $procAge = null;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -306,7 +311,14 @@ if (is_readable($procSnapFile)) {
                 elseif ($p[0] === 'netspeed') { // "netspeed eth0 1000" — arayüz başına Mbps
                     $ns = preg_split('/\s+/', trim($p[1]));
                     if (count($ns) === 2 && is_numeric($ns[1])) $netSpeed[$ns[0]] = (int)$ns[1];
-                } else $procSec[$p[0]] = trim($p[1]);
+                }
+                // "unit redis disabled inactive" — systemd'nin NİYETİ. Birden çok
+                // birim geldiği için ada göre saklanır (tek anahtar ezilirdi).
+                elseif ($p[0] === 'unit') {
+                    $u = preg_split('/\s+/', trim($p[1]));
+                    if (count($u) === 3) $svcUnit[$u[0]] = ['file' => $u[1], 'active' => $u[2]];
+                }
+                else $procSec[$p[0]] = trim($p[1]);
             }
         } elseif (stripos($title, 'Service ages') !== false) {
             foreach ($lines as $ln) {
@@ -1038,11 +1050,20 @@ function svcCheck($label, $whmName, $port, $lp, $whmSvcs, $whmOk) {
 // boylece bosluk gizlenmez ama sahte alarm da uretmez.
 function svcTally($checks) {
     $v   = array_values(array_filter($checks, fn($c) => isset($c['ok']) && empty($c['unknown'])));
-    $ok  = array_sum(array_column($v, 'ok'));
+    // UYARI (sarı) kontrol: ölçüldü, KISMEN bozuk. 121 hesabın 3'ünün Redis'i
+    // yanıt vermiyorsa bu bir arıza değil; sayımda ÇALIŞIYOR tarafına yazılır
+    // ama grubu en fazla 'degraded' yapar. Eskiden ok=false sayılıyordu ve tek
+    // bir hesap bütün kartı "Çevrimdışı" gösteriyordu.
+    $wrn = count(array_filter($v, fn($c) => !empty($c['warn'])));
+    $ok  = array_sum(array_map(fn($c) => !empty($c['ok']) || !empty($c['warn']) ? 1 : 0, $v));
     $tot = count($v);
     $unk = count(array_filter($checks, fn($c) => !empty($c['unknown'])));
-    $st  = $tot > 0 ? ($ok === $tot ? 'operational' : ($ok > 0 ? 'degraded' : 'offline'))
-                    : 'operational';   // hicbiri dogrulanamadi: besleme sinyali ayrica uyarir
+    // Ölçülebilir kontrol yoksa grup ne çalışıyor ne çökmüş: 'unused'. Örnek,
+    // Redis ve Memcached'in ikisi de kullanılmayan bir sunucu — eskiden burası
+    // 'operational' dönüyordu ve kart "Çalışıyor" diye yalan söylüyordu.
+    $st  = $tot > 0 ? ($ok === $tot ? ($wrn ? 'degraded' : 'operational')
+                                    : ($ok > 0 ? 'degraded' : 'offline'))
+                    : ($unk > 0 ? 'unused' : 'operational');
     return [$st, $ok, $tot, $unk];
 }
 function chkPort($label, $port, $lp) {
@@ -1050,6 +1071,28 @@ function chkPort($label, $port, $lp) {
     $lst = isListening($port, $lp);
     return ['label' => $label, 'ok' => $ok, 'type' => 'check',
             'note'  => $ok ? 'responding' . ($lst ? ' · listening' : '') : 'no response'];
+}
+// Port + NİYET. Kapalı bir port, o servisin çalışması beklenmiyorsa arıza
+// değildir — bkz. önbellek grubundaki not. 'unknown' bayrağı grup sayımından
+// düşürür ve noktayı griye alır: "ölçtük, kapalı" ile "zaten kullanılmıyor"
+// aynı renkte görünmesin.
+function chkUnit($label, $port, $unit, $lp, $units, $rootFresh) {
+    $c = chkPort($label, $port, $lp);
+    if ($c['ok']) return $c;                       // açık: niyete bakmaya gerek yok
+    // Kapalı port. Niyet kanıtı yoksa İDDİA DA YOK: gri, sayımdan düşer.
+    if (!$rootFresh || !isset($units[$unit])) {
+        $c['unknown'] = true; $c['note'] = 'unverified';
+        return $c;
+    }
+    $u = $units[$unit];
+    // enabled (ya da başlamakta): çalışması bekleniyordu, çalışmıyor → ARIZA.
+    if ($u['file'] === 'enabled' || $u['file'] === 'enabled-runtime'
+        || $u['active'] === 'activating' || $u['active'] === 'failed') {
+        return $c;                                 // 'no response', kırmızı
+    }
+    // disabled / masked / static / notfound → bu sunucuda kullanılmıyor.
+    $c['unknown'] = true; $c['note'] = 'not in use';
+    return $c;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1369,11 +1412,52 @@ $dbTotal  = count($dbChecks);
 // ════════════════════════════════════════════════════════════════
 // CACHE
 // ════════════════════════════════════════════════════════════════
+// YOKLUK ARIZA DEĞİLDİR. Bu iki servisi cPanel bilmiyor (whmapi1 listesinde
+// yoklar), o yüzden eskiden salt port yoklamasıyla bakılıyordu ve Redis ya da
+// Memcached KULLANMAYAN her sunucuda kart kırmızı yanıyordu. Kapalı port tek
+// başına bir şey söylemez; sorulması gereken "çalışması bekleniyor muydu".
+// Cevabı systemd biliyor (collector 'unit' satırıyla gönderiyor):
+//   port açık            → çalışıyor
+//   kapalı + enabled     → ARIZA (çalışması gerekiyordu)
+//   kapalı + disabled/yok → kullanılmıyor (gri, sayımdan düşer)
+//   bilgi yok            → doğrulanamadı (gri) — kırmızı DEĞİL
 $cacheChecks = [
-    chkPort('Redis (6379)',       6379,  $listeningPorts),
-    chkPort('Memcached (11211)', 11211,  $listeningPorts),
+    chkUnit('Redis (6379)',       6379,  'redis',     $listeningPorts, $svcUnit, $rootFresh),
+    chkUnit('Memcached (11211)', 11211,  'memcached', $listeningPorts, $svcUnit, $rootFresh),
 ];
-[$cacheStatus, $cacheOk, $cacheTotal] = svcTally($cacheChecks);
+// LiteSpeed'in "Cache Redis for Users" özelliği: ağ portu yok, her hesabın
+// kendi soketi var. Tek hesabın Redis'i bütün kartı düşürmemeli — eksik varsa
+// SARI uyarı ve yanıt vermeyenlerin adı; hiçbiri yanıt vermiyorsa kırmızı.
+if ($rootFresh && isset($procSec['userredis'])) {
+    $ur = preg_split('/\s+/', trim($procSec['userredis']));
+    if (count($ur) === 2 && ctype_digit($ur[0]) && ctype_digit($ur[1]) && (int)$ur[1] > 0) {
+        [$urOk, $urTot] = [(int)$ur[0], (int)$ur[1]];
+        $urNote = tf('%s/%s active', $urOk, $urTot);
+        $urTip  = null;
+        if ($urOk < $urTot) {
+            // Nota İKİ AD sığıyor (kart 314 px ölçüldü), gerisi "+N" ve tamamı
+            // ipucunda. Yalnız sayı yazmak "hangileri" sorusunu açık bırakırdı;
+            // hepsini yazmak da satırı taşırıp etiketi kırpıyordu.
+            $ad = isset($procSec['userredis_bad'])
+                ? preg_split('/\s+/', trim($procSec['userredis_bad']), -1, PREG_SPLIT_NO_EMPTY) : [];
+            $eksik = $urTot - $urOk;
+            if ($ad) {
+                $gor = array_slice($ad, 0, 2);
+                $kalan = $eksik - count($gor);
+                $urNote .= ' · ' . implode(' ', $gor) . ($kalan > 0 ? ' +' . $kalan : '');
+                $urTip = t('no response') . ': ' . implode(' ', $ad)
+                       . (count($ad) < $eksik ? ' +' . ($eksik - count($ad)) : '');
+            } else {
+                $urNote .= ' · ' . tf('%s no response', $eksik);
+            }
+        }
+        $cacheChecks[] = ['label' => t('Redis · user'), 'type' => 'check',
+                          'ok'   => $urOk === $urTot,
+                          'warn' => $urOk > 0 && $urOk < $urTot,   // kısmi: uyarı, arıza değil
+                          'note' => $urNote] + ($urTip ? ['noteT' => $urTip] : []);
+    }
+}
+[$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);
 
 // ════════════════════════════════════════════════════════════════
 // FTP
@@ -2057,7 +2141,7 @@ if (isset($_GET['json'])) {
         'dns'   => ['status' => $dnsStatus,   'checks' => $dnsChecks,   'ok' => $dnsOk,   'total' => $dnsTotal],
         'sec'   => ['status' => $secStatus,   'checks' => $secChecks,   'ok' => $secOk,   'total' => $secTotal, 'unknown' => $secUnknown],
         'db'    => ['status' => $dbStatus,    'checks' => $dbChecks,    'ok' => $dbOk,    'total' => $dbTotal],
-        'cache' => ['status' => $cacheStatus, 'checks' => $cacheChecks, 'ok' => $cacheOk, 'total' => $cacheTotal],
+        'cache' => ['status' => $cacheStatus, 'checks' => $cacheChecks, 'ok' => $cacheOk, 'total' => $cacheTotal, 'unknown' => $cacheUnknown],
         'ftp'   => ['status' => $ftpStatus,   'checks' => $ftpChecks,   'ok' => $ftpOk,   'total' => $ftpTotal],
     ]);
     exit;
@@ -2104,7 +2188,8 @@ function renderChecks($checks) {
                   // Kırmızı yanlıştı — grup rozeti unknown'ı saymadığı için
                   // satır kırmızıyken başlık "Operational" diyordu. Sarı da
                   // olmaz: bu panoda sarı, ölçülmüş bir değerin eşiği aşması.
-                  . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : (!empty($c['unknown']) ? 'muted' : 'err')) . '"></span>'
+                  . '<span class="sub-dot ' . ($c['ok'] ? 'ok' : (!empty($c['warn']) ? 'warn'
+                      : (!empty($c['unknown']) ? 'muted' : 'err'))) . '"></span>'
                   . '<span class="sub-lbl">' . htmlspecialchars($c['label']) . $ver . '</span>'
                   // noteT: notun KAYNAĞI/ÖLÇÜM ANI (ör. CageFS durumu dakikada bir
                   // değil, değiştiğinde ölçülüyor — ekran bunu söyleyebilsin).
@@ -2115,8 +2200,30 @@ function renderChecks($checks) {
     }
     return $out;
 }
-function bclass($s) { return $s === 'operational' ? 'badge-ok' : ($s === 'degraded' ? 'badge-warn' : 'badge-err'); }
-function blabel($s) { return t($s === 'operational' ? 'Operational' : ($s === 'degraded' ? 'Degraded' : 'Offline')); }
+// DÖRT DURUM. 'unused' sonradan eklendi: hiçbir kontrolü ölçülebilir olmayan bir
+// grup (ör. Redis de Memcached de bu sunucuda kullanılmıyor) ne "Çalışıyor"dur
+// ne "Çevrimdışı". Eskiden böyle bir grup kırmızı yanıyor, başlıkta "Sorun
+// tespit edildi · Önbellek Çevrimdışı" yazıyordu — kullanılmayan bir şey için.
+// Kart sayacı: "2/3 aktif · 1 kullanılmıyor" gibi. SAYILAR AYRI TUTULUR —
+// "kullanılmıyor" ile "doğrulanamadı" aynı şey değil: biri bu sunucuda yok,
+// öteki ölçemediğimiz anlamına gelir. Tek kelimede birleştirmek, okuyanı
+// "bir şey mi gizliyor" diye düşündürüyordu.
+function svcCountTxt($ok, $tot, $checks, $word) {
+    $kul = $don = 0;
+    foreach ($checks as $c) {
+        if (empty($c['unknown'])) continue;
+        if (($c['note'] ?? '') === 'not in use') $kul++; else $don++;
+    }
+    $p = [];
+    if ($tot > 0) $p[] = $ok . '/' . $tot . ' ' . t($word);
+    if ($kul)     $p[] = tf('%s not in use', $kul);
+    if ($don)     $p[] = tf('%s unverified', $don);
+    return $p ? implode(' · ', $p) : '0/0 ' . t($word);
+}
+function bclass($s) { return $s === 'operational' ? 'badge-ok'
+    : ($s === 'degraded' ? 'badge-warn' : ($s === 'unused' ? 'badge-muted' : 'badge-err')); }
+function blabel($s) { return t($s === 'operational' ? 'Operational'
+    : ($s === 'degraded' ? 'Degraded' : ($s === 'unused' ? 'Not in use' : 'Offline'))); }
 
 // ── Sunucu tarafı sparkline (SVG) ─────────────────────────────
 // Mail eklerinde JS ölü olabilir (taşıma katmanı 998+ baytlık satırları
@@ -2782,6 +2889,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .badge-ok  {background:var(--ok-bg);    color:var(--ok-txt);}
 .badge-warn{background:var(--warn-bg);  color:var(--warn-txt);}
 .badge-err {background:var(--danger-bg);color:var(--danger-txt);}
+/* 'Kullanılmıyor': renksiz. Bu panoda yeşil "ölçtük, iyi", kırmızı "ölçtük,
+   kötü" demek; kullanılmayan bir servis ikisi de değil. */
+.badge-muted{background:var(--hint-bg,rgba(127,127,127,.12));color:var(--hint);}
 .svc-checks{border-top:1px solid var(--border);padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px;flex:1;}
 .sub-check{display:flex;align-items:center;gap:7px;min-height:20px;}
 /* Disk kartı iki görünüm: hangi tbody görünecek kartın sınıfı belirler. İkisi de
@@ -2814,9 +2924,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
+/* SARI: ölçüldü, kısmen bozuk. 121 hesabın 3'ünün Redis'i yanıt vermiyorsa bu
+   ne "her şey yolunda" ne de "önbellek çöktü" — kart düşmemeli ama görünmeli. */
+.sub-dot.warn {background:var(--warn);}
 .sub-dot.muted{background:var(--hint);}
-.sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmasın; sıkışınca önce sürüm kırpılır */
-.sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
+/* ETİKET KIRPILMAZ, NOT KIRPILIR. Önceden flex:1 etiketteydi ve min-width:0
+   ile birlikte uzun bir not etiketi sıfıra indirebiliyordu: satırda yalnız
+   "118/121 active · no response: ..." kalıyor, neyin satırı olduğu kayboluyordu
+   (kullanıcı başına Redis notu eklenince görüldü). */
+.sub-lbl{font-size:11px;color:var(--muted);flex:0 1 auto;display:flex;align-items:center;gap:4px;min-width:62px;white-space:nowrap;overflow:hidden;}
+.sub-note{font-size:10px;color:var(--hint);white-space:nowrap;flex:1 1 auto;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;text-align:right;}
 /* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
@@ -3306,7 +3424,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><?=icon('topology-star-ring')?></div>
-      <div class="svc-info"><div class="svc-name"><?=t('Cache')?></div><div class="svc-count" id="sk-cache"><?=$cacheOk?>/<?=$cacheTotal?> <?=t('active')?></div></div>
+      <div class="svc-info"><div class="svc-name"><?=t('Cache')?></div><div class="svc-count" id="sk-cache"><?=svcCountTxt($cacheOk, $cacheTotal, $cacheChecks, 'active')?></div></div>
       <div class="badge <?=bclass($cacheStatus)?>" id="bd-cache"><?=blabel($cacheStatus)?></div>
     </div>
     <div class="svc-checks" id="ch-cache"><?=renderChecks($cacheChecks)?></div>
@@ -3889,10 +4007,20 @@ function renderSvc(key,data){
   const icon=document.getElementById('si-'+key),badge=document.getElementById('bd-'+key);
   const count=document.getElementById('sk-'+key),checks=document.getElementById('ch-'+key);
   if(icon){icon.style.background=s==='operational'?'var(--accent-bg)':s==='degraded'?'var(--warn-bg)':'var(--danger-bg)';icon.style.color=s==='operational'?'var(--accent)':s==='degraded'?'var(--warn)':'var(--danger)';}
-  if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):t('Offline');}
+  // PHP bclass/blabel ikizi — dördüncü durum 'unused' (kullanılmıyor, renksiz).
+  if(badge){const k=s==='operational'?'badge-ok':s==='degraded'?'badge-warn':s==='unused'?'badge-muted':'badge-err';
+    badge.className='badge '+k;
+    badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):s==='unused'?t('Not in use'):t('Offline');}
   if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};
-    // PHP ile ayni: dogrulanamayan kontrol sayisi ayrica yazilir, bosluk gizlenmesin.
-    count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'')+(data.unknown>0?' · '+tf('%s unknown',data.unknown):'');}
+    // PHP svcCountTxt() ikizi: "kullanilmiyor" ile "dogrulanamadi" AYRI sayilir
+    // (biri bu sunucuda yok, oteki olculemedi — ayni kelime ikisini de yanlis anlatir).
+    let kul=0,don=0;
+    (data.checks||[]).forEach(c=>{if(c.unknown){ (c.note==='not in use')?kul++:don++; }});
+    const p=[];
+    if(data.total>0)p.push(data.ok+'/'+data.total+' '+t(u[key]||''));
+    if(kul)p.push(tf('%s not in use',kul));
+    if(don)p.push(tf('%s unverified',don));
+    count.textContent=p.length?p.join(' · '):('0/0 '+t(u[key]||''));}
   if(checks&&data.checks){
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
@@ -3901,7 +4029,8 @@ function renderSvc(key,data){
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
       // PHP'deki dalın ikizi: doğrulanamayan kontrol gri (bkz. oradaki not).
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':(ch.unknown?'muted':'err')}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
+      const nokta=ch.ok?'ok':(ch.warn?'warn':(ch.unknown?'muted':'err'));
+      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }

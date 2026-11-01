@@ -13,14 +13,17 @@ const phpIfade = src.slice(pb, pe);
 const phpJs = phpIfade
   .replace("'<span class=\"sub-dot ' . ", '')
   .replace(/\$c\['ok'\]/g, 'c.ok')
+  .replace(/!empty\(\$c\['warn'\]\)/g, '!!c.warn')
   .replace(/!empty\(\$c\['unknown'\]\)/g, '!!c.unknown')
   // Dilim bir sonraki dize literalinin acilisinda bitiyor: sondaki " . '" atilir.
   .replace(/\s*\.\s*'?\s*$/, '');
 
 // JS ikizi
-const jb = src.indexOf("${ch.ok?'ok':(ch.unknown?'muted':'err')}");
+// JS tarafi artik ayri bir degiskende: "const nokta=...;" (dort yollu).
+const JA = "ch.ok?'ok':(ch.warn?'warn':(ch.unknown?'muted':'err'))";
+const jb = src.indexOf(JA);
 if (jb < 0) { console.log('JS dali bulunamadi'); process.exit(2); }
-const jsIfade = src.slice(jb + 2, src.indexOf('}', jb + 2));
+const jsIfade = src.slice(jb, jb + JA.length);
 
 const php = new Function('c', 'return ' + phpJs + ';');
 const js = new Function('ch', 'return ' + jsIfade + ';');
@@ -30,8 +33,11 @@ const ORNEK = [
   { ad: 'dogrulanmis sorun', c: { ok: false } },
   { ad: 'dogrulanamadi', c: { ok: false, unknown: true } },
   { ad: 'unknown ama ok (olmamali, yine de tutarli olsun)', c: { ok: true, unknown: true } },
+  // Kismi ariza: olculdu, bir kismi bozuk (121 hesabin 3'u). Ne yesil ne kirmizi.
+  { ad: 'kismi ariza -> sari', c: { ok: false, warn: true } },
+  { ad: 'sari + unknown: sari once gelir', c: { ok: false, warn: true, unknown: true } },
 ];
-const BEKLENEN = ['ok', 'err', 'muted', 'ok'];
+const BEKLENEN = ['ok', 'err', 'muted', 'ok', 'warn', 'warn'];
 
 let fail = 0;
 ORNEK.forEach((o, i) => {

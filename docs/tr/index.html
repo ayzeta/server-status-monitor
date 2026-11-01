@@ -256,6 +256,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .badge-ok  {background:var(--ok-bg);    color:var(--ok-txt);}
 .badge-warn{background:var(--warn-bg);  color:var(--warn-txt);}
 .badge-err {background:var(--danger-bg);color:var(--danger-txt);}
+/* 'Kullan&#305;lm&#305;yor': renksiz. Bu panoda ye&#351;il "&#246;l&#231;t&#252;k, iyi", k&#305;rm&#305;z&#305; "&#246;l&#231;t&#252;k,
+   k&#246;t&#252;" demek; kullan&#305;lmayan bir servis ikisi de de&#287;il. */
+.badge-muted{background:var(--hint-bg,rgba(127,127,127,.12));color:var(--hint);}
 .svc-checks{border-top:1px solid var(--border);padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px;flex:1;}
 .sub-check{display:flex;align-items:center;gap:7px;min-height:20px;}
 /* Disk kart&#305; iki g&#246;r&#252;n&#252;m: hangi tbody g&#246;r&#252;necek kart&#305;n s&#305;n&#305;f&#305; belirler. &#304;kisi de
@@ -305,9 +308,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .sub-dot.ok   {background:var(--ok);}
 .sub-dot.err  {background:var(--danger);}
+/* SARI: &#246;l&#231;&#252;ld&#252;, k&#305;smen bozuk. 121 hesab&#305;n 3'&#252;n&#252;n Redis'i yan&#305;t vermiyorsa bu
+   ne "her &#351;ey yolunda" ne de "&#246;nbellek &#231;&#246;kt&#252;" &#8212; kart d&#252;&#351;memeli ama g&#246;r&#252;nmeli. */
+.sub-dot.warn {background:var(--warn);}
 .sub-dot.muted{background:var(--hint);}
-.sub-lbl{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;overflow:hidden;} /* etiket asla sarmas&#305;n; s&#305;k&#305;&#351;&#305;nca &#246;nce s&#252;r&#252;m k&#305;rp&#305;l&#305;r */
-.sub-note{font-size:10px;color:var(--hint);white-space:nowrap;}
+/* ET&#304;KET KIRPILMAZ, NOT KIRPILIR. &#214;nceden flex:1 etiketteydi ve min-width:0
+   ile birlikte uzun bir not etiketi s&#305;f&#305;ra indirebiliyordu: sat&#305;rda yaln&#305;z
+   "118/121 active &#183; no response: ..." kal&#305;yor, neyin sat&#305;r&#305; oldu&#287;u kayboluyordu
+   (kullan&#305;c&#305; ba&#351;&#305;na Redis notu eklenince g&#246;r&#252;ld&#252;). */
+.sub-lbl{font-size:11px;color:var(--muted);flex:0 1 auto;display:flex;align-items:center;gap:4px;min-width:62px;white-space:nowrap;overflow:hidden;}
+.sub-note{font-size:10px;color:var(--hint);white-space:nowrap;flex:1 1 auto;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;text-align:right;}
 /* Ya&#351; s&#252;tunu: her sat&#305;rda sabit geni&#351;lik &#8594; sa&#287; kenarda dikey hizal&#305;, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* S&#252;r&#252;m &#8212; etiketin yan&#305;nda silik; dar pencerede yaln&#305;z o k&#305;rp&#305;l&#305;r (tamam&#305; hover'da) */
@@ -594,7 +605,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2025ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +2">Web 2025ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; &#214;nbellek &#199;evrimd&#305;&#351;&#305; &#183; +2</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2056ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; FTP &#199;evrimd&#305;&#351;&#305; &#183; +1">Web 2056ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; FTP &#199;evrimd&#305;&#351;&#305; &#183; +1</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -604,7 +615,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">21:37:18</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">15:01:06</span></div></div>
   </div>
 </div>
 
@@ -647,15 +658,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:1%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:4%">
     <div class="res-top">
       <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><b>1</b><u>%</u></span>
+      <span class="res-val" id="rv-disk"><b>4</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">13 / 894 GB</div>
+    <div class="res-meta" id="rm-disk">40 / 894 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
@@ -692,11 +703,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2025</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2056</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>4</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>3</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -757,7 +768,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="svc-top">
       <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06" /><path d="M15 19l2 2l4 -4" /></svg></div>
       <div class="svc-info"><div class="svc-name">G&#252;venlik</div><div class="svc-count" id="sk-sec">0/0 aktif do&#287;ruland&#305; &#183; 2 bilinmiyor</div></div>
-      <div class="badge badge-ok" id="bd-sec">&#199;al&#305;&#351;&#305;yor</div>
+      <div class="badge badge-muted" id="bd-sec">Kullan&#305;lm&#305;yor</div>
     </div>
     <div class="svc-checks" id="ch-sec"><div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">Imunify360</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">LFD</span><span class="sub-note">bilinmiyor</span><span class="sub-age"></span></div>
@@ -779,11 +790,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 4a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M22 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M14 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" /><path d="M6 12h4" /><path d="M14 12h4" /><path d="M13.5 5.5l5 5" /><path d="M5.5 13.5l5 5" /><path d="M13.5 18.5l5 -5" /><path d="M10.5 5.5l-5 5" /><path d="M12 6v4" /><path d="M12 14v4" /></svg></div>
-      <div class="svc-info"><div class="svc-name">&#214;nbellek</div><div class="svc-count" id="sk-cache">0/2 aktif</div></div>
-      <div class="badge badge-err" id="bd-cache">&#199;evrimd&#305;&#351;&#305;</div>
+      <div class="svc-info"><div class="svc-name">&#214;nbellek</div><div class="svc-count" id="sk-cache">1/1 aktif &#183; 2 kullan&#305;lm&#305;yor</div></div>
+      <div class="badge badge-ok" id="bd-cache">&#199;al&#305;&#351;&#305;yor</div>
     </div>
-    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-cache"><div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">Redis (6379)</span><span class="sub-note">kullan&#305;lm&#305;yor</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">Memcached (11211)</span><span class="sub-note">kullan&#305;lm&#305;yor</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">Redis &#183; kullan&#305;c&#305;</span><span class="sub-note">121/121 aktif</span><span class="sub-age"></span></div>
 </div>
   </div>
   <div class="svc-card">
@@ -842,19 +854,19 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">21:37</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">&#214;nbellek kapand&#305; &#183; Redis (6379), Memcached (11211)</span><span class="log-ts">21:37</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">21:37</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">21:37</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">21:37</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2025ms</span><span class="log-ts">21:37</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">15:01</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">21:37</span></div>
+<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD +3</span><span class="log-ts">15:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">15:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">15:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">15:01</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2056ms</span><span class="log-ts">15:01</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">15:01</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -862,7 +874,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.55">v1.5.55</span> &middot; 2026-10-24 21:37:18</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.56">v1.5.56</span> &middot; 2026-11-01 15:01:06</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -941,7 +953,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.55"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.56"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1068,6 +1080,14 @@ const TR={
     "stopped": "durdu",
     "unknown": "bilinmiyor",
     "up %s": "%s ayakta",
+    "not in use": "kullanılmıyor",
+    "unverified": "doğrulanamadı",
+    "Not in use": "Kullanılmıyor",
+    "%s not in use": "%s kullanılmıyor",
+    "%s unverified": "%s doğrulanamadı",
+    "%s no response": "%s yanıt vermiyor",
+    "Redis · user": "Redis · kullanıcı",
+    "%s\/%s active": "%s\/%s aktif",
     "not listening": "dinlemiyor",
     "not detected": "algılanmadı",
     "not bound": "bağlı değil",
@@ -1238,7 +1258,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:1,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'21:37:18'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:4,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'15:01:06'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1265,49 +1285,49 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "21:37",
-        "t": 1792877838
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
-        "type": "err",
-        "msg": "\u00d6nbellek kapand\u0131 \u00b7 Redis (6379), Memcached (11211)",
-        "ts": "21:37",
-        "t": 1792877838
+        "type": "warn",
+        "msg": "G\u00fcvenlik sorunlu \u00b7 Imunify360, LFD +3",
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "21:37",
-        "t": 1792877838
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "21:37",
-        "t": 1792877838
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
         "type": "err",
         "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
-        "ts": "21:37",
-        "t": 1792877838
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
         "type": "err",
-        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2025ms",
-        "ts": "21:37",
-        "t": 1792877838
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2056ms",
+        "ts": "15:01",
+        "t": 1793545266
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "21:37",
-        "t": 1792877838
+        "ts": "15:01",
+        "t": 1793545266
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1792877838,TZOFF=0;
+let srvNow=1793545266,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1757,10 +1777,20 @@ function renderSvc(key,data){
   const icon=document.getElementById('si-'+key),badge=document.getElementById('bd-'+key);
   const count=document.getElementById('sk-'+key),checks=document.getElementById('ch-'+key);
   if(icon){icon.style.background=s==='operational'?'var(--accent-bg)':s==='degraded'?'var(--warn-bg)':'var(--danger-bg)';icon.style.color=s==='operational'?'var(--accent)':s==='degraded'?'var(--warn)':'var(--danger)';}
-  if(badge){badge.className='badge '+(s==='operational'?'badge-ok':s==='degraded'?'badge-warn':'badge-err');badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):t('Offline');}
+  // PHP bclass/blabel ikizi — dördüncü durum 'unused' (kullanılmıyor, renksiz).
+  if(badge){const k=s==='operational'?'badge-ok':s==='degraded'?'badge-warn':s==='unused'?'badge-muted':'badge-err';
+    badge.className='badge '+k;
+    badge.textContent=s==='operational'?t('Operational'):s==='degraded'?t('Degraded'):s==='unused'?t('Not in use'):t('Offline');}
   if(count){const u={web:'checks passed',mail:'checks passed',dns:'checks passed',sec:'verified active',db:'checks passed',cache:'active',ftp:'checks passed'};
-    // PHP ile ayni: dogrulanamayan kontrol sayisi ayrica yazilir, bosluk gizlenmesin.
-    count.textContent=data.ok+'/'+data.total+' '+t(u[key]||'')+(data.unknown>0?' · '+tf('%s unknown',data.unknown):'');}
+    // PHP svcCountTxt() ikizi: "kullanilmiyor" ile "dogrulanamadi" AYRI sayilir
+    // (biri bu sunucuda yok, oteki olculemedi — ayni kelime ikisini de yanlis anlatir).
+    let kul=0,don=0;
+    (data.checks||[]).forEach(c=>{if(c.unknown){ (c.note==='not in use')?kul++:don++; }});
+    const p=[];
+    if(data.total>0)p.push(data.ok+'/'+data.total+' '+t(u[key]||''));
+    if(kul)p.push(tf('%s not in use',kul));
+    if(don)p.push(tf('%s unverified',don));
+    count.textContent=p.length?p.join(' · '):('0/0 '+t(u[key]||''));}
   if(checks&&data.checks){
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
@@ -1769,12 +1799,13 @@ function renderSvc(key,data){
       const age='<span class="sub-age"'+(ch.up?' title="'+esc(tf('up %s',ch.up))+'"':'')+'>'+(ch.upS?esc(ch.upS):'')+'</span>';
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
       // PHP'deki dalın ikizi: doğrulanamayan kontrol gri (bkz. oradaki not).
-      return `<div class="sub-check"><span class="sub-dot ${ch.ok?'ok':(ch.unknown?'muted':'err')}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
+      const nokta=ch.ok?'ok':(ch.warn?'warn':(ch.unknown?'muted':'err'));
+      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
     }).join('');
   }
 }
 
-let lastSnapMtime=1792877797; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1793545226; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -2193,7 +2224,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.55 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.56 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

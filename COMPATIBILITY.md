@@ -21,7 +21,7 @@ separately.
 
 | | Read through |
 |---|---|
-| cPanel & WHM | 138.0.15 (2026-10-08) |
+| cPanel & WHM | 138.0.19 (2026-10-26) |
 | CSF | 16.33-1 (2026-10-08) |
 
 Older and newer releases are not excluded — these are simply the ones whose
@@ -41,6 +41,18 @@ Imunify360 CLI (`imunify360-agent version`, `malware`).
 service state.
 
 ## Review log
+
+**2026-11-01** — cPanel 138.0.17, 138.0.18 and 138.0.19; CSF unchanged at
+16.33-1. Nothing that required a change. Three entries sat close enough to the
+dashboard to be checked in the code rather than waved off: the hourly
+`upcp --security` cron no longer mails its output (CPANEL-56561) — the update
+detector matches the running process, not the mail, so it still sees the run; a
+save of the nftables configuration was dropping the SMTP restriction tables
+(CPANEL-57809) — the firewall check asks CSF's own `LOCALINPUT` chain, a
+different ruleset; and the cpsrvd "proxy trust miss" log line changed shape
+(CPANEL-57789) — that log is never parsed here, cpsrvd is read as a process
+name and a port. The rest were package updates (Roundcube, php84, libzip,
+unbound) and unrelated UI fixes.
 
 **2026-10-19** — cPanel 138 series through 138.0.15 and CSF through 16.33-1.
 Nothing that required a change.
