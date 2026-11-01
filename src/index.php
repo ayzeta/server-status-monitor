@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.56'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.57'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1030,6 +1030,21 @@ function svcCheck($label, $whmName, $port, $lp, $whmSvcs, $whmOk) {
             $note = $status ? 'running' : 'stopped';
             if ($port && $status) $note .= $lst ? ' · listening' : ' · not listening';
             return ['label' => $label, 'ok' => $status, 'type' => 'check', 'note' => $note];
+        }
+        // whmSvcOk NEDEN null döndü? İki ayrı durum var ve ikisi aynı şey değil:
+        //   (a) cPanel bu servisi hiç tanımıyor  → kanıt yok, aşağıda porta bakılır
+        //   (b) cPanel "kapalı / kurulu değil" diyor → KANIT VAR, bu sunucuda
+        //       kullanılmıyor demektir; kapalı portu arıza saymak yanlış olur.
+        // (b) eskiden de porta düşüyordu: FTP'si kapalı, DNS'i dışarıda ya da
+        // mail servisi olmayan her kurulumda satır kırmızı yanıyordu.
+        if (isset($whmSvcs[$whmName])) {
+            $s = $whmSvcs[$whmName];
+            // Port AÇIKSA bayrağa bakma: servis açıkça çalışıyor (cPanel'de
+            // izleme kapatılmış olabilir, bu onu "yok" yapmaz).
+            if (!$port || !portOpen('127.0.0.1', $port)) {
+                return ['label' => $label, 'ok' => false, 'unknown' => true, 'type' => 'check',
+                        'note' => empty($s['installed']) ? 'not installed' : 'not in use'];
+            }
         }
     }
     if ($port) {
