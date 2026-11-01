@@ -539,20 +539,27 @@ PYEOF
     | sed 's|.*/user-redis@||; s|\.service$||' | tr '\n' ' ')
   awk -v tanimli="$UR_UNITS" '
     BEGIN { t = split(tanimli, a, " "); for (i = 1; i <= t; i++) tan[a[i]] = 1 }
-    # Hesap adi SOKET YOLUNDAN okunuyor, ps kullanici kolonundan degil: surec
-    # baska bir kullaniciyla kossa da ad dogru cikar, yoksa birim adlariyla
-    # eslesmez ve pano herkesi "calismiyor" sanirdi. Yol /home disinda da
-    # olabilir (cPanel /home2, /home3 kullanir), o yuzden yol basi serbest.
-    /--unixsocket/ && /\.cagefs\/tmp\/redis\.sock/ {
-      n++; m += $7
-      if (match($0, /[^ \/]+\/\.cagefs\/tmp\/redis\.sock/)) {
-        ad = substr($0, RSTART, RLENGTH); sub(/\/.*/, "", ad); up[ad] = 1
-      } else up[$3] = 1
+    # Esleme KULLANICI kolonundan yapilir, argumanlardan DEGIL. Uretimde
+    # olculdu: surecin butun komut satiri "/usr/bin/redis-server *:0" — soket
+    # yolu da --unixsocket bayragi da argumanlarda yok, birim onlari kendi
+    # betiginden veriyor (ExecStart=.../lsns/bin/redis_svc.sh start %i).
+    # Hesap adi ise kesin: birim "User=%i" ile kosuyor, yani surecin
+    # kullanicisi hesabin kendisi. Ilk surum argumandaki tam soket yoluna
+    # dayanmisti, hicbir satir eslesmedi ve pano ayakta olan 371 ornegin
+    # hepsine "calismiyor" dedi; kart bos yere kirmizi yandi.
+    /redis-server/ {
+      if (t > 0) { if ($3 in tan) { n++; m += $7; up[$3] = 1; if ($4+0 > y) y = $4+0 } }
+      # Birim kaydi yoksa ayirt edici olarak TCP portsuzluk kalir ("*:0");
+      # ortak Redis bir adres:port ile kosar, boyle gorunmez.
+      else if ($0 ~ /redis-server \*:0/) { n++; m += $7; if ($4+0 > y) y = $4+0 }
     }
     END {
       if (t == 0 && n == 0) exit        # bu sunucuda boyle bir yapi yok
       print "userredis", n+0, t+0
       if (m > 0) print "userredis_mem", int(m/1024)
+      # Yas: ornekler arasinda EN ESKISI — panodaki diger satirlarda da kural
+      # bu ("en eski surec = servisin kendisi"). Sag sutun uptime sutunu.
+      if (y > 0) print "userredis_age", y
       for (u in tan) if (!(u in up)) { k++; if (k <= 5) s = s " " u }
       if (k) print "userredis_bad" s
     }' "$PS_SNAP"
@@ -1182,9 +1189,18 @@ except Exception:
   # onlari bulamaz — "isim" veya "isim + bosluk" on-ek eslesmesi kullanilir.
   ps_etimes_comm | awk '
     { e=$1+0; c=$2; for(i=3;i<=NF;i++) c=c" "$i
-      n=split("mariadbd mysqld litespeed lshttpd httpd exim dovecot named pdns_server pure-ftpd proftpd cpsrvd cpsrvd-dormant lfd imunify360-agen imunify-residen redis-server memcached", L, " ")
+      n=split("mariadbd mysqld litespeed lshttpd httpd exim dovecot named pdns_server pure-ftpd proftpd cpsrvd cpsrvd-dormant lfd imunify360-agen imunify-residen memcached", L, " ")
       for(j=1;j<=n;j++){ p=L[j]; if(c==p || index(c, p " ")==1){ if(e>m[p]) m[p]=e } } }
     END{ for(p in m) print "svcage", p, m[p] }'
+  # ORTAK REDIS'IN YASI ADINDAN OKUNAMAZ: kullanici basina Redis de ayni
+  # "redis-server" adiyla kosuyor (uretimde 371 tane) ve "en eskisi" kurali
+  # onlardan birini seciyordu. Sonuc: ortak Redis satiri "kullanilmiyor"
+  # derken yaninda "4sa", ipucunda "4sa 21dk ayakta" yaziyordu — baskasinin
+  # yasi. Ayirt edici OLCULDU: kullanici ornekleri "*:0" ile kosar (TCP portu
+  # yok), ortak Redis bir adres:port ile. Bu yuzden yas PS_SNAP'ten, "*:0"
+  # olanlar DISARIDA birakilarak cikariliyor; hic kalmazsa satir yassiz kalir.
+  awk '$8 ~ /redis-server$/ && $9 != "*:0" { if ($4+0 > e) e = $4+0 }
+       END { if (e) print "svcage redis-server", e }' "$PS_SNAP"
   echo
   prof "servis yaslari"
   echo "--- Versions ---"

@@ -153,7 +153,7 @@ $TR = [
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
     '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
     '%s not running' => '%s çalışmıyor',
-    '%s installs · %s accounts in use, %s ago' => '%s kurulum · %s hesap kullanıyor, %s önce',
+    '%s installs' => '%s kurulum', '%s accounts in use, %s ago' => '%s hesap kullanıyor, %s önce',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -1481,24 +1481,35 @@ if ($rootFresh && isset($procSec['userredis'])) {
             } else {
                 $urNote .= ' · ' . tf('%s not running', $eksik);
             }
-            if ($urMem) $urTips[] = $urMemT;   // sorun varken satırda ADLAR önce gelir
-        } elseif ($urMem) {
-            $urNote .= ' · ' . $urMemT;
         }
+        // KULLANIM SATIRDA, ipucunda değil: "kaç kurulum yazıyor" bu satırın
+        // en konuşkan sayısı ve ipucuna koyunca kimse görmüyor (üretimde
+        // görülmedi). Hesap sayısı ve ölçümün YAŞI ipucunda kalır — yarım
+        // saatte bir ölçülüyor, taze gibi gösterilmez.
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
                 $yas = isset($procSec['userredis_use_age'])
                        && ctype_digit(trim($procSec['userredis_use_age']))
                      ? (int)trim($procSec['userredis_use_age']) : 0;
-                $urTips[] = tf('%s installs · %s accounts in use, %s ago',
-                               $u[1], $u[0], fmtAge($yas));
+                if ($urTot <= $urUp) $urNote .= ' · ' . tf('%s installs', $u[1]);
+                $urTips[] = tf('%s accounts in use, %s ago', $u[0], fmtAge($yas));
             }
         }
+        // BELLEK İPUCUNDA: sağdaki dar sütun UPTIME sütunu, başka bir birim
+        // oraya girerse sütunun anlamı bozulur (kart boyunca "4sa" ile
+        // "2.3 GB" alt alta gelirdi). Bellek ayrıca Bellek kartında da var.
+        if ($urMem) $urTips[] = $urMemT;
+        // Sütuna bu satırın kendi uptime'ı: örnekler arasında en eskisi —
+        // panonun geri kalanında da kural bu ("en eski süreç = servisin
+        // kendisi"). Ortak Redis'in yaşıyla karışmaz, ayrı alandan gelir.
+        $urAge = isset($procSec['userredis_age']) && ctype_digit(trim($procSec['userredis_age']))
+               ? (int)trim($procSec['userredis_age']) : 0;
         $cacheChecks[] = ['label' => t('Redis · user'), 'type' => 'check',
                           'ok'   => $urUp > 0 && $urUp >= $urTot,
                           'warn' => $urUp > 0 && $urUp < $urTot,   // kısmi: uyarı, arıza değil
                           'note' => $urNote]
+                       + ($urAge  ? ['up' => fmtAge($urAge), 'upS' => fmtAgeShort($urAge)] : [])
                        + ($urTips ? ['noteT' => implode(' · ', $urTips)] : []);
     }
 }
@@ -1540,6 +1551,11 @@ function fmtAgeShort($s) {
 function tagAge(&$chk, $aliases) {
     global $svcAge, $rootFresh;
     if (!$rootFresh) return;
+    // ÇALIŞMAYAN ŞEYİN YAŞI OLMAZ. Gri satır "bu servis kullanılmıyor / kurulu
+    // değil / doğrulanamadı" demek; yanına "4sa ayakta" yazmak düpedüz yanlış
+    // bilgi (üretimde görüldü: Redis kapalıyken satırda 4sa, ipucunda
+    // "4sa 21dk ayakta" yazıyordu — o yaş başka bir sürece aitti).
+    if (!empty($chk['unknown'])) return;
     $s = null;
     foreach ((array)$aliases as $a) if (isset($svcAge[$a])) $s = max($s ?? 0, $svcAge[$a]);
     if ($s === null) return;

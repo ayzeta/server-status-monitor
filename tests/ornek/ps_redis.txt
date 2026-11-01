@@ -1,0 +1,18 @@
+# Kullanici basina Redis: GERCEK SUNUCUDAN alinmis satir bicimi.
+#
+# Neden ayri bir ornek dosyasi: bu bicimi bir kez elle "tahmin edip" teste
+# oyle yazdik ve test de o tahmini dogruladi — urun uretimde hicbir satirla
+# eslesmedi, ayakta olan butun orneklere "calismiyor" dedi. Baska bir
+# programin ciktisini okuyan her ayrıştirici, o programin GERCEK ciktisiyla
+# sinanmali; kendi yazdigimiz ornek yalnizca kendi varsayimimizi dogrular.
+#
+# Asagidaki satirlar "ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args="
+# ciktisindan alindi. Komut satirinda soket yolu da --unixsocket bayragi da
+# YOK; birim ayarlari kendi betiginden veriyor ve "User=%i" ile kosuyor,
+# yani hesap adinin tek kaynagi KULLANICI kolonu.
+# Hesap adlari kurgusaldir, bicim aynen gercegi.
+31001 S acmeco                  7200 0.0 0.1 6400 /usr/bin/redis-server *:0
+31002 S bluewave                7200 0.0 0.1 6528 /usr/bin/redis-server *:0
+31003 S shopfast                7200 0.0 0.1 6272 /usr/bin/redis-server *:0
+# Ortak Redis boyle gorunur (adres:port) — kullanici ornegi degildir:
+999 S redis                    86400 0.1 0.3 10240 /usr/bin/redis-server 127.0.0.1:6379

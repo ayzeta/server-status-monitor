@@ -101,33 +101,74 @@ def pr(pid, user, rss, args):
     return "%d S %s 5000 0.1 0.2 %d %s" % (pid, user, rss, args)
 
 
-KUL = ("/usr/bin/redis-server --port 0 --unixsocketperm 700 "
-       "--unixsocket /home/%s/.cagefs/tmp/redis.sock --maxmemory 64mb")
+# ÜRETİMDE ÖLÇÜLEN komut satırı: argümanda ne soket yolu var ne --unixsocket,
+# yalnız "*:0" (TCP portu yok). Birim ayarları kendi betiğinden veriyor ve
+# "User=%i" ile koşuyor, yani eşleştirmenin dayanağı KULLANICI kolonu.
+# İlk sürüm tam soket yoluna dayanmıştı: hiçbir satır eşleşmedi ve pano
+# ayakta olan bütün örneklere "çalışmıyor" dedi.
+KUL = "/usr/bin/redis-server *:0"
 # Ortak Redis de "redis-server" adıyla koşar; kullanıcı örnekleriyle
 # KARIŞMAMALI (bu yüzden eşleşme --unixsocket + cagefs yolu üzerinden).
 ORTAK = pr(999, "redis", 10240, "/usr/bin/redis-server 127.0.0.1:6379")
 
-ck("userredis: tam + bellek (ortak Redis sayılmaz)",
+ck("userredis: tam + bellek + yaş (ortak Redis sayılmaz)",
    ur("alfa beta gama", [ORTAK,
-                         pr(1, "alfa", 6400, KUL % "alfa"),
-                         pr(2, "beta", 6400, KUL % "beta"),
-                         pr(3, "gama", 6400, KUL % "gama")]),
-   NL.join(["userredis 3 3", "userredis_mem 18"]))
+                         pr(1, "alfa", 6400, KUL),
+                         pr(2, "beta", 6400, KUL),
+                         pr(3, "gama", 6400, KUL)]),
+   NL.join(["userredis 3 3", "userredis_mem 18", "userredis_age 5000"]))
 ck("userredis: duranın ADI",
-   ur("alfa beta gama", [pr(1, "alfa", 6400, KUL % "alfa"),
-                         pr(2, "beta", 6400, KUL % "beta")]),
-   NL.join(["userredis 2 3", "userredis_mem 12", "userredis_bad gama"]))
+   ur("alfa beta gama", [pr(1, "alfa", 6400, KUL), pr(2, "beta", 6400, KUL)]),
+   NL.join(["userredis 2 3", "userredis_mem 12", "userredis_age 5000",
+            "userredis_bad gama"]))
+# Birim kaydı varken ÖLÇÜT kullanıcı kolonudur: tanımlı olmayan birinin
+# redis'i hesap sayılmaz (ortak Redis de böyle eleniyor).
+ck("userredis: tanımlı olmayan kullanıcı sayılmaz",
+   ur("alfa", [pr(1, "alfa", 6400, KUL), pr(2, "baskasi", 6400, KUL)]),
+   NL.join(["userredis 1 1", "userredis_mem 6", "userredis_age 5000"]))
+# Birim kaydı yoksa ayırt edici olarak TCP portsuzluk ("*:0") kalır.
 ck("userredis: tanımlı yoksa bölen 0",
-   ur("", [pr(1, "alfa", 6400, KUL % "alfa"), pr(2, "beta", 6400, KUL % "beta")]),
-   NL.join(["userredis 2 0", "userredis_mem 12"]))
+   ur("", [ORTAK, pr(1, "alfa", 6400, KUL), pr(2, "beta", 6400, KUL)]),
+   NL.join(["userredis 2 0", "userredis_mem 12", "userredis_age 5000"]))
 ck("userredis: böyle bir yapı yoksa çıktı yok", ur("", [ORTAK]), "")
-# Hesap adı SOKET YOLUNDAN okunur: süreç başka kullanıcıyla koşsa da (ya da
-# ikinci ev dizinindeyse) birim adıyla eşleşmeli. Yoksa pano ayakta olan
-# herkesi "çalışmıyor" sanar — en kötü türden yanlış alarm.
-ck("userredis: ad ps kullanıcısından değil yoldan",
-   ur("delta", [pr(1, "root", 6400,
-                   KUL.replace("/home/%s/", "/home3/delta/"))]),
-   NL.join(["userredis 1 1", "userredis_mem 6"]))
+# ── GERÇEK ps çıktısıyla ───────────────────────────────────────
+# Yukarıdakilerin hepsini BEN yazdım; ürünü yalnız kendi varsayımıma karşı
+# sınarlar. İlk sürüm argümandaki tam soket yoluna dayanıyordu, test de aynı
+# varsayımla yazıldığı için yeşil yandı — ürün üretimde hiçbir satırla
+# eşleşmedi. Bu yüzden biçim artık sunucudan alınmış örnek dosyadan geliyor.
+GERCEK = [s for s in io.open(os.path.join(BURASI, "ornek", "ps_redis.txt"),
+                             encoding="utf-8", errors="replace").read().splitlines()
+          if s and not s.startswith("#")]
+ck("userredis: GERÇEK ps biçimi (ortak Redis elenir)",
+   ur("acmeco bluewave shopfast", GERCEK),
+   NL.join(["userredis 3 3", "userredis_mem 18", "userredis_age 7200"]))
+ck("userredis: gerçek biçimde duranın adı",
+   ur("acmeco bluewave shopfast kayip", GERCEK),
+   NL.join(["userredis 3 4", "userredis_mem 18", "userredis_age 7200",
+            "userredis_bad kayip"]))
+
+# ── ORTAK Redis'in yaşı: kullanıcı örnekleri karışmamalı ───────
+# Üretimde ortak Redis satırı "kullanılmıyor" derken yanında "4sa" yazıyordu:
+# yaş yalnız SÜREÇ ADINDAN seçiliyordu ve 371 kullanıcı Redis'i de aynı adı
+# taşıdığı için onlardan birinin yaşı yapışıyordu.
+b = src.index("awk '$8 ~ /redis-server$/")
+b = src.index(chr(39), b) + 1
+e = src.index("}" + chr(39), b) + 1
+YASF = os.path.join(BURASI, "t_redisyas.awk")
+io.open(YASF, "w", encoding="utf-8", newline=NL).write(src[b:e])
+
+
+def yas(satirlar):
+    io.open(PSF, "w", encoding="utf-8", newline=NL).write(NL.join(satirlar) + NL)
+    r = subprocess.run(["awk", "-f", YASF, PSF], capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+ck("ortak Redis yaşı: kullanıcı örnekleri (*:0) elenir",
+   yas(GERCEK), "svcage redis-server 86400")
+ck("yalnız kullanıcı örnekleri varsa ortak Redis'in yaşı YOK",
+   yas([s for s in GERCEK if ":6379" not in s]), "")
+os.remove(YASF)
 os.remove(URF)
 os.remove(PSF)
 
@@ -188,6 +229,13 @@ else:
                       r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>([^<]*)<', kart)
         return (m.group(1), m.group(2)) if m else ("YOK", "YOK")
 
+    def sag(kart, etiket):
+        """Sağdaki dar sütun — UPTIME sütunu (başka birim oraya girmez)."""
+        m = re.search(r'<span class="sub-lbl">' + re.escape(etiket) +
+                      r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>[^<]*</span>'
+                      r'<span class="sub-age"[^>]*>([^<]*)<', kart)
+        return m.group(1) if m else "YOK"
+
     def ipucu(kart, etiket):
         """Notun title'ı — kısaltılan listenin tamamı orada durmalı."""
         m = re.search(r'<span class="sub-lbl">' + re.escape(etiket) +
@@ -196,17 +244,26 @@ else:
 
     # 1) enabled ama cevap yok -> ARIZA
     kart, rozet, sinif, sayac = render(["unit redis enabled inactive",
-                                        "unit memcached disabled inactive"])
+                                        "unit memcached disabled inactive",
+                                        "--- Service ages ---", "svcage redis-server 15000"])
     ck("enabled + yanıt yok -> kırmızı", chip(kart, "Redis (6379)"), ("err", "no response"))
     ck("disabled -> gri, 'kullanılmıyor'", chip(kart, "Memcached (11211)"),
        ("muted", "not in use"))
     ck("grup: biri arızalı -> Offline", rozet, "Offline")
+    # ÇALIŞMASI BEKLENEN ama cevapsız satırda yaş KALIR (ne zamandır böyle
+    # olduğunu söyler); kullanılmayan satırda ise yazılmaz (bir alttaki iddia).
+    ck("arızalı satırda yaş var", sag(kart, "Redis (6379)"), "4h")
+    ck("kullanılmayan satırda yaş yok", sag(kart, "Memcached (11211)"), "")
 
     # 2) ikisi de kullanılmıyor -> grup 'Kullanılmıyor', kırmızı yok
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
-                                        "unit memcached notfound inactive"])
+                                        "unit memcached notfound inactive",
+                                        "--- Service ages ---", "svcage redis-server 15000"])
     ck("ikisi de gri", (chip(kart, "Redis (6379)")[0], chip(kart, "Memcached (11211)")[0]),
        ("muted", "muted"))
+    # ÜRETİMDE GÖRÜLEN HATA: satır "kullanılmıyor" derken yanında "4sa",
+    # ipucunda "4sa 21dk ayakta" yazıyordu. Çalışmayan şeyin yaşı olmaz.
+    ck("kullanılmıyorsa yaş yazılmaz", sag(kart, "Redis (6379)"), "")
     ck("grup rozeti 'Not in use'", rozet, "Not in use")
     ck("rozet sınıfı renksiz", sinif, "badge-muted")
     ck("sayaç 'kullanılmıyor' diyor", sayac, "2 not in use")
@@ -217,13 +274,15 @@ else:
        ("muted", "unverified"))
     ck("grup yine kırmızı değil", sinif, "badge-muted")
 
-    # 4) kullanıcı başına Redis: tam. Satırda SAĞLIK + BELLEK (örnek başına
-    #    64 MB tavan var, büyüyen sayı bellek).
+    # 4) kullanıcı başına Redis: tam. Satırda SAĞLIK, sağ sütunda UPTIME,
+    #    bellek ipucunda (sütun uptime sütunu, başka birim girmez).
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
-                                        "userredis 180 180", "userredis_mem 1126"])
-    ck("180/180 + bellek -> yeşil", chip(kart, "Redis · user"),
-       ("ok", "180/180 up · 1.1 GB"))
+                                        "userredis 180 180", "userredis_mem 1126",
+                                        "userredis_age 15000"])
+    ck("180/180 -> yeşil", chip(kart, "Redis · user"), ("ok", "180/180 up"))
+    ck("sağ sütunda uptime", sag(kart, "Redis · user"), "4h")
+    ck("bellek ipucunda", ipucu(kart, "Redis · user"), "1.1 GB")
     ck("grup: ölçülen tek şey sağlam -> Operational", rozet, "Operational")
 
     # 5) eksik olanlar: SARI + adlar
@@ -236,8 +295,7 @@ else:
     # Not SATIRA SIĞMALI: iki ad + "+N" (üç adın tamamı etiketi kırpıyordu,
     # satırda yalnız not kalıyordu). Tamamı ipucunda durur.
     ck("notta ilk adlar ve +N", "alfa beta +1" in not_, True)
-    # Sorun varken SATIRDA adlar, bellek ipucuna iner.
-    ck("sorun varken bellek satırda değil", "1.1 GB" in not_, False)
+    ck("sorun varken not adlara ayrılır", "1.1 GB" in not_, False)
     ck("ipucunda tam liste + bellek", ipucu(kart, "Redis · user"),
        "not running: alfa beta gama · 1.1 GB")
     # Kısmi arıza = uyarı: kart düşmez, sarı olur (kırmızı/Offline DEĞİL).
@@ -258,7 +316,9 @@ else:
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
                                         "userredis 180 0", "userredis_mem 900"])
-    ck("tanımlı yok -> oransız", chip(kart, "Redis · user"), ("ok", "180 up · 900 MB"))
+    ck("tanımlı yok -> oransız", chip(kart, "Redis · user"), ("ok", "180 up"))
+    ck("1 GB altı MB yazar (ipucunda)", ipucu(kart, "Redis · user"), "900 MB")
+    ck("yaş ölçülmediyse sütun boş", sag(kart, "Redis · user"), "")
 
     # 8) KULLANIM ipucunda ve YAŞIYLA: ayakta olmak kullanıldığı anlamına
     #    gelmez (boş Redis de ayakta durur) ve bu sayı yarım saatte bir
@@ -268,8 +328,12 @@ else:
                                         "userredis 180 180", "userredis_mem 1126",
                                         "userredis_use 150 170",
                                         "userredis_use_age 600"])
-    ck("ipucunda kurulum/hesap ve yaş", ipucu(kart, "Redis · user"),
-       "170 installs · 150 accounts in use, 10m ago")
+    # KULLANIM SATIRDA: ipucuna konunca üretimde kimse görmedi. Hesap sayısı
+    # ve ölçümün YAŞI ipucunda kalır (yarım saatte bir ölçülüyor).
+    ck("satırda kurulum sayısı", chip(kart, "Redis · user"),
+       ("ok", "180/180 up · 170 installs"))
+    ck("ipucunda hesap sayısı, ölçüm yaşı ve bellek", ipucu(kart, "Redis · user"),
+       "150 accounts in use, 10m ago · 1.1 GB")
     ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
 
 print()
