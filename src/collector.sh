@@ -626,10 +626,10 @@ if sok:
     print("userredis_use %d %d" % (hes, kur))
 PYEOF
   fi
-  if [ -s "$URC" ]; then
-    cat "$URC"
-    echo "userredis_use_age $(( ACT_NOW - $(stat -c %Y "$URC" 2>/dev/null || echo "$ACT_NOW") ))"
-  fi
+  # YALNIZ SAYI. Onbellek dosyasinin yasi da yayinlaniyordu ve pano onu
+  # ipucunda gosteriyordu ("16dk once"): bu, SUNUCU hakkinda hicbir sey
+  # soylemeyen kendi defterimizin yasiydi. Panoda yeri yok.
+  [ -s "$URC" ] && cat "$URC"
   echo "websrv $(pgrep -x litespeed >/dev/null 2>&1 && echo litespeed || echo apache)"
   # Inode kullanimi (%): disk ALANI bos olsa da inode tukenince sunucu coker
   # (dosya olusturulamaz). Milyonlarca kucuk dosya (LiteSpeed cache vb) tuketir.

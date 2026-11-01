@@ -90,6 +90,15 @@ ck("koyu temada kutunun kendi rengi var",
    '[data-theme="dark"] .spark-tip{' in src, True)
 ck("title ilk hover'da data-tip'e tasiniyor (cift balon olmasin)",
    "el.dataset.tip=s;el.removeAttribute('title');" in src, True)
+# IKI BALON: tembel tasima yetmiyor. Canli dongu karti dakikada bir yeniden
+# yaziyor, title'li YENI dugum geliyor; fare kipirdamadigi icin donusum
+# calismiyor ve tarayici kendi balonunu da aciyor (uretimde ust uste gorundu).
+ck("tasima sayfa genelinde, gozlemciyle tetikleniyor",
+   "new MutationObserver" in src and "attributeFilter:['title']" in src, True)
+ck("tarama butun title'lari suruyor",
+   "document.querySelectorAll('[title]').forEach" in src, True)
+ck("uzerinde durulan oge yeniden cizildiyse kutu gizleniyor",
+   "if(hintFor&&!hintFor.isConnected)hintGizle();" in src, True)
 ck("metinsiz ogede erisilebilirlik icin aria-label birakiliyor",
    "setAttribute('aria-label',s)" in src, True)
 ck("kivilcim ustundeyken metin ipucu kapaniyor", "hintGizle();" in src, True)

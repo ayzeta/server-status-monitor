@@ -153,7 +153,7 @@ $TR = [
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
     '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
     '%s not running' => '%s çalışmıyor',
-    '%s installs' => '%s kurulum', '%s accounts in use, %s ago' => '%s hesap kullanıyor, %s önce',
+    '%s installs' => '%s kurulum', '%s accounts in use' => '%s hesap kullanıyor',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -1484,16 +1484,18 @@ if ($rootFresh && isset($procSec['userredis'])) {
         }
         // KULLANIM SATIRDA, ipucunda değil: "kaç kurulum yazıyor" bu satırın
         // en konuşkan sayısı ve ipucuna koyunca kimse görmüyor (üretimde
-        // görülmedi). Hesap sayısı ve ölçümün YAŞI ipucunda kalır — yarım
-        // saatte bir ölçülüyor, taze gibi gösterilmez.
+        // görülmedi). İpucunda yalnız kaç hesabın gerçekten kullandığı kalır.
+        //
+        // ÖLÇÜMÜN YAŞI YAZILMAZ: bir süre "sonuncusu 16dk önce" diye yazdı ve
+        // haklı olarak "16dk ne alaka" diye soruldu. Panodaki her sayı sunucuya
+        // ait bir şey söyler (servis yaşı = sürecin kendi etimes'ı, ps'ten her
+        // dakika taze); o 16dk ise BİZİM önbellek dosyamızın yaşıydı — kendi
+        // defterimizin yaşını kullanıcıya göstermenin anlamı yok.
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
-                $yas = isset($procSec['userredis_use_age'])
-                       && ctype_digit(trim($procSec['userredis_use_age']))
-                     ? (int)trim($procSec['userredis_use_age']) : 0;
                 if ($urTot <= $urUp) $urNote .= ' · ' . tf('%s installs', $u[1]);
-                $urTips[] = tf('%s accounts in use, %s ago', $u[0], fmtAge($yas));
+                $urTips[] = tf('%s accounts in use', $u[0]);
             }
         }
         // BELLEK İPUCUNDA: sağdaki dar sütun UPTIME sütunu, başka bir birim
@@ -3882,8 +3884,32 @@ const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.to
 const hintEl=document.createElement('div');
 hintEl.className='spark-tip tip-wide';
 document.body.appendChild(hintEl);
-let hintFor=null;
+let hintFor=null,hintSup=false,hintBek=false;
 function hintGizle(){if(hintFor){hintFor=null;hintEl.style.opacity=0;}}
+// TASIMA SAYFA GENELINDE, bir kerede. Yalniz hover aninda tasimak YETMIYOR:
+// canli dongu kart icerigini dakikada bir yeniden yaziyor, title'li YENI dugum
+// geliyor ve fare kipirdamadigi icin donusum hic calismiyor — uretimde IKI
+// balon ust uste cikti (bizimki artik kopmus eski dugumden kalma, tarayicininki
+// yeni dugumden). Gozlemci her yeniden cizimden sonra tarar.
+function hintTara(){
+  hintBek=false;hintSup=true;
+  document.querySelectorAll('[title]').forEach(e=>{
+    const s=e.getAttribute('title');
+    if(s){
+      e.dataset.tip=s;
+      // Metni olmayan ogede (ikon dugmesi) title TEK etiketti: erisilebilirlik
+      // kaybolmasin diye aria-label'a gecer.
+      if(!e.getAttribute('aria-label')&&!e.textContent.trim())e.setAttribute('aria-label',s);
+    }
+    e.removeAttribute('title');
+  });
+  hintSup=false;
+  if(hintFor&&!hintFor.isConnected)hintGizle(); // uzerinde durulan oge yeniden cizildi
+}
+function hintPlanla(){if(!hintBek){hintBek=true;requestAnimationFrame(hintTara);}}
+new MutationObserver(()=>{if(!hintSup)hintPlanla();})
+  .observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['title']});
+hintTara();
 function hintYer(x,y){
   // Once sol ust kose: kutu SAG KENARA yakin olcul urse kalan dar alana gore
   // sarip uzun ince bir seride donuyordu (left verilmis fixed ogenin kullanilabilir

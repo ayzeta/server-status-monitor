@@ -326,14 +326,16 @@ else:
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
                                         "userredis 180 180", "userredis_mem 1126",
-                                        "userredis_use 150 170",
-                                        "userredis_use_age 600"])
+                                        "userredis_use 150 170"])
     # KULLANIM SATIRDA: ipucuna konunca üretimde kimse görmedi. Hesap sayısı
     # ve ölçümün YAŞI ipucunda kalır (yarım saatte bir ölçülüyor).
     ck("satırda kurulum sayısı", chip(kart, "Redis · user"),
        ("ok", "180/180 up · 170 installs"))
-    ck("ipucunda hesap sayısı, ölçüm yaşı ve bellek", ipucu(kart, "Redis · user"),
-       "150 accounts in use, 10m ago · 1.1 GB")
+    # ÖLÇÜMÜN YAŞI YAZILMAZ: o yaş bizim önbellek dosyamızın yaşıydı, sunucu
+    # hakkında hiçbir şey söylemiyordu ("16dk ne alaka" diye soruldu).
+    ck("ipucunda hesap sayısı ve bellek", ipucu(kart, "Redis · user"),
+       "150 accounts in use · 1.1 GB")
+    ck("ipucunda önbellek yaşı YOK", "ago" in (ipucu(kart, "Redis · user") or ""), False)
     ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
 
 print()
