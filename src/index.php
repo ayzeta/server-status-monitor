@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.57'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.58'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -151,6 +151,9 @@ $TR = [
     'Not in use' => 'Kullanılmıyor', '%s not in use' => '%s kullanılmıyor',
     '%s unverified' => '%s doğrulanamadı', '%s no response' => '%s yanıt vermiyor',
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
+    '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
+    '%s not running' => '%s çalışmıyor',
+    '%s installs · %s accounts in use, %s ago' => '%s kurulum · %s hesap kullanıyor, %s önce',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -1441,35 +1444,62 @@ $cacheChecks = [
     chkUnit('Memcached (11211)', 11211,  'memcached', $listeningPorts, $svcUnit, $rootFresh),
 ];
 // LiteSpeed'in "Cache Redis for Users" özelliği: ağ portu yok, her hesabın
-// kendi soketi var. Tek hesabın Redis'i bütün kartı düşürmemeli — eksik varsa
-// SARI uyarı ve yanıt vermeyenlerin adı; hiçbiri yanıt vermiyorsa kırmızı.
+// kendi soketi ve kendi süreci var; yapıyı systemd yönetiyor. Satırda SAĞLIK
+// (kaç tanımlı birimin süreci ayakta) ve BELLEK var — örnek başına 64 MB tavan
+// olduğu için büyüyen sayı bu. "Kaç kurulum kullanıyor" ipucunda, çünkü ayakta
+// olmak kullanıldığı anlamına gelmiyor ve o sayı yavaş değişiyor (yarım saatte
+// bir ölçülüyor, yaşıyla birlikte yazılıyor).
+// Tek hesabın Redis'i bütün kartı düşürmemeli — eksik varsa SARI uyarı ve
+// duran hesapların adı; hiçbiri ayakta değilse kırmızı.
 if ($rootFresh && isset($procSec['userredis'])) {
     $ur = preg_split('/\s+/', trim($procSec['userredis']));
-    if (count($ur) === 2 && ctype_digit($ur[0]) && ctype_digit($ur[1]) && (int)$ur[1] > 0) {
-        [$urOk, $urTot] = [(int)$ur[0], (int)$ur[1]];
-        $urNote = tf('%s/%s active', $urOk, $urTot);
-        $urTip  = null;
-        if ($urOk < $urTot) {
+    if (count($ur) === 2 && ctype_digit($ur[0]) && ctype_digit($ur[1])
+        && (int)$ur[0] + (int)$ur[1] > 0) {
+        [$urUp, $urTot] = [(int)$ur[0], (int)$ur[1]];
+        // Tanımlı sayısı yoksa ORAN YAZILMAZ. "371/371" demek için önce
+        // "371 olması gerekiyordu" kanıtı gerekir; o kanıt yokken pay ile
+        // bölen aynı listeden gelir ve oran hiçbir şey anlatmaz — eski
+        // sürümün hatası buydu, hesapların yarısında kapalıyken de doluydu.
+        $urNote = $urTot > 0 ? tf('%s/%s up', $urUp, $urTot) : tf('%s up', $urUp);
+        $urTips = [];
+        $urMem  = isset($procSec['userredis_mem']) && ctype_digit(trim($procSec['userredis_mem']))
+                ? (int)trim($procSec['userredis_mem']) : 0;
+        $urMemT = $urMem >= 1024 ? round($urMem / 1024, 1) . ' GB' : $urMem . ' MB';
+        if ($urTot > $urUp) {
             // Nota İKİ AD sığıyor (kart 314 px ölçüldü), gerisi "+N" ve tamamı
             // ipucunda. Yalnız sayı yazmak "hangileri" sorusunu açık bırakırdı;
             // hepsini yazmak da satırı taşırıp etiketi kırpıyordu.
             $ad = isset($procSec['userredis_bad'])
                 ? preg_split('/\s+/', trim($procSec['userredis_bad']), -1, PREG_SPLIT_NO_EMPTY) : [];
-            $eksik = $urTot - $urOk;
+            $eksik = $urTot - $urUp;
             if ($ad) {
                 $gor = array_slice($ad, 0, 2);
                 $kalan = $eksik - count($gor);
                 $urNote .= ' · ' . implode(' ', $gor) . ($kalan > 0 ? ' +' . $kalan : '');
-                $urTip = t('no response') . ': ' . implode(' ', $ad)
-                       . (count($ad) < $eksik ? ' +' . ($eksik - count($ad)) : '');
+                $urTips[] = t('not running') . ': ' . implode(' ', $ad)
+                          . (count($ad) < $eksik ? ' +' . ($eksik - count($ad)) : '');
             } else {
-                $urNote .= ' · ' . tf('%s no response', $eksik);
+                $urNote .= ' · ' . tf('%s not running', $eksik);
+            }
+            if ($urMem) $urTips[] = $urMemT;   // sorun varken satırda ADLAR önce gelir
+        } elseif ($urMem) {
+            $urNote .= ' · ' . $urMemT;
+        }
+        if (isset($procSec['userredis_use'])) {
+            $u = preg_split('/\s+/', trim($procSec['userredis_use']));
+            if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
+                $yas = isset($procSec['userredis_use_age'])
+                       && ctype_digit(trim($procSec['userredis_use_age']))
+                     ? (int)trim($procSec['userredis_use_age']) : 0;
+                $urTips[] = tf('%s installs · %s accounts in use, %s ago',
+                               $u[1], $u[0], fmtAge($yas));
             }
         }
         $cacheChecks[] = ['label' => t('Redis · user'), 'type' => 'check',
-                          'ok'   => $urOk === $urTot,
-                          'warn' => $urOk > 0 && $urOk < $urTot,   // kısmi: uyarı, arıza değil
-                          'note' => $urNote] + ($urTip ? ['noteT' => $urTip] : []);
+                          'ok'   => $urUp > 0 && $urUp >= $urTot,
+                          'warn' => $urUp > 0 && $urUp < $urTot,   // kısmi: uyarı, arıza değil
+                          'note' => $urNote]
+                       + ($urTips ? ['noteT' => implode(' · ', $urTips)] : []);
     }
 }
 [$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);

@@ -31,4 +31,7 @@ ioproc 3728089 root 512.0 /usr/local/cpanel/bin/backup_-x
 --- Root checks ---
 unit redis disabled inactive
 unit memcached notfound inactive
-userredis 121 121
+userredis 180 180
+userredis_mem 1126
+userredis_use 150 170
+userredis_use_age 600

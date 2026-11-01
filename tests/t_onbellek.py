@@ -76,6 +76,61 @@ ck("awk: iki birim, son blokta boş satır yok", awk_calistir(NL.join([
    NL.join(["unit redis disabled inactive", "unit memcached masked inactive"]))
 os.remove(AWKF)
 
+# ════════ A2) userredis: ps görüntüsünden sayım ════════════════
+# SOKET YOKLAMASI YOK. Eski sürüm 371 sokete tek tek PING atıyordu: sağlıklı
+# halde ~0.1 s ama yanıt vermeyen her örnek 0.3 s eklediği için en kötü hal
+# 111 saniyeydi — dakikalık cron için kabul edilemez. Şimdi tanımlı sayısı
+# dizinden, ayakta sayısı ve bellek zaten alınmış ps görüntüsünden geliyor.
+b = src.index('awk -v tanimli="$UR_UNITS" ' + chr(39))
+b = src.index(chr(39), b) + 1
+e = src.index("}" + chr(39) + ' "$PS_SNAP"', b) + 1
+URF = os.path.join(BURASI, "t_userredis.awk")
+PSF = os.path.join(BURASI, "t_userredis.ps")
+io.open(URF, "w", encoding="utf-8", newline=NL).write(src[b:e])
+
+
+def ur(tanimli, satirlar):
+    io.open(PSF, "w", encoding="utf-8", newline=NL).write(NL.join(satirlar) + NL)
+    r = subprocess.run(["awk", "-v", "tanimli=" + tanimli, "-f", URF, PSF],
+                       capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+def pr(pid, user, rss, args):
+    """PS_SNAP biçimi: pid state user etimes pcpu pmem rss args"""
+    return "%d S %s 5000 0.1 0.2 %d %s" % (pid, user, rss, args)
+
+
+KUL = ("/usr/bin/redis-server --port 0 --unixsocketperm 700 "
+       "--unixsocket /home/%s/.cagefs/tmp/redis.sock --maxmemory 64mb")
+# Ortak Redis de "redis-server" adıyla koşar; kullanıcı örnekleriyle
+# KARIŞMAMALI (bu yüzden eşleşme --unixsocket + cagefs yolu üzerinden).
+ORTAK = pr(999, "redis", 10240, "/usr/bin/redis-server 127.0.0.1:6379")
+
+ck("userredis: tam + bellek (ortak Redis sayılmaz)",
+   ur("alfa beta gama", [ORTAK,
+                         pr(1, "alfa", 6400, KUL % "alfa"),
+                         pr(2, "beta", 6400, KUL % "beta"),
+                         pr(3, "gama", 6400, KUL % "gama")]),
+   NL.join(["userredis 3 3", "userredis_mem 18"]))
+ck("userredis: duranın ADI",
+   ur("alfa beta gama", [pr(1, "alfa", 6400, KUL % "alfa"),
+                         pr(2, "beta", 6400, KUL % "beta")]),
+   NL.join(["userredis 2 3", "userredis_mem 12", "userredis_bad gama"]))
+ck("userredis: tanımlı yoksa bölen 0",
+   ur("", [pr(1, "alfa", 6400, KUL % "alfa"), pr(2, "beta", 6400, KUL % "beta")]),
+   NL.join(["userredis 2 0", "userredis_mem 12"]))
+ck("userredis: böyle bir yapı yoksa çıktı yok", ur("", [ORTAK]), "")
+# Hesap adı SOKET YOLUNDAN okunur: süreç başka kullanıcıyla koşsa da (ya da
+# ikinci ev dizinindeyse) birim adıyla eşleşmeli. Yoksa pano ayakta olan
+# herkesi "çalışmıyor" sanar — en kötü türden yanlış alarm.
+ck("userredis: ad ps kullanıcısından değil yoldan",
+   ur("delta", [pr(1, "root", 6400,
+                   KUL.replace("/home/%s/", "/home3/delta/"))]),
+   NL.join(["userredis 1 1", "userredis_mem 6"]))
+os.remove(URF)
+os.remove(PSF)
+
 # ════════ B/C) panonun kararı (ürün render edilerek) ═══════════
 # Gerçekten 6379/11211 dinleyen bir makinede bu durumlar oluşmaz; o zaman
 # iddia ürünü değil makineyi ölçerdi.
@@ -162,35 +217,60 @@ else:
        ("muted", "unverified"))
     ck("grup yine kırmızı değil", sinif, "badge-muted")
 
-    # 4) kullanıcı başına Redis: tam
+    # 4) kullanıcı başına Redis: tam. Satırda SAĞLIK + BELLEK (örnek başına
+    #    64 MB tavan var, büyüyen sayı bellek).
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
-                                        "userredis 121 121"])
-    ck("121/121 -> yeşil", chip(kart, "Redis · user"), ("ok", "121/121 active"))
+                                        "userredis 180 180", "userredis_mem 1126"])
+    ck("180/180 + bellek -> yeşil", chip(kart, "Redis · user"),
+       ("ok", "180/180 up · 1.1 GB"))
     ck("grup: ölçülen tek şey sağlam -> Operational", rozet, "Operational")
 
     # 5) eksik olanlar: SARI + adlar
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
-                                        "userredis 118 121",
+                                        "userredis 177 180", "userredis_mem 1126",
                                         "userredis_bad alfa beta gama"])
     nokta, not_ = chip(kart, "Redis · user")
-    ck("118/121 -> sarı", nokta, "warn")
+    ck("177/180 -> sarı", nokta, "warn")
     # Not SATIRA SIĞMALI: iki ad + "+N" (üç adın tamamı etiketi kırpıyordu,
     # satırda yalnız not kalıyordu). Tamamı ipucunda durur.
     ck("notta ilk adlar ve +N", "alfa beta +1" in not_, True)
-    ck("ipucunda tam liste", ipucu(kart, "Redis · user"),
-       "no response: alfa beta gama")
+    # Sorun varken SATIRDA adlar, bellek ipucuna iner.
+    ck("sorun varken bellek satırda değil", "1.1 GB" in not_, False)
+    ck("ipucunda tam liste + bellek", ipucu(kart, "Redis · user"),
+       "not running: alfa beta gama · 1.1 GB")
     # Kısmi arıza = uyarı: kart düşmez, sarı olur (kırmızı/Offline DEĞİL).
     ck("tek hesap kartı düşürmez: Degraded", rozet, "Degraded")
     ck("ve kırmızı rozet yok", sinif, "badge-warn")
 
-    # 6) hiçbiri yanıtlamıyor -> kırmızı
+    # 6) hiçbiri ayakta değil -> kırmızı
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
-                                        "userredis 0 121"])
-    ck("0/121 -> kırmızı", chip(kart, "Redis · user")[0], "err")
+                                        "userredis 0 180"])
+    ck("0/180 -> kırmızı", chip(kart, "Redis · user")[0], "err")
     ck("grup: tek ölçülen kontrol çökmüş -> Offline", rozet, "Offline")
+
+    # 7) TANIMLI SAYISI YOKSA ORAN YAZILMAZ. "N/N" demek için önce "N olması
+    #    gerekiyordu" kanıtı lazım; systemd kaydı olmayan kurulumda o kanıt
+    #    yok. Eski sürüm payla böleni aynı listeden alıyordu, bu yüzden oran
+    #    hep doluydu ve hiçbir zaman uyarı üretmiyordu.
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "unit memcached notfound inactive",
+                                        "userredis 180 0", "userredis_mem 900"])
+    ck("tanımlı yok -> oransız", chip(kart, "Redis · user"), ("ok", "180 up · 900 MB"))
+
+    # 8) KULLANIM ipucunda ve YAŞIYLA: ayakta olmak kullanıldığı anlamına
+    #    gelmez (boş Redis de ayakta durur) ve bu sayı yarım saatte bir
+    #    ölçülüyor — bayat bir sayıyı taze gibi göstermeyiz.
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "unit memcached notfound inactive",
+                                        "userredis 180 180", "userredis_mem 1126",
+                                        "userredis_use 150 170",
+                                        "userredis_use_age 600"])
+    ck("ipucunda kurulum/hesap ve yaş", ipucu(kart, "Redis · user"),
+       "170 installs · 150 accounts in use, 10m ago")
+    ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
 
 print()
 print("GECEN: %d  KALAN: %d%s" % (gecen, kalan, "  ATLANDI: 1" if atlanan else ""))

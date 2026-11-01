@@ -515,29 +515,114 @@ PYEOF
            /^$/            {bas(); next}
            END             {bas()}'
   # Kullanici basina Redis (LiteSpeed "Cache Redis for Users"): ag portu yok,
-  # her hesabin kendi soketi var. Sayim: soketi olan Y hesap, PING'e PONG
-  # donen X tanesi. redis-cli DEGIL — 121 hesapta 121 surec baslatmak turun
-  # maliyetini geri getirirdi; tek python butun soketlere siraile baglaniyor
-  # (uretimde olculdu: 121 soket, 21 ms).
-  python3 -I - <<'PYEOF'
-import glob, socket
-sok = sorted(glob.glob('/home/*/.cagefs/tmp/redis.sock'))
-if sok:
-    ok, kotu = 0, []
-    for p in sok:
+  # her hesabin kendi soketi ve kendi sureci var; yapiyi systemd yonetiyor
+  # (user-redis@<hesap>.service — uretimde olculdu: 371 birim, 371 surec).
+  #
+  # DAKIKALIK TURDA SOKET YOKLANMIYOR. Eski surum 371 sokete tek tek PING
+  # gonderiyordu: saglikli halde ~0.1 s, ama yanit vermeyen her ornek 0.3 s
+  # ekledigi icin en kotu hal 111 saniye — dakikalik bir cron icin kabul
+  # edilemez. Ustelik olculen sey yanlisti: pay da bolen de AYNI soket
+  # listesinden geliyordu, yani oran hep tam gorunuyor, hicbir zaman uyari
+  # uretmiyordu (kullanici fark etti: hesaplarin yarisinda acmadan once de
+  # "371/371 aktif" yaziyordu).
+  #
+  # Yerine iki BEDAVA kaynak:
+  #   Tanimli = wants dizinindeki birim sayisi. Dizin okumasi; "systemctl
+  #             list-units" ayni sayiyi verir ama dbus turu demek olurdu.
+  #   Ayakta  = zaten alinmis ps goruntusundeki surecler; RSS toplami da ayni
+  #             satirlardan (ek komut yok). Bellek onemli: ornek basina
+  #             --maxmemory 64mb, 371 ornek tavana vursa ~23 GB.
+  # Eksigin ADI da bedava: birim adlari ile ps kullanicilarinin farki.
+  # Tanimli 0 ise (systemd kaydi olmayan kurulum) bolen GONDERILMEZ; pano
+  # yalnizca "N ayakta" der, olculmeyen bir hedef uydurmaz.
+  UR_UNITS=$(ls -1 /etc/systemd/system/multi-user.target.wants/user-redis@*.service 2>/dev/null \
+    | sed 's|.*/user-redis@||; s|\.service$||' | tr '\n' ' ')
+  awk -v tanimli="$UR_UNITS" '
+    BEGIN { t = split(tanimli, a, " "); for (i = 1; i <= t; i++) tan[a[i]] = 1 }
+    # Hesap adi SOKET YOLUNDAN okunuyor, ps kullanici kolonundan degil: surec
+    # baska bir kullaniciyla kossa da ad dogru cikar, yoksa birim adlariyla
+    # eslesmez ve pano herkesi "calismiyor" sanirdi. Yol /home disinda da
+    # olabilir (cPanel /home2, /home3 kullanir), o yuzden yol basi serbest.
+    /--unixsocket/ && /\.cagefs\/tmp\/redis\.sock/ {
+      n++; m += $7
+      if (match($0, /[^ \/]+\/\.cagefs\/tmp\/redis\.sock/)) {
+        ad = substr($0, RSTART, RLENGTH); sub(/\/.*/, "", ad); up[ad] = 1
+      } else up[$3] = 1
+    }
+    END {
+      if (t == 0 && n == 0) exit        # bu sunucuda boyle bir yapi yok
+      print "userredis", n+0, t+0
+      if (m > 0) print "userredis_mem", int(m/1024)
+      for (u in tan) if (!(u in up)) { k++; if (k <= 5) s = s " " u }
+      if (k) print "userredis_bad" s
+    }' "$PS_SNAP"
+  # Kullanim AYRI bir soru: "ornek ayakta" demek "o site Redis kullaniyor"
+  # demek degil — bos bir Redis de ayakta durur. Cevabi INFO keyspace veriyor
+  # (db0, db1... satirlari; bir hesaptaki her kurulum ayri db'ye yazar, o
+  # yuzden kurulum sayisi hesap sayisindan buyuk olabilir).
+  #
+  # Bu sayi YAVAS degisir: yarim saatte bir olculuyor, dakikalik turun
+  # maliyetine hic girmiyor. Olcum tek python ile ve ESZAMANLI yapiliyor
+  # (non-blocking + selectors), TEK genel sure siniri var: 1 s. Yani soket
+  # sayisi artinca sure artmiyor; takilan ornek de turu uzatmiyor.
+  # Bayat gostermemek icin yas ayri satirda gidiyor, pano ipucunda yaziyor.
+  # Ciktida hesap ADI yok, yalniz sayi var.
+  URC="$DATA_DIR/.userredis_use"
+  if [ ! -s "$URC" ] || [ $(( ACT_NOW - $(stat -c %Y "$URC" 2>/dev/null || echo 0) )) -gt 1800 ]; then
+    python3 -I - <<'PYEOF' > "$URC.tmp" 2>/dev/null && mv "$URC.tmp" "$URC" && chmod 600 "$URC" 2>/dev/null
+import glob, selectors, socket, time
+sok = sorted(glob.glob('/home*/*/.cagefs/tmp/redis.sock'))   # /home2, /home3 de olabilir
+sel = selectors.DefaultSelector()
+durum = {}
+for p in sok:
+    try:
+        c = socket.socket(socket.AF_UNIX)
+        c.setblocking(False)
         try:
-            c = socket.socket(socket.AF_UNIX); c.settimeout(0.3)
-            c.connect(p); c.sendall(b'PING\r\n')
-            if c.recv(16).startswith(b'+PONG'): ok += 1
-            else: kotu.append(p.split('/')[2])
-            c.close()
+            c.connect(p)
+        except BlockingIOError:
+            pass
+        durum[c] = [b'', False]          # [yanit, istek gonderildi mi]
+        sel.register(c, selectors.EVENT_WRITE)
+    except Exception:
+        pass                              # soket var ama dinleyen yok
+son = time.monotonic() + 1.0
+acik = len(durum)
+while acik > 0:
+    kalan = son - time.monotonic()
+    if kalan <= 0:
+        break                             # GENEL sinir: soket basina degil
+    for key, ev in sel.select(kalan):
+        c = key.fileobj
+        st = durum[c]
+        try:
+            if not st[1]:
+                c.sendall(b'INFO keyspace\r\n')
+                st[1] = True
+                sel.modify(c, selectors.EVENT_READ)
+                continue
+            d = c.recv(4096)
+            st[0] += d
+            if not d or st[0].endswith(b'\r\n\r\n'):
+                if not d: st[0] = b''
+                sel.unregister(c); c.close(); acik -= 1
         except Exception:
-            kotu.append(p.split('/')[2])
-    print("userredis %d %d" % (ok, len(sok)))
-    # Yanit vermeyenlerin ADI yazilir (ilk 5): "3 hesap yanit vermiyor" deyip
-    # hangileri oldugunu sOylememek, bakan kisiyi tek tek aramaya birakirdi.
-    if kotu: print("userredis_bad %s" % " ".join(kotu[:5]))
+            st[0] = b''
+            try:
+                sel.unregister(c); c.close()
+            except Exception:
+                pass
+            acik -= 1
+if sok:
+    kur = sum(st[0].count(b'\r\ndb') for st in durum.values())
+    hes = sum(1 for st in durum.values() if b'\r\ndb' in st[0])
+    print("userredis_use %d %d" % (hes, kur))
 PYEOF
+  fi
+  if [ -s "$URC" ]; then
+    cat "$URC"
+    echo "userredis_use_age $(( ACT_NOW - $(stat -c %Y "$URC" 2>/dev/null || echo "$ACT_NOW") ))"
+  fi
   echo "websrv $(pgrep -x litespeed >/dev/null 2>&1 && echo litespeed || echo apache)"
   # Inode kullanimi (%): disk ALANI bos olsa da inode tukenince sunucu coker
   # (dosya olusturulamaz). Milyonlarca kucuk dosya (LiteSpeed cache vb) tuketir.

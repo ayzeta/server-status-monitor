@@ -40,6 +40,20 @@ Imunify360 CLI (`imunify360-agent version`, `malware`).
 **CSF** — `csf.conf` (notably `PT_APACHESTATUS`), `csf.disable`, and the lfd
 service state.
 
+**LiteSpeed "Cache Redis for Users"** — the per-account cache is read from
+three shapes, none of them probed over the network. How many instances are
+*meant* to run comes from the unit names
+`/etc/systemd/system/multi-user.target.wants/user-redis@<account>.service`; how
+many actually run, and the memory they hold, come from the process table, where
+each instance is identified by `--unixsocket
+/home/<account>/.cagefs/tmp/redis.sock` in its command line (the shared Redis
+runs under the same `redis-server` name, so the socket path is what tells them
+apart); and how many sites write to the cache comes from the `db0`, `db1`…
+lines of an `INFO keyspace` reply over that socket. If the unit template is
+renamed, the socket moves out of the CageFS `tmp` directory, or the argument
+list stops carrying the socket path, the card loses its numbers silently — the
+denominator is then omitted rather than guessed.
+
 ## Review log
 
 **2026-11-01** — cPanel 138.0.17, 138.0.18 and 138.0.19; CSF unchanged at

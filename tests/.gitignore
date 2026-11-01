@@ -23,3 +23,5 @@ t_diskio_data/
 bosdurum/
 t_yokluk.php
 t_yokluk_in.json
+t_*.awk
+t_userredis.ps
