@@ -26,30 +26,44 @@
 
   // ── Sağlıklı servisler (her render'da gönderilir; index.php baseline'ı build
   //    makinesinde "Offline" olabilir, bunlar onu "Operational"a çevirir) ──────
-  function ck(label, note, ver, upS, up){ var c={ok:true,label:label,note:note}; if(ver)c.ver=ver; if(upS){c.upS=upS;c.up=up||0;} return c; }
+  // YAS TEK KAYNAK: saniye verilir, kisa ve uzun bicimi URUNUN kendi
+  // yardimcilariyla kurulur. Eskiden kisa metin elle yaziliyordu ('10h') ve TR
+  // sayfasinda da ingilizce kaliyordu; uzun bicim yerine de ham saniye
+  // gidiyordu, ipucu "36000 ayakta" diyordu. Ipuclari gorunur olunca cikti.
+  function yasUzun(s){ var u=LANG_UI==='tr'?['g','sa','dk']:['d','h','m'];
+    if(s>=86400) return Math.floor(s/86400)+u[0]+' '+Math.floor((s%86400)/3600)+u[1];
+    if(s>=3600)  return Math.floor(s/3600)+u[1]+' '+Math.floor((s%3600)/60)+u[2];
+    return Math.max(1,Math.floor(s/60))+u[2]; }
+  function ck(label, note, ver, sn, noteT){ var c={ok:true,label:label,note:note};
+    if(ver)c.ver=ver; if(sn){c.upS=ageShort(sn);c.up=yasUzun(sn);} if(noteT)c.noteT=noteT; return c; }
   var SERVICES = {
     web:  {status:'operational',ok:5,total:5,checks:[
-      ck('LiteSpeed','running','6.3.6','10h',36000), ck('HTTPS (443)','responding · listening'),
-      ck('HTTP (80)','responding · listening'), ck('WHM (2087)','running · listening','cPanel 11.136.0.29','35d',3024000),
+      ck('LiteSpeed','running','6.3.6',36000), ck('HTTPS (443)','responding · listening'),
+      ck('HTTP (80)','responding · listening'), ck('WHM (2087)','running · listening','cPanel 11.136.0.29',3024000),
       ck('cPanel (2083)','running · listening')]},
     mail: {status:'operational',ok:9,total:9,checks:[
-      ck('SMTP (25)','running · listening','Exim 4.99.4','6d',518400), ck('SMTP Submit. (587)','running · listening'),
-      ck('SMTPS (465)','running · listening'), ck('POP3 (110)','running · listening','Dovecot 2.4.4','6d',518400),
+      ck('SMTP (25)','running · listening','Exim 4.99.4',518400), ck('SMTP Submit. (587)','running · listening'),
+      ck('SMTPS (465)','running · listening'), ck('POP3 (110)','running · listening','Dovecot 2.4.4',518400),
       ck('POP3S (995)','running · listening'), ck('IMAP (143)','running · listening'),
       ck('IMAPS (993)','running · listening'), ck('Webmail (2095)','running · listening'),
       ck('Webmail SSL (2096)','running · listening')]},
     dns:  {status:'operational',ok:2,total:2,checks:[
-      ck('DNS TCP (53)','running · listening','BIND 9.11.36','6d',518400), ck('DNS UDP (53)','listening')]},
+      ck('DNS TCP (53)','running · listening','BIND 9.11.36',518400), ck('DNS UDP (53)','listening')]},
     sec:  {status:'operational',ok:5,total:5,checks:[
-      ck('Imunify360','running','8.13.6','6d',518400), ck('LFD','running','v16.20','36m',2160),
+      ck('Imunify360','running','8.13.6',518400), ck('LFD','running','v16.20',2160),
       ck('CSF firewall','enabled','v16.20'), ck('ModSecurity','SecRuleEngine On','2.9.13'),
       ck('CageFS','enabled','7.6.38')]},
     db:   {status:'operational',ok:2,total:2,checks:[
-      ck('MySQL (3306)','running · listening','10.11.13','6d',518400), ck('MySQL ping','alive')]},
-    cache:{status:'operational',ok:2,total:2,checks:[
-      ck('Redis (6379)','responding · listening','5.0.3','19d',1641600), ck('Memcached (11211)','responding · listening','1.5.22','6d',518400)]},
+      ck('MySQL (3306)','running · listening','10.11.13',518400), ck('MySQL ping','alive')]},
+    // Kullanici basina Redis: seed.snapshot'taki sayilarla AYNI (sunucu render'i
+    // ile canli tick ayni satiri gostersin). Not ve ipucu urunun kendi
+    // cevirileriyle kurulur, elle TR metin yazilmaz.
+    cache:{status:'operational',ok:3,total:3,checks:[
+      ck('Redis (6379)','responding · listening','5.0.3',1641600), ck('Memcached (11211)','responding · listening','1.5.22',518400),
+      ck(t('Redis · user'), tf('%s/%s up',180,180)+' · '+tf('%s installs',170), 0, 15000,
+         tf('%s accounts in use, %s ago',150,yasUzun(600))+' · 1.1 GB')]},
     ftp:  {status:'operational',ok:2,total:2,checks:[
-      ck('FTP service','running · listening','1.0.52','3d',259200), ck('Kernel state','port bound')]}
+      ck('FTP service','running · listening','1.0.52',259200), ck('Kernel state','port bound')]}
   };
 
   // ── Eksik SÜREÇ iskeletini enjekte et (index.php süreç verisi yokken bu

@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.58'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.59'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -3113,6 +3113,19 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .spark-tip{position:fixed;z-index:998;background:#0d1520;color:#fff;font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap;text-align:center;}
 .spark-tip .tip-v{display:block;font-size:11px;font-weight:700;}
 .spark-tip .tip-t{display:block;font-size:9px;font-weight:500;opacity:.65;margin-top:1px;}
+/* IPUCU KUTUSU: title tasiyan HER ogenin balonu artik kivilcim ipucuyla AYNI
+   kutu. Tarayicinin kendi balonu ~1 sn gecikiyor, temaya uymuyor ve koyu
+   temada siritiyordu; uzunca metinler de ekrani tasiyordu. Burada sarar. */
+.spark-tip.tip-wide{white-space:normal;text-align:left;font-weight:500;line-height:1.4;padding:6px 9px;max-width:320px;}
+/* IPUCU VAR ISARETI: kullanici fareyle arayip durmasin. Notun altinda silik
+   nokta nokta cizgi; title calisma aninda data-tip'e tasindigi icin iki secici.
+   Ton --scroll-hov: notr, iki temada da ayni agirlikta. --border (rgba(0,0,0,.07))
+   ve --scroll (.17) tarayicida olculdu: 10px yazida nokta nokta cizgi o
+   alfalarda kayboluyor, yani "isaret" islevini hic gormuyordu. */
+.sub-note[title],.sub-note[data-tip]{text-decoration:underline dotted var(--scroll-hov);text-underline-offset:3px;}
+.sub-note[title],.sub-note[data-tip],.sub-age[title],.sub-age[data-tip],
+.sub-ver[title],.sub-ver[data-tip],.sec-range[title],.sec-range[data-tip],
+.res-meta[title],.res-meta[data-tip],.proc-cmd[title],.proc-cmd[data-tip]{cursor:help;}
 .static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
 /* Veri BAYAT (fetch basarisiz): baslik ve footer'daki yesil nokta turuncuya doner,
    animasyon durur, saat turuncu ve yaninda "N dk once". Eskiden son basarili
@@ -3860,9 +3873,51 @@ const sparkFmt={'sp-l1':v=>v.toFixed(2),'sp-l5':v=>v.toFixed(2),'sp-l15':v=>v.to
   // Kivilcim ipuclari KB/s tasir; alt satirla ayni yazimi kullansin diye fmtBytes'a cevrilir.
   'sp-rx':v=>fmtBytes(Math.round(v*1024)),'sp-tx':v=>fmtBytes(Math.round(v*1024)),
   'sp-wrk':v=>Math.round(v)+' running','sp-mq':v=>Math.round(v)+' msg'};
+// METIN IPUCLARI (title) — tarayicinin kendi balonu yerine YUKARIDAKI kutunun
+// aynisi: ayni arka plan, ayni kose, temaya uyumlu. Tarayici balonu ~1 saniye
+// gecikiyor, koyu temada beyaz siritiyor ve kullanici "ipucu var mi yok mu"
+// diye fareyle aranip duruyordu. Isaretleme AYNEN kaliyor (sunucu render'i,
+// demo sayfalari ve testler title yazmaya devam ediyor); title ilk hover'da
+// data-tip'e tasinip ozniteligi siliniyor ki iki balon ust uste cikmasin.
+const hintEl=document.createElement('div');
+hintEl.className='spark-tip tip-wide';
+document.body.appendChild(hintEl);
+let hintFor=null;
+function hintGizle(){if(hintFor){hintFor=null;hintEl.style.opacity=0;}}
+function hintYer(x,y){
+  // Once sol ust kose: kutu SAG KENARA yakin olcul urse kalan dar alana gore
+  // sarip uzun ince bir seride donuyordu (left verilmis fixed ogenin kullanilabilir
+  // genisligi viewport-left'tir). Olcum tam genislikte yapilsin.
+  hintEl.style.left='0px';hintEl.style.top='0px';
+  const g=hintEl.getBoundingClientRect();
+  let l=x+12,u=y-g.height-12;
+  if(l+g.width>innerWidth-8)l=innerWidth-8-g.width;
+  if(l<8)l=8;
+  if(u<8)u=y+20;                       // tepeye sigmiyorsa imlecin altina
+  hintEl.style.left=l+'px';hintEl.style.top=u+'px';
+}
+function hintIzle(e){
+  const el=e.target&&e.target.closest?e.target.closest('[title],[data-tip]'):null;
+  if(!el){hintGizle();return;}
+  if(el!==hintFor){
+    if(el.hasAttribute('title')){
+      const s=el.getAttribute('title');
+      if(!s){hintGizle();return;}
+      el.dataset.tip=s;el.removeAttribute('title');
+      // Metni olmayan ogede (ikon dugmesi) title TEK etiketti; erisilebilirlik
+      // kaybolmasin diye aria-label'a gecer.
+      if(!el.getAttribute('aria-label')&&!el.textContent.trim())el.setAttribute('aria-label',s);
+    }
+    const s=el.dataset.tip;
+    if(!s){hintGizle();return;}
+    hintFor=el;hintEl.textContent=s;hintEl.style.opacity=1;
+  }
+  hintYer(e.clientX,e.clientY);
+}
 document.addEventListener('mousemove',e=>{
   const c=e.target.closest?e.target.closest('canvas.load-spark,canvas.res-spark,canvas.info-spark-canvas'):null;
-  if(!c||!c._d||c._d.length<2){tipEl.style.opacity=0;return;}
+  if(!c||!c._d||c._d.length<2){tipEl.style.opacity=0;hintIzle(e);return;}
+  hintGizle();
   const r=c.getBoundingClientRect();
   const i=Math.max(0,Math.min(c._d.length-1,Math.round((e.clientX-r.left)/(r.width/(c._d.length-1)))));
   const f=sparkFmt[c.id]||(v=>v);
@@ -3872,7 +3927,9 @@ document.addEventListener('mousemove',e=>{
   tipEl.style.top=(e.clientY-40)+'px';
   tipEl.style.opacity=1;
 });
-document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;});
+document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;hintGizle();});
+// Sayfa kaydirilinca kutu havada kalmasin (konum fixed, oge kayiyor).
+addEventListener('scroll',hintGizle,{passive:true,capture:true});
 
 // Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla
 // (cardBorderCss) aynı davranış; sağlıklıyken kenarlık nötr kalır.
@@ -4091,7 +4148,11 @@ function renderSvc(key,data){
       const ver=ch.ver?'<span class="sub-ver" title="'+esc(ch.verT||ch.ver)+'">'+esc(ch.ver)+'</span>':'';
       // PHP'deki dalın ikizi: doğrulanamayan kontrol gri (bkz. oradaki not).
       const nokta=ch.ok?'ok':(ch.warn?'warn':(ch.unknown?'muted':'err'));
-      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span><span class="sub-note">${tnote(ch.note||'')}</span>${age}</div>`;
+      // NOT İPUCU (noteT) BURADA DA OLMALI. JSON'da geliyordu ama bu ikiz onu
+      // koymuyordu: sunucu render'ında duran title ilk tick'te siliniyor, ipucu
+      // "hiç konmamış" gibi kayboluyordu (kullanıcı başına Redis'in GB notu).
+      const not='<span class="sub-note"'+(ch.noteT?' title="'+esc(ch.noteT)+'"':'')+'>'+tnote(ch.note||'')+'</span>';
+      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span>${not}${age}</div>`;
     }).join('');
   }
 }
