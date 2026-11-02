@@ -28,13 +28,14 @@ CPU_PIPE="$(sed -n '/sort -k5,5 -rn "\$PS_SNAP" | head -15/,/cut -c1-280/p' "$KO
 RSS_PIPE="$(sed -n '/sort -k7,7 -rn "\$PS_SNAP" | head -15/,/cut -c1-280/p' "$KOK/src/collector.sh" | head -3)"
 LSPHP_PIPE="$(grep -F 'awk '"'"'$6=="lsphp"{c[$2]++}' "$KOK/src/collector.sh")"
 SAYIM_PIPE="$(sed -n '/read PS_LT PS_LI PS_DS PS_RS/,/PS_COMM")/p' "$KOK/src/collector.sh")"
-TOPP_PIPE="$(grep -F 'TOPP=$(sort -k4,4' "$KOK/src/collector.sh")"
-TOPR_PIPE="$(grep -F 'TOPR=$(sort -k5,5' "$KOK/src/collector.sh")"
+TOP_AD_SRC="$(sed -n "/^TOP_AD='\$/,/^'\$/p" "$KOK/src/collector.sh")"
+TOPP_PIPE="$(grep -F 'TOPP=$(sort -k5,5' "$KOK/src/collector.sh")"
+TOPR_PIPE="$(grep -F 'TOPR=$(sort -k7,7' "$KOK/src/collector.sh")"
 IOP_PIPE="$(sed -n '/awk .{a=\$8; for(i=9;i<=NF;i++) a=a " " \$i; print \$1, \$4, \$3, substr(a,1,160)}/,/"\$PS_SNAP" > "\$IOP_STATE.ps"/p' "$KOK/src/collector.sh")"
 ETARGS="$(grep -F 'ps_etimes_args(){' "$KOK/src/collector.sh")"
 ETCOMM="$(grep -F 'ps_etimes_comm(){' "$KOK/src/collector.sh")"
 
-for d in PS_ELAPSED CPU_PIPE RSS_PIPE LSPHP_PIPE SAYIM_PIPE TOPP_PIPE TOPR_PIPE IOP_PIPE ETARGS ETCOMM; do
+for d in PS_ELAPSED CPU_PIPE RSS_PIPE LSPHP_PIPE SAYIM_PIPE TOP_AD_SRC TOPP_PIPE TOPR_PIPE IOP_PIPE ETARGS ETCOMM; do
   eval "v=\$$d"
   [ -n "$v" ] || { echo "CIKARILAMADI: $d"; exit 2; }
 done
@@ -68,9 +69,24 @@ ck "sayim: D durumu"          "$PS_DS" "1"
 ck "sayim: R durumu"          "$PS_RS" "1"
 
 # ── 5) Tarihce kolonlari ───────────────────────────────────────
-eval "$TOPP_PIPE"; eval "$TOPR_PIPE"
+eval "$TOP_AD_SRC"; eval "$TOPP_PIPE"; eval "$TOPR_PIPE"
 ck "TOPP: ad:cpu:kullanici" "$TOPP" "lsphp:26:acmeco"
 ck "TOPR: ad:rss_mb:kullanici" "$TOPR" "mariadbd:8192:mysql"
+
+# ── 5b) Genel yorumlayici adi args'tan cozulur ─────────────────
+# Fixture'in BICIMI ve args sutunu gercek (uretimde olculdu 2026-11-02); yalniz
+# hesap adlari kurgusal, sayisal sutunlar doldurma. Kural comm'a bakmis olsaydi
+# 1. ve 5. satirlar "php" / "python3" diye gorunur, fail gizlenirdi.
+YOR="$BURASI/ornek/ps_yorumlayici.txt"
+adsatir(){ awk "$TOP_AD"'NR=='"$1"'{print adi()}' "$YOR"; }
+ck "php -r ... -> betik adi"           "$(adsatir 1)" "wpt-wp-cli.php"
+ck "lsphp (argumansiz) aynen kalir"    "$(adsatir 2)" "lsphp"
+ck "lveps genel degil, dokunulmaz"     "$(adsatir 3)" "lveps"
+ck "mariadbd: yol kirpilir"            "$(adsatir 4)" "mariadbd"
+ck "python3 -m im360.run -> modul"     "$(adsatir 5)" "im360.run"
+ck "python3.6 <betik> -> betik adi"    "$(adsatir 6)" "agent360"
+ck "lsphp:/yol -> yol atilir"          "$(adsatir 7)" "lsphp"
+ck "cekirdek is parcacigi bozulmaz"    "$(adsatir 8)" "jbd2sda1-8"
 
 # ── 6) Surec I/O python'una verilen bicim ──────────────────────
 IOP_STATE="$BURASI/t_iop"

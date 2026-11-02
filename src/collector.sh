@@ -1603,11 +1603,44 @@ MQ=$(exim -bpc 2>/dev/null || echo 0)
 # lsphp surecinin kullanicisi ZATEN hesap adidir; "top: lsphp 76%" neredeyse
 # bilgi vermezken "top: lsphp . enesoto 76%" dogrudan eyleme donusur. Eski
 # satirlar iki alanli kalir, PHP tarafi ucuncuyu yoksa atlar.
-TOPP=$(sort -k4,4 -rn "$PS_COMM" | head -1 | awk '{u=$2; n=$6; for(i=7;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, $4, u}')
+#
+# AD, comm'dan DEGIL args'tan uretilir (2026-11-02). Sebep uretimde gorundu:
+# yuk uyarisi "ust: python3 · root %24" diyordu, fail ise
+# "/opt/imunify360/venv/bin/python3 -m im360.run" idi -- comm yalnizca kisa ad
+# oldugu icin genel yorumlayicilarda (php, python, perl, node...) fail GIZLENIYOR.
+# Yeni tarama EKLENMEDI: PS_SNAP zaten her turda aliniyor ve args'i tasiyor,
+# sort yalnizca oteki dosyaya bakiyor (PS_SNAP: 3=user 5=pcpu 7=rss 8+=args).
+#
+# Kural gercek ps ciktisiyla olculdu (tests/ornek/ps_args.txt): "ilk argumani al"
+# YANLIS cevap verir, cunku wp-toolkit satirinda ilk arguman "require":
+#   php -r require '/.../wpt-wp-cli.php'; -d safe_mode=off ...
+# Uc kademe, ilk eslesen kazanir:
+#   1) betik uzantili ilk belirtec  -> wpt-wp-cli.php
+#   2) noktali, '=' icermeyen ilk belirtec -> im360.run
+#   3) '-' ile baslamayan ilk belirtec     -> agent360
+# Genel OLMAYAN ad (lsphp, mariadbd, lveps, redis-server) oldugu gibi kalir.
+TOP_AD='
+function tmz(t,   i) {
+  gsub(/[^A-Za-z0-9_.:=#@+\/-]/, "", t)
+  i = index(t, ":/"); if (i > 1) t = substr(t, 1, i - 1)   # lsphp:/home/x/index.php -> lsphp
+  if (t ~ /^\//) sub(/.*\//, "", t)
+  gsub(/[^A-Za-z0-9_.-]/, "", t); return t
+}
+function adi(   i, b) {
+  b = tmz($8)
+  if (b !~ /^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/) return b
+  for (i = 9; i <= NF; i++) if ($i ~ /\.(php|py|pl|sh|rb|js)/)              return tmz($i)
+  for (i = 9; i <= NF; i++) if ($i !~ /^-/ && $i ~ /\./ && $i !~ /=/)       return tmz($i)
+  for (i = 9; i <= NF; i++) if ($i !~ /^-/)                                 return tmz($i)
+  return b
+}
+function kim(   u) { u = $3; gsub(/[^A-Za-z0-9_.-]/, "", u); return u }
+'
+TOPP=$(sort -k5,5 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%s:%d:%s", adi(), $5, kim()}')
 # 14. kolon: en cok BELLEK (RSS) tutan surec "ad:rss_mb:kullanici". RAM uyarisinin
 # faili top-CPU sureci degildir; sayfa acilisinda tarihceden uretilen RAM satiri
 # bu sayede canli satirla ayni bilgiyi tasir ("— top: mariadbd · mysql 8.3 GB").
-TOPR=$(sort -k5,5 -rn "$PS_COMM" | head -1 | awk '{u=$2; n=$6; for(i=7;i<=NF;i++) n=n"_"$i; gsub(/:/,"_",n); gsub(/:/,"_",u); printf "%s:%d:%s", n, int($5/1024), u}')
+TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%s:%d:%s", adi(), int($7/1024), kim()}')
 # 15. kolon: en cok I/O yapan HESAP "hesap:kbps" (Top IO accounts bolumunden).
 # IO wait uyarisinin faili top-CPU sureci degil, en cok disk I/O yapan hesaptir.
 echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}" >> "$HIST"

@@ -7,12 +7,13 @@ const fs = require('fs');
 const P = require('path').join(__dirname, '..', 'src', 'index.php');
 const src = fs.readFileSync(P, 'utf8');
 
-const bas = src.indexOf("  let topIo='';");
-const son = src.indexOf('if(s)topIo=suffix(s);', bas) + 'if(s)topIo=suffix(s);'.length;
+const bas = src.indexOf("  let topIo='',topIoTxt='';");
+const M = 'if(s){topIo=suffix(s);topIoTxt=s;}';
+const son = src.indexOf(M, bas) + M.length;
 let kod = src.slice(bas, son) + '\n}';          // acilan blok kapatilir
 
 const fn = new Function('data', 'fmtKbps', 'suffix',
-  kod.replace("let topIo='';", "let topIo='';") + '\nreturn topIo;');
+  kod + '\nreturn topIo;');
 
 const kb = v => (v >= 1024 ? (Math.round(v / 1024 * 10) / 10) + ' MB/s'
                            : Math.round(v) + ' KB/s');
@@ -54,6 +55,26 @@ ck('komut yalniz son parca',
 ck('esitlikte surec onde',
    fn({ ioAcct: [['h', 500]], ioProc: [['r', 500, '/x/y']] }, kb, ek),
    ' — y 500 KB/s · h 500 KB/s');
+
+// ── Fail ADI: JS kurali collector.sh'teki awk ile AYNI sonucu vermeli ────────
+// Iki yol var (sayfa acilisi tarihceden/awk, canli tik JS) ve ikisi ayni olayi
+// anlatiyor; biri "python3" oteki "im360.run" derse pano kendi kendisiyle
+// celisir. Satirlar GERCEK ps ciktisindan: tests/ornek/ps_yorumlayici.txt.
+const nBas = src.indexOf('  const pbase=t=>');
+const nSon = src.indexOf('    return b;};', nBas) + '    return b;};'.length;
+const pnameFn = new Function('c', src.slice(nBas, nSon) + '\nreturn pname(c);');
+const ornek = fs.readFileSync(require('path').join(__dirname, 'ornek', 'ps_yorumlayici.txt'), 'utf8')
+  .split('\n').filter(Boolean)
+  .map(l => l.split(/\s+/).slice(7).join(' '));   // 8. alandan sonrasi = args
+
+[['php -r ... -> betik adi', 0, 'wpt-wp-cli.php'],
+ ['lsphp (argumansiz) aynen kalir', 1, 'lsphp'],
+ ['lveps genel degil, dokunulmaz', 2, 'lveps'],
+ ['mariadbd: yol kirpilir', 3, 'mariadbd'],
+ ['python3 -m im360.run -> modul', 4, 'im360.run'],
+ ['python3.6 <betik> -> betik adi', 5, 'agent360'],
+ ['lsphp:/yol -> yol atilir', 6, 'lsphp'],
+].forEach(([ad, i, bek]) => ck('JS ' + ad, pnameFn(ornek[i]), bek));
 
 console.log('\nGECEN: ' + gecen + '  KALAN: ' + kalan);
 process.exit(kalan ? 1 : 0);

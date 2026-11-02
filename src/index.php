@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.61'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.62'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1941,24 +1941,30 @@ if (!empty($histSeed['t'])) {
         // gosterilir — eski history satirlari kirilmaz. Ayirici DUZ karakter olmali:
         // olay kaydi metni ayrica kacisliyor, '&middot;' yazilirsa '&amp;middot;'
         // olup harfi harfine gorunuyordu (cikti tamponu ASCII disini entity yapar).
-        $topSfx = function ($raw, $fmt) {
+        $topSfx = function ($raw, $fmt, $lead = null) {
             if ($raw === '' || strpos($raw, ':') === false) return '';
             $tp = explode(':', $raw, 3);
             $tn = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[0]);
             $tu = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
             if ($tn === '') return '';
             $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' · ' . $tu : '');
-            return ' — ' . t('top:') . ' ' . $who . ' ' . $fmt((int)($tp[1] ?? 0));
+            return ' ' . ($lead ?: '— ' . t('top:')) . ' ' . $who . ' ' . $fmt((int)($tp[1] ?? 0));
         };
         $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
         $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
         // IO wait faili: en cok disk I/O yapan hesap ("hesap:kbps", 1.5.16+). Eski
         // satirlarda yoksa top-CPU surecine duser (eskisi gibi).
         $sfxI = $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps') ?: $sfx;
+        // Yuk uyarisina I/O faili de iliştirilir: yuk islemciden de diskten de
+        // gelebilir ve hangisi oldugunu AYNI satirda gormek gerekiyor. RAM
+        // kasten yok — en cok RSS tutan surec yuksek yukun faili degildir.
+        // Burada $sfxI'nin CPU'ya dusen yedegi KULLANILMAZ, yoksa ayni fail
+        // satirda iki kez yazilirdi; veri yoksa ek bos kalir.
+        $sfxLd = $sfx . $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps', '· I/O:');
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
-                       tf('High load: %s (1m)%s', number_format($l1v, 2), $sfx),
-                       tf('Load elevated: %s (1m)%s', number_format($l1v, 2), $sfx),
+                       tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd),
+                       tf('Load elevated: %s (1m)%s', number_format($l1v, 2), $sfxLd),
                        tf('Load back to normal: %s', number_format($l1v, 2))],
             'cpu'  => [$histSeed['cpu'][$i], $TH['cpu_crit'], $TH['cpu_warn'],
                        tf('CPU critical: %s%%%s', $histSeed['cpu'][$i], $sfx),
@@ -4551,9 +4557,21 @@ function checkAlerts(data){
   // parca alinir. Cekirdek surec adlari ('kworker/2:1H-kblockd') hem '/' hem ':'
   // icerir ve parcalanirsa anlamsizlasir ('2' gibi) — o yuzden dokunulmaz.
   const ptok=c=>String(c||'').split(' ')[0];
-  const pname=c=>{const t=ptok(c),i=t.indexOf(':/');
-    if(i>0)return t.slice(0,i);
+  const pbase=t=>{const i=t.indexOf(':/');if(i>0)t=t.slice(0,i);
     return t[0]==='/'?t.split('/').pop():t;};
+  // Genel yorumlayici (php, python, perl...) adi faili GIZLER: uretimde yuk
+  // uyarisi "ust: python3 · root" diyordu, fail "python3 -m im360.run" idi.
+  // Ayirt edici parca komut satirindan cozulur; kural collector.sh'teki awk ile
+  // AYNI ve GERCEK ps ciktisiyla sinandi (tests/ornek/ps_yorumlayici.txt).
+  // "Ilk argumani al" YANLIS olurdu: wp-toolkit satirinda ilk arguman "require".
+  const pname=c=>{const a=String(c||'').split(' '),b=pbase(a[0]);
+    if(!/^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/.test(b))return b;
+    const kad=[x=>/\.(php|py|pl|sh|rb|js)/.test(x),
+               x=>x[0]!=='-'&&x.indexOf('.')>=0&&x.indexOf('=')<0,
+               x=>x[0]!=='-'];
+    for(let k=0;k<kad.length;k++){const x=a.slice(1).find(y=>y&&kad[k](y));
+      if(x)return pbase(x.replace(/[^A-Za-z0-9_.:=#@+/-]/g,''));}
+    return b;};
   // Calisan BETIK yolu — ayri tutulur, cunku hangi dosyanin (dolayisiyla hangi
   // URL'in) yuklendigi gercek bir ipucu: bir saldiri/bot trafigi genelde tek bir
   // betikte toplanir. Hesap adi ayrica gosterildigi icin '/home/<hesap>/' oneki
@@ -4592,7 +4610,7 @@ function checkAlerts(data){
   // diyordu — 15 KB/s o beklemeyi uretemez, cunku gercek sahibi listede yoktu.
   // Iki olcunun KAPSAMI farkli oldugu icin birbirini tamamlarlar; buyugunu secip
   // otekini atmak, o gun hangi tarafta oldugumuza gore koru kalmak demek.
-  let topIo='';
+  let topIo='',topIoTxt='';
   {
     const a=(data.ioAcct&&data.ioAcct.length&&data.ioAcct[0][1]>0)?data.ioAcct[0]:null;
     const p=(data.ioProc&&data.ioProc.length&&data.ioProc[0][1]>0)?data.ioProc[0]:null;
@@ -4600,8 +4618,12 @@ function checkAlerts(data){
     const pd=p?p[2].split('/').pop()+' '+fmtKbps(p[1]):'';
     const parts=(p&&(!a||p[1]>=a[1]))?[pd,ad]:[ad,pd];
     const s=parts.filter(Boolean).join(' · ');
-    if(s)topIo=suffix(s);
+    if(s){topIo=suffix(s);topIoTxt=s;}
   }
+  // Yuk uyarisina I/O faili de iliştirilir (PHP tarafiyla ayni karar): yuk
+  // islemciden de diskten de gelebilir. topIo'nun kendi ' — ust: ... (anlik Xsn)'
+  // eki tekrar olurdu, o yuzden metin yeniden kuruluyor. RAM kasten yok.
+  const loadIo=(snapFresh&&topIoTxt)?' · I/O: '+topIoTxt:'';
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
     topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
@@ -4610,8 +4632,8 @@ function checkAlerts(data){
   let topDisk='';
   if(snapFresh&&data.diskAcct&&data.diskAcct.length) topDisk=' — '+t('top:')+' '+data.diskAcct[0][0]+' '+data.diskAcct[0][1]+' GB';
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
-    tf('High load: %s (1m)%s',data.load1.toFixed(2),top),
-    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top),
+    tf('High load: %s (1m)%s',data.load1.toFixed(2),top+loadIo),
+    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top+loadIo),
     tf('Load back to normal: %s',data.load1.toFixed(2)),now);
   transLog('cpu',data.cpu,TH.cpu_crit,TH.cpu_warn,
     tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);

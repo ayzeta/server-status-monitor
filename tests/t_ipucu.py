@@ -151,6 +151,31 @@ ck("tavan ayni turda, ek baglanti yok",
 ck("bitis olcutu artik \\r\\n\\r\\n degil",
    "tavan(st[0]) is not None" in col, True)
 
+# ── Yuk uyarisi: CPU + I/O faili, RAM YOK ──────────────────────
+# Yuk islemciden de diskten de gelebilir; ikisi ayni satirda yazilmazsa alarm
+# "15.34" deyip susuyor. RAM kasten disarida: en cok RSS tutan surec yuksek
+# yukun faili degildir (mariadbd her zaman listenin basinda).
+ck("PHP: yuk uyarisi I/O ekini tasiyor", "$sfxLd = $sfx . $topSfx(" in src, True)
+ck("PHP: yuk metni $sfxLd kullaniyor",
+   "tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd)" in src, True)
+ck("PHP: yuk uyarisinda RAM eki yok", "number_format($l1v, 2), $sfxR" in src, False)
+ck("JS: yuk uyarisi I/O ekini tasiyor", "data.load1.toFixed(2),top+loadIo" in src, True)
+ck("JS: I/O eki yeniden kuruluyor (cift 'ust:' olmasin)",
+   "' · I/O: '+topIoTxt" in src, True)
+
+# ── Fail adi: genel yorumlayici gizlenmesin ────────────────────
+# Uretimde olculdu (2026-11-02): uyari "ust: python3 · root" diyordu, fail
+# "/opt/imunify360/venv/bin/python3 -m im360.run" idi. Ad artik args'tan
+# cozuluyor; TOPP/TOPR yeni bir ps TARAMASI EKLEMEDEN PS_SNAP'e bakiyor.
+ck("TOPP args'li anlik goruntuden", 'TOPP=$(sort -k5,5 -rn "$PS_SNAP"' in col, True)
+ck("TOPR args'li anlik goruntuden", 'TOPR=$(sort -k7,7 -rn "$PS_SNAP"' in col, True)
+ck("yeni ps taramasi eklenmedi (hala iki tane)",
+   len([l for l in col.splitlines() if l.startswith("ps axo ")]), 2)
+ck("genel yorumlayici listesi awk'ta",
+   "/^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/" in col, True)
+ck("ayni liste JS'te",
+   "/^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/" in src, True)
+
 print()
 print("GECEN: %d  KALAN: %d" % (gecen, kalan))
 sys.exit(1 if kalan else 0)
