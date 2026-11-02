@@ -255,18 +255,23 @@ else:
     ck("arızalı satırda yaş var", sag(kart, "Redis (6379)"), "4h")
     ck("kullanılmayan satırda yaş yok", sag(kart, "Memcached (11211)"), "")
 
-    # 2) ikisi de kullanılmıyor -> grup 'Kullanılmıyor', kırmızı yok
+    # 2) kurulu ama kapalı -> gri satır; HİÇ KURULU DEĞİL -> satır YOK.
+    #    (2026-11-02: memcached sunucudan kaldırıldı, kart onu "kuruluymuş da
+    #    kapatılmış" gibi göstermeye devam etti. Pano herkese yazıldığı için
+    #    kurulmamış yazılımın satırı da olmamalı.)
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
                                         "--- Service ages ---", "svcage redis-server 15000"])
-    ck("ikisi de gri", (chip(kart, "Redis (6379)")[0], chip(kart, "Memcached (11211)")[0]),
-       ("muted", "muted"))
+    ck("kurulu ama kapalı -> gri satır", chip(kart, "Redis (6379)")[0], "muted")
+    ck("kurulu değil -> satır hiç yok", chip(kart, "Memcached (11211)"), ("YOK", "YOK"))
     # ÜRETİMDE GÖRÜLEN HATA: satır "kullanılmıyor" derken yanında "4sa",
     # ipucunda "4sa 21dk ayakta" yazıyordu. Çalışmayan şeyin yaşı olmaz.
     ck("kullanılmıyorsa yaş yazılmaz", sag(kart, "Redis (6379)"), "")
     ck("grup rozeti 'Not in use'", rozet, "Not in use")
     ck("rozet sınıfı renksiz", sinif, "badge-muted")
-    ck("sayaç 'kullanılmıyor' diyor", sayac, "2 not in use")
+    # SAYIM DA FİLTREDEN SONRA: gizlenen satır sayılmaz, yoksa kart "2" deyip
+    # tek satır gösterirdi.
+    ck("sayaç yalnız görünen satırı sayar", sayac, "1 not in use")
 
     # 3) niyet bilgisi hiç yok -> doğrulanamadı (gri), kırmızı DEĞİL
     kart, rozet, sinif, sayac = render(["acct 5"])
@@ -326,17 +331,33 @@ else:
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
                                         "userredis 180 180", "userredis_mem 1126",
-                                        "userredis_use 150 170"])
-    # KULLANIM SATIRDA: ipucuna konunca üretimde kimse görmedi. Hesap sayısı
-    # ve ölçümün YAŞI ipucunda kalır (yarım saatte bir ölçülüyor).
-    ck("satırda kurulum sayısı", chip(kart, "Redis · user"),
-       ("ok", "180/180 up · 170 installs"))
+                                        "userredis_use 150 170", "userredis_cap 11520 0 0"])
+    # KULLANIM SATIRDA: ipucuna konunca üretimde kimse görmedi. db ayrıntısı
+    # ipucunda kalır — satırda herkeste anlamı aynı olan sayı durur.
+    ck("satırda kullanımdaki örnek sayısı", chip(kart, "Redis · user"),
+       ("ok", "180/180 up · 150 in use"))
     # ÖLÇÜMÜN YAŞI YAZILMAZ: o yaş bizim önbellek dosyamızın yaşıydı, sunucu
     # hakkında hiçbir şey söylemiyordu ("16dk ne alaka" diye soruldu).
-    ck("ipucunda hesap sayısı ve bellek", ipucu(kart, "Redis · user"),
-       "150 accounts in use · 1.1 GB")
+    # "kurulum" DEĞİL: ölçülen şey INFO keyspace'teki boş olmayan db sayısı.
+    # Sitelerin ayrı db'lere bağlanması bu sunucunun kendi yapılandırmasıydı.
+    ck("ipucunda hesap, dolu db ve tavan", ipucu(kart, "Redis · user"),
+       "150 accounts in use, 170 non-empty databases · 1.1 GB of 11.3 GB ceiling")
     ck("ipucunda önbellek yaşı YOK", "ago" in (ipucu(kart, "Redis · user") or ""), False)
     ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
+
+    # 9) TAVAN ANCAK TAM ÖLÇÜLDÜYSE YAZILIR. maxmemory 0 olan (sınırsız) ya da
+    #    okunamayan örnek varsa toplam gerçek tavandan küçük kalır; eksik bir
+    #    toplamı "tavan" diye yazmak ölçmeden yazmaktır.
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "userredis 180 180", "userredis_mem 1126",
+                                        "userredis_use 150 170", "userredis_cap 11520 3 0"])
+    ck("sınırsız örnek varsa tavan yazılmaz", ipucu(kart, "Redis · user"),
+       "150 accounts in use, 170 non-empty databases · 1.1 GB · 3 unlimited")
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "userredis 180 180", "userredis_mem 1126",
+                                        "userredis_use 150 170", "userredis_cap 11520 0 2"])
+    ck("okunamayan varsa tavan da sınırsız da yazılmaz", ipucu(kart, "Redis · user"),
+       "150 accounts in use, 170 non-empty databases · 1.1 GB")
 
 print()
 print("GECEN: %d  KALAN: %d%s" % (gecen, kalan, "  ATLANDI: 1" if atlanan else ""))

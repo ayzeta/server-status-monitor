@@ -35,3 +35,4 @@ userredis 180 180
 userredis_mem 1126
 userredis_age 15000
 userredis_use 150 170
+userredis_cap 11520 0 0

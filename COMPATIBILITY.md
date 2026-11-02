@@ -40,19 +40,37 @@ Imunify360 CLI (`imunify360-agent version`, `malware`).
 **CSF** — `csf.conf` (notably `PT_APACHESTATUS`), `csf.disable`, and the lfd
 service state.
 
-**LiteSpeed "Cache Redis for Users"** — the per-account cache is read from
-three shapes, none of them probed over the network. How many instances are
-*meant* to run comes from the unit names
-`/etc/systemd/system/multi-user.target.wants/user-redis@<account>.service`; how
-many actually run, and the memory they hold, come from the process table, where
-each instance is identified by `--unixsocket
-/home/<account>/.cagefs/tmp/redis.sock` in its command line (the shared Redis
-runs under the same `redis-server` name, so the socket path is what tells them
-apart); and how many sites write to the cache comes from the `db0`, `db1`…
-lines of an `INFO keyspace` reply over that socket. If the unit template is
-renamed, the socket moves out of the CageFS `tmp` directory, or the argument
-list stops carrying the socket path, the card loses its numbers silently — the
-denominator is then omitted rather than guessed.
+**LiteSpeed "Cache Redis for Users"** — this is a feature of the WHM LiteSpeed
+plugin: one Redis instance per account, reachable only through a socket inside
+the account's caged `tmp` directory, so it needs CageFS or LiteSpeed
+Containers. Its unit template and start script live under `/usr/local/lsws/`
+and belong to no RPM, because the plugin writes them itself. The dashboard
+reads the per-account cache from three shapes, none of them probed over the
+network.
+
+How many instances are *meant* to run comes from the unit names
+`/etc/systemd/system/multi-user.target.wants/user-redis@<account>.service`.
+
+How many actually run, and the memory they hold, come from the process table,
+where each instance is matched by the **user column**: the unit runs with
+`User=%i`, so the process owner is the account itself. The command line is not
+used, because it does not carry the socket: a running instance shows up as
+`/usr/bin/redis-server *:0`, with neither the socket path nor `--unixsocket` in
+its arguments — the unit's own start script passes those. (An earlier version
+of this dashboard matched on the socket path in the arguments; nothing matched,
+and a healthy server was reported as entirely down. The `*:0` form is also what
+tells these instances apart from the shared Redis, which listens on a real
+address and port.)
+
+How many accounts actually use the cache comes from the `db0`, `db1`… lines of
+an `INFO keyspace` reply over that socket — Redis is the only source for this,
+since the configuration LiteSpeed recommends (`save ""`, `appendonly no`)
+leaves nothing on disk to inspect. The reply says how many databases hold keys,
+not what wrote to them, so that is all the dashboard claims.
+
+If the unit template is renamed, the socket moves out of the caged `tmp`
+directory, or the unit stops running as the account, the card loses its numbers
+silently — the denominator is then omitted rather than guessed.
 
 ## Review log
 

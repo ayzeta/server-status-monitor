@@ -60,8 +60,9 @@
     // cevirileriyle kurulur, elle TR metin yazilmaz.
     cache:{status:'operational',ok:3,total:3,checks:[
       ck('Redis (6379)','responding · listening','5.0.3',1641600), ck('Memcached (11211)','responding · listening','1.5.22',518400),
-      ck(t('Redis · user'), tf('%s/%s up',180,180)+' · '+tf('%s installs',170), 0, 15000,
-         tf('%s accounts in use',150)+' · 1.1 GB')]},
+      ck(t('Redis · user'), tf('%s/%s up',180,180)+' · '+tf('%s in use',150), 0, 15000,
+         tf('%s accounts in use, %s non-empty databases',150,170)+' · '+
+         tf('%s of %s ceiling','1.1 GB','11.3 GB'))]},
     ftp:  {status:'operational',ok:2,total:2,checks:[
       ck('FTP service','running · listening','1.0.52',259200), ck('Kernel state','port bound')]}
   };

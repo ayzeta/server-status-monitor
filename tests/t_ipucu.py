@@ -122,6 +122,34 @@ ck("demo: elle yazilmis kisa yas metni kalmamis",
    bool(re.search(r"ck\([^)]*'\d+[dhm]'\s*,\s*\d", demo)), False)
 ck("demo: kullanici Redis'i kartta var (ipucuyla)",
    "Redis · user" in demo and "accounts in use" in demo, True)
+ck("demo: tavan da ipucunda", "of %s ceiling" in demo, True)
+
+# ── Dokunmatik ─────────────────────────────────────────────────
+# Dokunmatikte "ustune gelme" yok: ipucu dokunusla acilmazsa o cihazda HIC
+# acilmaz. Dinleyici PASIF ve preventDefault YOK -- yoksa ipucu koydugumuz her
+# oge tiklanamaz hale gelirdi (sekmeler, baglantilar).
+print()
+ck("dokunusla aciliyor", "addEventListener('touchstart'" in src, True)
+ck("dinleyici pasif (kaydirmayi engellemesin)",
+   bool(re.search(r"touchstart'[\s\S]{0,400}?\{passive:true\}", src)), True)
+ck("tiklamayi yutmuyor (preventDefault yok)",
+   bool(re.search(r"touchstart'[\s\S]{0,400}?preventDefault", src)), False)
+ck("parmagin altinda asili kalmiyor (sureli kapanis)",
+   "setTimeout(hintGizle" in src, True)
+
+# ── Toplayici: surum onbellegi yazilabilmeli ───────────────────
+# "} > tmp && mv" bloğun cikis koduna bagliydi; son satir kosullu bir echo
+# ("memcached kuruluysa yaz"), memcached kalkinca 1 dondu ve onbellek bir daha
+# yazilamadi. Sonuc sessiz: agir surum sorgulari HER DAKIKA kostu (olculdu:
+# turun 6 sn'sinin 4.3'u) ve pano eski surumleri gosterdi.
+col = io.open(KOK + "src/collector.sh", encoding="utf-8", errors="replace").read()
+ck("surum onbellegi blogun cikis koduna bagli DEGIL",
+   '} > "$VC.tmp" && mv' in col, False)
+ck("olcut dosyanin kendisi", '[ -s "$VC.tmp" ] && mv -f "$VC.tmp" "$VC"' in col, True)
+ck("tavan ayni turda, ek baglanti yok",
+   "INFO keyspace\\r\\nCONFIG GET maxmemory\\r\\n" in col, True)
+ck("bitis olcutu artik \\r\\n\\r\\n degil",
+   "tavan(st[0]) is not None" in col, True)
 
 print()
 print("GECEN: %d  KALAN: %d" % (gecen, kalan))

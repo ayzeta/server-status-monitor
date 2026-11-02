@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.59'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.61'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -153,7 +153,11 @@ $TR = [
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
     '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
     '%s not running' => '%s çalışmıyor',
-    '%s installs' => '%s kurulum', '%s accounts in use' => '%s hesap kullanıyor',
+    '%s in use' => '%s kullanımda',
+    // ARGÜMAN SIRASI İKİ DİLDE AYNI (önce hesap, sonra db): JS tarafındaki tf
+    // %s'leri sırayla değiştiriyor, "%2$s" gibi konumlu biçim desteklemiyor.
+    '%s accounts in use, %s non-empty databases' => '%s hesapta %s dolu db',
+    '%s of %s ceiling' => '%s / %s tavan', '%s unlimited' => '%s sınırsız',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -1045,8 +1049,13 @@ function svcCheck($label, $whmName, $port, $lp, $whmSvcs, $whmOk) {
             // Port AÇIKSA bayrağa bakma: servis açıkça çalışıyor (cPanel'de
             // izleme kapatılmış olabilir, bu onu "yok" yapmaz).
             if (!$port || !portOpen('127.0.0.1', $port)) {
+                // KURULU DEĞİLSE SATIR DA YOK ('absent'): cPanel "installed=0"
+                // diyorsa o yazılım bu sunucuda hiç yok, gri bir satırla
+                // varlığını ima etmenin anlamı yok. Kurulu ama kapalıysa satır
+                // kalır — "kurulu ve kapalı" söylenmeye değer bir durum.
                 return ['label' => $label, 'ok' => false, 'unknown' => true, 'type' => 'check',
-                        'note' => empty($s['installed']) ? 'not installed' : 'not in use'];
+                        'note' => empty($s['installed']) ? 'not installed' : 'not in use']
+                     + (empty($s['installed']) ? ['absent' => true] : []);
             }
         }
     }
@@ -1108,8 +1117,18 @@ function chkUnit($label, $port, $unit, $lp, $units, $rootFresh) {
         || $u['active'] === 'activating' || $u['active'] === 'failed') {
         return $c;                                 // 'no response', kırmızı
     }
-    // disabled / masked / static / notfound → bu sunucuda kullanılmıyor.
-    $c['unknown'] = true; $c['note'] = 'not in use';
+    // YOKLUK ile KAPALILIK ayrı şeyler. systemd birimi hiç tanımıyorsa
+    // ('notfound', yani UnitFileState boş) yazılım KURULU DEĞİLDİR; satır hiç
+    // gösterilmez. disabled/masked/static ise kurulu ama kullanılmıyor: gri
+    // satır kalır, çünkü "kurulu ve kapalı" söylenmeye değer bir şey.
+    //
+    // 2026-11-01'de ikisine de "kullanılmıyor" dendi (f037c50). 2026-11-02'de
+    // memcached sunucudan kaldırıldı ve kart "sanki kuruluymuş da kapatılmış"
+    // gibi okundu. Pano tek bir sunucuya değil herkese yazıldığı için kurulu
+    // olmayan yazılımın satırı da olmamalı.
+    $c['unknown'] = true;
+    if ($u['file'] === 'notfound') { $c['absent'] = true; $c['note'] = 'not installed'; }
+    else                          { $c['note']   = 'not in use'; }
     return $c;
 }
 
@@ -1374,23 +1393,37 @@ if ($csfRaw !== null) {
     $secRoot[] = ['label' => 'CSF firewall', 'type' => 'check', 'note' => $csfNote,
                   'ok' => $csfKind === 'ok']
                + ($csfKind === 'unk' ? ['unknown' => true] : []);
-} else {
+} elseif (!$rootFresh) {
     $secRoot[] = ['label' => 'CSF firewall', 'type' => 'cmd', 'cmd' => 'systemctl status csf'];
 }
+// $rootFresh VARKEN hiç 'csf' satırı gelmediyse CSF KURULU DEĞİL: toplayıcı o
+// bölümü "[ -d /etc/csf ] || command -v csf" ile çitliyor, yani anahtarın
+// yokluğu ölçülmüş bir yokluktur (collector.sh:323). Böyle bir sunucuda
+// "systemctl status csf" öneren bir satır göstermenin anlamı yok. Dikkat:
+// 'missing' BAŞKA bir şey — /etc/csf duruyor ama ikili yok, yani BOZUK bir
+// kurulum; o satır gösterilir.
 $msVal = isset($procSec['modsec']) ? trim($procSec['modsec'], " \t\"'") : null; // cPanel değeri tırnaklı yazabiliyor
-$secRoot[] = $msVal !== null
-    ? ['label' => 'ModSecurity', 'ok' => strcasecmp($msVal, 'on') === 0, 'type' => 'check',
-       'note' => 'SecRuleEngine ' . $msVal]
-    : ['label' => 'ModSecurity', 'type' => 'cmd', 'cmd' => 'systemctl status httpd'];
+// Aynı kural (bkz. CSF): kök verisi tazeyken değer hiç gelmediyse ModSecurity
+// bu sunucuda yok; komut öneren satır da gösterilmez.
+if ($msVal !== null) {
+    $secRoot[] = ['label' => 'ModSecurity', 'ok' => strcasecmp($msVal, 'on') === 0, 'type' => 'check',
+                  'note' => 'SecRuleEngine ' . $msVal];
+} elseif (!$rootFresh) {
+    $secRoot[] = ['label' => 'ModSecurity', 'type' => 'cmd', 'cmd' => 'systemctl status httpd'];
+}
 // CageFS durumu dakikada bir ölçülmez: cagefsctl 0,8 sn'lik bir python çağrısı ve
 // bu durum dakikalık değişen bir şey değil. Collector /etc/cagefs değiştiğinde
 // (ya da en geç 15 dakikada bir) soruyor; ölçüm anı ipucunda yazıyor.
-$secRoot[] = isset($procSec['cagefs'])
-    ? ['label' => 'CageFS', 'ok' => stripos($procSec['cagefs'], 'enabled') !== false, 'type' => 'check',
-       'note' => strtolower($procSec['cagefs']), // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
-       'noteT' => isset($procSec['cagefs_at']) && is_numeric($procSec['cagefs_at'])
-                ? tf('measured %s', date('H:i', (int)$procSec['cagefs_at'])) : null]
-    : ['label' => 'CageFS', 'type' => 'cmd', 'cmd' => 'cagefsctl --cagefs-status'];
+// Aynı kural: CageFS CloudLinux'a özgü, cagefsctl olmayan sunucuda toplayıcı
+// hiçbir şey basmaz — kök verisi tazeyse bu "kurulu değil" demektir.
+if (isset($procSec['cagefs'])) {
+    $secRoot[] = ['label' => 'CageFS', 'ok' => stripos($procSec['cagefs'], 'enabled') !== false, 'type' => 'check',
+                  'note' => strtolower($procSec['cagefs']), // cagefsctl "Enabled" der; csf satırıyla ("enabled") tutarlı olsun
+                  'noteT' => isset($procSec['cagefs_at']) && is_numeric($procSec['cagefs_at'])
+                           ? tf('measured %s', date('H:i', (int)$procSec['cagefs_at'])) : null];
+} elseif (!$rootFresh) {
+    $secRoot[] = ['label' => 'CageFS', 'type' => 'cmd', 'cmd' => 'cagefsctl --cagefs-status'];
+}
 
 $secChecks = array_merge([
     svcCheck('Imunify360',   'imunify360', null, $listeningPorts, $whmServices, $whmApiOk),
@@ -1445,10 +1478,12 @@ $cacheChecks = [
 ];
 // LiteSpeed'in "Cache Redis for Users" özelliği: ağ portu yok, her hesabın
 // kendi soketi ve kendi süreci var; yapıyı systemd yönetiyor. Satırda SAĞLIK
-// (kaç tanımlı birimin süreci ayakta) ve BELLEK var — örnek başına 64 MB tavan
-// olduğu için büyüyen sayı bu. "Kaç kurulum kullanıyor" ipucunda, çünkü ayakta
-// olmak kullanıldığı anlamına gelmiyor ve o sayı yavaş değişiyor (yarım saatte
-// bir ölçülüyor, yaşıyla birlikte yazılıyor).
+// (kaç tanımlı birimin süreci ayakta) ve kullanımdaki örnek sayısı var; bellek
+// ipucunda (ölçülen: süreçlerin RSS toplamı). TAVAN YAZILMIYOR: örnek başına
+// maxmemory sabit değil, LiteSpeed panelinden plana/hesaba özel verilebiliyor,
+// yani "N × 64 MB" diye bir toplam uydurulamaz — ölçmeden yazmıyoruz.
+// "Kaç örnek kullanılıyor" ayrı bir soru, çünkü ayakta olmak kullanıldığı
+// anlamına gelmiyor; o sayı yavaş değişiyor (yarım saatte bir ölçülüyor).
 // Tek hesabın Redis'i bütün kartı düşürmemeli — eksik varsa SARI uyarı ve
 // duran hesapların adı; hiçbiri ayakta değilse kırmızı.
 if ($rootFresh && isset($procSec['userredis'])) {
@@ -1482,9 +1517,17 @@ if ($rootFresh && isset($procSec['userredis'])) {
                 $urNote .= ' · ' . tf('%s not running', $eksik);
             }
         }
-        // KULLANIM SATIRDA, ipucunda değil: "kaç kurulum yazıyor" bu satırın
-        // en konuşkan sayısı ve ipucuna koyunca kimse görmüyor (üretimde
-        // görülmedi). İpucunda yalnız kaç hesabın gerçekten kullandığı kalır.
+        // KULLANIM SATIRDA, ipucunda değil: "kaç örnek gerçekten kullanılıyor"
+        // bu satırın en konuşkan sayısı ve ipucuna koyunca kimse görmüyor
+        // (üretimde görülmedi). db ayrıntısı ipucuna iner.
+        //
+        // "KURULUM" DEĞİL, "DOLU DB": ölçtüğümüz şey INFO keyspace'in döndüğü
+        // boş olmayan db satırlarının sayısı. Bir süre buna "kurulum" dendi;
+        // o ad, bu sunucuda sitelerin elle ayrı db indekslerine bağlanmış
+        // olmasından geliyordu — eklentiyi kuran başkasında aynı şey geçerli
+        // değil. Üretimde ölçüldü (2026-11-02): 310 hesapta 330 dolu db,
+        // bakılan beş hesabın beşinde de yalnız db0. Redis hangi uygulamanın
+        // yazdığını bilmiyor, biz de yazmıyoruz.
         //
         // ÖLÇÜMÜN YAŞI YAZILMAZ: bir süre "sonuncusu 16dk önce" diye yazdı ve
         // haklı olarak "16dk ne alaka" diye soruldu. Panodaki her sayı sunucuya
@@ -1494,14 +1537,29 @@ if ($rootFresh && isset($procSec['userredis'])) {
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
-                if ($urTot <= $urUp) $urNote .= ' · ' . tf('%s installs', $u[1]);
-                $urTips[] = tf('%s accounts in use', $u[0]);
+                if ($urTot <= $urUp) $urNote .= ' · ' . tf('%s in use', $u[0]);
+                $urTips[] = tf('%s accounts in use, %s non-empty databases', $u[0], $u[1]);
             }
         }
+        // TAVAN: örnek başına maxmemory, aynı turda aynı soketten CONFIG GET
+        // ile ölçülüyor (ek bağlantı yok). EKSİK TOPLAM "TAVAN" DİYE YAZILMAZ:
+        // bir örnek sınırsızsa (maxmemory 0) ya da tavanı okunamadıysa toplam
+        // gerçek tavandan küçük kalır, o yüzden yalnız hepsi okunduğunda ve
+        // hiçbiri sınırsız değilken yazılır; sınırsız varsa onun SAYISI yazılır.
+        $urCap = 0; $urCapSiz = 0;
+        if (isset($procSec['userredis_cap'])) {
+            $cp = preg_split('/\s+/', trim($procSec['userredis_cap']));
+            if (count($cp) === 3 && ctype_digit($cp[0]) && ctype_digit($cp[1]) && ctype_digit($cp[2])) {
+                if ((int)$cp[1] === 0 && (int)$cp[2] === 0) $urCap = (int)$cp[0];
+                $urCapSiz = (int)$cp[1];
+            }
+        }
+        $urCapT = $urCap >= 1024 ? round($urCap / 1024, 1) . ' GB' : $urCap . ' MB';
         // BELLEK İPUCUNDA: sağdaki dar sütun UPTIME sütunu, başka bir birim
         // oraya girerse sütunun anlamı bozulur (kart boyunca "4sa" ile
         // "2.3 GB" alt alta gelirdi). Bellek ayrıca Bellek kartında da var.
-        if ($urMem) $urTips[] = $urMemT;
+        if ($urMem) $urTips[] = $urCap > 0 ? tf('%s of %s ceiling', $urMemT, $urCapT) : $urMemT;
+        if ($urCapSiz) $urTips[] = tf('%s unlimited', $urCapSiz);
         // Sütuna bu satırın kendi uptime'ı: örnekler arasında en eskisi —
         // panonun geri kalanında da kural bu ("en eski süreç = servisin
         // kendisi"). Ortak Redis'in yaşıyla karışmaz, ayrı alandan gelir.
@@ -1602,6 +1660,36 @@ tagVer($ftpChecks[0],   'ftp', false);      // FTP → "1.0.52" (dar 4'lü kart;
 tagVer($dbChecks[0],    'db', false);       // MySQL → "10.11.18" (dar 4'lü kart; tam ad "MariaDB 10.11.18" hover'da)
 tagVer($cacheChecks[0], 'redis', false);
 tagVer($cacheChecks[1], 'memcached', false);
+
+// ── KURULU OLMAYAN SATIRLAR DÜŞER ─────────────────────────────
+// 'absent', ölçülmüş bir yokluktur: systemd birimi tanımıyor ('notfound') ya
+// da cPanel "installed=0" diyor. Bu pano tek bir sunucu için değil, kuran
+// herkes için yazıldı — kurulmamış bir yazılımın satırı, onu kurulu ama
+// kapalıymış gibi gösterir (2026-11-02: memcached sunucudan kaldırıldı,
+// kartta "Memcached (11211) 1.5.22 kullanılmıyor" yazmaya devam etti).
+// Gri satır yalnız KURULU ama kullanılmayan servise ayrılır.
+//
+// Sıra önemli: etiketleme (tagAge/tagVer) indisle çalışıyor, o yüzden filtre
+// ondan SONRA; sayım da filtreden sonra YENİDEN yapılır, yoksa kart "1/2"
+// deyip tek satır gösterirdi.
+$dropAbsent = fn($c) => array_values(array_filter($c, fn($x) => empty($x['absent'])));
+$webChecks   = $dropAbsent($webChecks);
+$mailChecks  = $dropAbsent($mailChecks);
+$dnsChecks   = $dropAbsent($dnsChecks);
+$dbChecks    = $dropAbsent($dbChecks);
+$ftpChecks   = $dropAbsent($ftpChecks);
+$cacheChecks = $dropAbsent($cacheChecks);
+$secChecks   = $dropAbsent($secChecks);
+[$webStatus,   $webOk,   $webTotal]                 = svcTally($webChecks);
+[$mailStatus,  $mailOk,  $mailTotal]                = svcTally($mailChecks);
+[$dnsStatus,   $dnsOk,   $dnsTotal]                 = svcTally($dnsChecks);
+// Veritabanı kartının DURUMU svcTally'den gelmiyor (ping/soket mantığı kendi
+// içinde, [[1443]]), o yüzden yalnız sayılar tazelenir.
+$dbOk    = array_sum(array_column($dbChecks, 'ok'));
+$dbTotal = count($dbChecks);
+[$ftpStatus,   $ftpOk,   $ftpTotal]                 = svcTally($ftpChecks);
+[$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);
+[$secStatus,   $secOk,   $secTotal,   $secUnknown]   = svcTally($secChecks);
 
 // ── Birleşik sağlık modeli ────────────────────────────────────
 // Tepe durumu SADECE servis kartlarına değil TÜM metrik/kontrollere
@@ -3455,6 +3543,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 ?>
 <div class="sec" style="margin-top:12px"><span><?=upper(t('Services'))?></span><i class="sec-hair"></i><span class="sec-range" id="svc-at" title="<?=htmlspecialchars(t("Service up/down comes from cPanel's own chkservd round, which does not run every minute; the port checks beside them are probed live. This is when that round ran."), ENT_QUOTES, 'UTF-8')?>"><?=$svcAt ? 'chkservd ' . date('H:i', $svcAt) : ''?></span></div>
 <div class="svcs-row1">
+<?php if ($webChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><?=icon('bolt')?></div>
@@ -3463,6 +3552,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-web"><?=renderChecks($webChecks)?></div>
   </div>
+<?php endif; ?>
+<?php if ($mailChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-mail" style="background:var(--accent-bg);color:var(--accent)"><?=icon('mail')?></div>
@@ -3471,6 +3562,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-mail"><?=renderChecks($mailChecks)?></div>
   </div>
+<?php endif; ?>
+<?php if ($dnsChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-dns" style="background:var(--accent-bg);color:var(--accent)"><?=icon('world')?></div>
@@ -3479,8 +3572,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-dns"><?=renderChecks($dnsChecks)?></div>
   </div>
+<?php endif; ?>
 </div>
 <div class="svcs-row2">
+<?php if ($secChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-sec" style="background:var(--accent-bg);color:var(--accent)"><?=icon('shield-check')?></div>
@@ -3489,6 +3584,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-sec"><?=renderChecks($secChecks)?></div>
   </div>
+<?php endif; ?>
+<?php if ($dbChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><?=icon('database')?></div>
@@ -3497,6 +3594,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-db"><?=renderChecks($dbChecks)?></div>
   </div>
+<?php endif; ?>
+<?php if ($cacheChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-cache" style="background:var(--accent-bg);color:var(--accent)"><?=icon('topology-star-ring')?></div>
@@ -3505,6 +3604,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-cache"><?=renderChecks($cacheChecks)?></div>
   </div>
+<?php endif; ?>
+<?php if ($ftpChecks): /* satiri kalmayan kart basilmaz */ ?>
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-ftp" style="background:var(--accent-bg);color:var(--accent)"><?=icon('file-arrow-right')?></div>
@@ -3513,6 +3614,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="svc-checks" id="ch-ftp"><?=renderChecks($ftpChecks)?></div>
   </div>
+<?php endif; ?>
 </div>
 
 <?php if ($procCpu || $procRam || $procPhp): ?>
@@ -3956,6 +4058,18 @@ document.addEventListener('mousemove',e=>{
 document.addEventListener('mouseleave',()=>{tipEl.style.opacity=0;hintGizle();});
 // Sayfa kaydirilinca kutu havada kalmasin (konum fixed, oge kayiyor).
 addEventListener('scroll',hintGizle,{passive:true,capture:true});
+// DOKUNMATIK: ustune gelme diye bir sey yok, ipucu DOKUNUSLA acilir. Dinleyici
+// PASIF ve preventDefault YOK — baglantilar, sekmeler ve dugmeler normal
+// calismaya devam eder, ipucu tiklamayi yutmaz. Parmagin ustunde kalmasin diye
+// kendiliginden kapanir; bosluga dokununca da kapanir (hintIzle oyle davranir).
+let hintZam=0;
+document.addEventListener('touchstart',e=>{
+  const d=e.touches&&e.touches[0];
+  if(!d)return;
+  hintIzle({target:e.target,clientX:d.clientX,clientY:d.clientY});
+  clearTimeout(hintZam);
+  if(hintFor)hintZam=setTimeout(hintGizle,4000);
+},{passive:true});
 
 // Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla
 // (cardBorderCss) aynı davranış; sağlıklıyken kenarlık nötr kalır.

@@ -530,8 +530,10 @@ PYEOF
   #   Tanimli = wants dizinindeki birim sayisi. Dizin okumasi; "systemctl
   #             list-units" ayni sayiyi verir ama dbus turu demek olurdu.
   #   Ayakta  = zaten alinmis ps goruntusundeki surecler; RSS toplami da ayni
-  #             satirlardan (ek komut yok). Bellek onemli: ornek basina
-  #             --maxmemory 64mb, 371 ornek tavana vursa ~23 GB.
+  #             satirlardan (ek komut yok). Bellek onemli: yuzlerce ornek yan
+  #             yana kosuyor. TAVAN BILINMIYOR: maxmemory ornek basina sabit
+  #             degil, LiteSpeed panelinden plana/hesaba ozel verilebiliyor;
+  #             "N x 64mb" diye bir toplam burada YAZILMAZ, olculmedi.
   # Eksigin ADI da bedava: birim adlari ile ps kullanicilarinin farki.
   # Tanimli 0 ise (systemd kaydi olmayan kurulum) bolen GONDERILMEZ; pano
   # yalnizca "N ayakta" der, olculmeyen bir hedef uydurmaz.
@@ -581,6 +583,32 @@ import glob, selectors, socket, time
 sok = sorted(glob.glob('/home*/*/.cagefs/tmp/redis.sock'))   # /home2, /home3 de olabilir
 sel = selectors.DefaultSelector()
 durum = {}
+# TAVAN AYNI TURDA, EK BAGLANTI YOK: "CONFIG GET maxmemory" ayni sokete boru
+# hattiyla gider (soket basina 22 bayt fazla). Tavan ornek basina sabit degil
+# -- LiteSpeed'in paket yoneticisinden plana/hesaba ayri boyut verilebiliyor
+# (uretimde olculdu 2026-11-02: 364 x 64 MB + 7 x 128 MB) -- yani toplam ancak
+# her ornege tek tek sorularak bilinir.
+IG = b'maxmemory\r\n$'
+def tavan(b):
+    """CONFIG GET yanitindaki bayt degeri; None = daha gelmedi, -1 = okunamadi."""
+    i = b.find(IG)
+    if i < 0:
+        return None
+    j = b.find(b'\r\n', i + len(IG))
+    if j < 0:
+        return None
+    try:
+        n = int(b[i + len(IG):j])
+    except ValueError:
+        return -1
+    if n < 0:
+        return -1                        # $-1: ayar yok
+    if len(b) < j + 2 + n:
+        return None
+    try:
+        return int(b[j + 2:j + 2 + n])
+    except ValueError:
+        return -1
 for p in sok:
     try:
         c = socket.socket(socket.AF_UNIX)
@@ -604,13 +632,18 @@ while acik > 0:
         st = durum[c]
         try:
             if not st[1]:
-                c.sendall(b'INFO keyspace\r\n')
+                c.sendall(b'INFO keyspace\r\nCONFIG GET maxmemory\r\n')
                 st[1] = True
                 sel.modify(c, selectors.EVENT_READ)
                 continue
             d = c.recv(4096)
             st[0] += d
-            if not d or st[0].endswith(b'\r\n\r\n'):
+            # BITIS OLCUTU ARTIK "\r\n\r\n" DEGIL: o, TEK yanitin sonuydu.
+            # Simdi iki yanit var, ikincisi tam gelince kapatiriz. CONFIG
+            # kapatilmis/adi degistirilmis bir kurulumda hata doner ("-ERR");
+            # o zaman da kapatiriz, sayimlar calisir, yalniz tavan bilinmez.
+            # "-" keyspace satirlarinda gecmez, yalniz RESP hatasinda.
+            if not d or tavan(st[0]) is not None or b'\r\n-' in st[0]:
                 if not d: st[0] = b''
                 sel.unregister(c); c.close(); acik -= 1
         except Exception:
@@ -624,6 +657,15 @@ if sok:
     kur = sum(st[0].count(b'\r\ndb') for st in durum.values())
     hes = sum(1 for st in durum.values() if b'\r\ndb' in st[0])
     print("userredis_use %d %d" % (hes, kur))
+    # TAVAN: toplam MB + kac ornek SINIRSIZ (maxmemory 0) + kac ornekte
+    # OKUNAMADI. Uc sayi da gidiyor cunku eksik bir toplami "tavan" diye
+    # yazmak yanlis olur; neyi gosterecegine pano karar verir.
+    tv = [tavan(st[0]) for st in durum.values() if st[0]]
+    if tv:
+        top = sum(v for v in tv if v is not None and v > 0)
+        print("userredis_cap %d %d %d" % (top // 1048576,
+                                          sum(1 for v in tv if v == 0),
+                                          sum(1 for v in tv if v is None or v == -1)))
 PYEOF
   fi
   # YALNIZ SAYI. Onbellek dosyasinin yasi da yayinlaniyordu ve pano onu
@@ -1229,7 +1271,16 @@ except Exception:
       [ -n "$V" ] && echo "ver ftp Pure-FTPd $V"
       V=$(redis-server --version 2>/dev/null | awk -F'v=' 'NF>1{print $2}' | awk '{print $1}'); [ -n "$V" ] && echo "ver redis Redis $V"
       V=$(memcached -h 2>/dev/null | awk 'NR==1{print $2}'); [ -n "$V" ] && echo "ver memcached Memcached $V"
-    } > "$VC.tmp" && mv "$VC.tmp" "$VC"
+    } > "$VC.tmp"
+    # MV'Yİ BLOGUN CIKIS KODUNA BAGLAMA. Eskiden "} > tmp && mv" yaziyordu:
+    # blok son komutun kodunu dondurur, son satir da kosullu bir echo
+    # ("memcached kuruluysa yaz"). 2026-11-02'de memcached sunucudan kaldirildi,
+    # o satir 1 dondu, "&& mv" kirildi ve onbellek 11:24'ten beri tazelenemedi.
+    # Sonuc sessizdi: pano o saatteki surumleri gosterdi (kalkmis memcached
+    # dahil) ve agir sorgular -- imunify360-agent version basta -- HER DAKIKA
+    # kostu; profil olctu: turun 6 saniyesinin 4.3'u buydu. Olcut artik
+    # dosyanin kendisi, son komutun kaprisi degil.
+    [ -s "$VC.tmp" ] && mv -f "$VC.tmp" "$VC"
   fi
   cat "$VC" 2>/dev/null
   # Kernel cache disinda: uname bedava ve reboot sonrasi aninda dogru olmali
