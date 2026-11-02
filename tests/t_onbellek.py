@@ -213,6 +213,7 @@ else:
         if r.returncode:
             sys.exit("php hatasi: " + r.stderr.decode("utf-8", "replace")[:300])
         g = r.stdout.decode("utf-8", "replace")
+        render.sayfa = g          # kart dışını da sınayabilmek için (bkz. 10)
         import html as _h
         i = g.index('id="ch-cache"')
         kart = _h.unescape(g[i:i + 2600])
@@ -358,6 +359,23 @@ else:
                                         "userredis_use 150 170", "userredis_cap 11520 0 2"])
     ck("okunamayan varsa tavan da sınırsız da yazılmaz", ipucu(kart, "Redis · user"),
        "150 accounts in use, 170 non-empty databases · 1.1 GB")
+
+    # 10) HAYALET SATIR OLMAYACAK. Güvenlik satırları koşullu (CSF/ModSecurity/
+    #     CageFS kurulu değilse satır yok) ama sürüm etiketleme indisle
+    #     yapılıyordu ve tagVer parametreyi REFERANSLA alıyor: olmayan indise
+    #     yazınca PHP indisi YARATTI, ortaya etiketsiz-notsuz satır çıktı ve
+    #     renderChecks ona "fail" dedi. Üretimde görüldü (2026-11-02): kartta
+    #     "v16.33 · başarısız" diye üç satır. Kurulu olanda sürüm yine yazmalı.
+    render(["acct 5"])
+    i = render.sayfa.find('id="ch-sec"')
+    sec = render.sayfa[i:render.sayfa.find('</div>', render.sayfa.find('</div>', i) + 6)] if i >= 0 else ""
+    ck("güvenlik kartında etiketsiz satır yok", '<span class="sub-lbl"></span>' in sec, False)
+    ck("yokken satır da yok", "CSF firewall" in sec, False)
+    render(["acct 5", "csf ok", "modsec On", "cagefs Enabled"])
+    i = render.sayfa.find('id="ch-sec"')
+    sec = render.sayfa[i:i + 2000] if i >= 0 else ""
+    ck("varken satır yerinde", "CSF firewall" in sec, True)
+    ck("varken de etiketsiz satır yok", '<span class="sub-lbl"></span>' in sec, False)
 
 print()
 print("GECEN: %d  KALAN: %d%s" % (gecen, kalan, "  ATLANDI: 1" if atlanan else ""))

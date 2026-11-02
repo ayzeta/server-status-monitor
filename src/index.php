@@ -1651,11 +1651,24 @@ tagVer($webChecks[3],   'cpanel');          // WHM (2087) → "cPanel 11.136.0.2
 tagVer($mailChecks[0],  'exim');            // SMTP (25) → "Exim 4.99.4"
 tagVer($mailChecks[3],  'dovecot');         // POP3 (110) → "Dovecot 2.4.4"
 tagVer($dnsChecks[0],   'named');           // DNS TCP → "BIND 9.11.36"
-tagVer($secChecks[0],   'imunify', false);  // Imunify360 → "8.13.6"
-tagVer($secChecks[1],   'lfd', false);      // LFD → "v16.20" (csf paketiyle aynı sürüm)
-tagVer($secChecks[2],   'csf', false);      // CSF firewall → "v16.20"
-tagVer($secChecks[3],   'modsec', false);   // ModSecurity → "2.9.7" (EA4 rpm)
-tagVer($secChecks[4],   'cagefs', false);   // CageFS → "7.5.13"
+// GÜVENLİK SATIRLARI İNDİSLE DEĞİL ETİKETLE ETİKETLENİR. Bu kartın satırları
+// KOŞULLU (CSF/ModSecurity/CageFS kurulu değilse satır da yok), indis ise
+// sabit varsayar. Üstelik tagVer parametresini REFERANSLA alıyor: olmayan bir
+// indise yazınca PHP o indisi YARATIYOR ve ortaya etiketsiz, notsuz bir satır
+// çıkıyor — renderChecks de notu olmayana "fail" diyor. Üretimde 2026-11-02'de
+// görüldü: kök verisi tazeyken bu üç değer anlık görüntüde yoktu ve kartta
+// "v16.33 · başarısız" diye üç hayalet satır belirdi.
+function tagVerLbl(&$checks, $label, $key, $full = true) {
+    foreach ($checks as &$c) {
+        if (isset($c['label']) && $c['label'] === $label) { tagVer($c, $key, $full); break; }
+    }
+    unset($c);
+}
+tagVerLbl($secChecks, 'Imunify360',   'imunify', false);  // Imunify360 → "8.13.6"
+tagVerLbl($secChecks, 'LFD',          'lfd', false);      // LFD → "v16.20" (csf paketiyle aynı sürüm)
+tagVerLbl($secChecks, 'CSF firewall', 'csf', false);      // CSF firewall → "v16.20"
+tagVerLbl($secChecks, 'ModSecurity',  'modsec', false);   // ModSecurity → "2.9.7" (EA4 rpm)
+tagVerLbl($secChecks, 'CageFS',       'cagefs', false);   // CageFS → "7.5.13"
 tagVer($ftpChecks[0],   'ftp', false);      // FTP → "1.0.52" (dar 4'lü kart; tam ad "Pure-FTPd 1.0.52" hover'da)
 tagVer($dbChecks[0],    'db', false);       // MySQL → "10.11.18" (dar 4'lü kart; tam ad "MariaDB 10.11.18" hover'da)
 tagVer($cacheChecks[0], 'redis', false);
