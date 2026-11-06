@@ -618,7 +618,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Web 2029ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; +1">Web 2029ms &#183; Web Offline &#183; Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; +1</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; Service feed unavailable &#183; Web Degraded">Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; Service feed unavailable &#183; Web Degraded</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -628,7 +628,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">16:26:59</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">03:23:40</span></div></div>
   </div>
 </div>
 
@@ -671,15 +671,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:8%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:9%">
     <div class="res-top">
       <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><b>8</b><u>%</u></span>
+      <span class="res-val" id="rv-disk"><b>9</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">73 / 894 GB</div>
+    <div class="res-meta" id="rm-disk">78 / 894 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
@@ -715,8 +715,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta" id="iv-mailq-sub">messages queued</div>
     </div>
-  <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2029</b><u class="w">ms</u></span></div>
+  <div class="info-card" id="ic-web" style="--c:var(--accent)">
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>11</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
@@ -738,12 +738,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></div>
-      <div class="svc-info"><div class="svc-name">Web server</div><div class="svc-count" id="sk-web">0/5 checks passed</div></div>
-      <div class="badge badge-err" id="bd-web">Offline</div>
+      <div class="svc-info"><div class="svc-name">Web server</div><div class="svc-count" id="sk-web">2/5 checks passed</div></div>
+      <div class="badge badge-warn" id="bd-web">Degraded</div>
     </div>
-    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">stopped</span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">Apache</span><span class="sub-note">running</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">responding</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">no response</span><span class="sub-age"></span></div>
 </div>
@@ -820,7 +820,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="sec" style="margin-top:12px"><span>PROCESSES</span><i class="sec-hair"></i>
-  <span class="proc-age" id="proc-age">root snapshot, 1s ago</span>
+  <span class="proc-age" id="proc-age">root snapshot, 0s ago</span>
   <span id="act-chips"></span>
 </div>
 <div class="proc-row" id="proc-row"><div class="proc-card"><div class="proc-title">CPU &#183; process</div><table class="proc-table"><thead><tr><th>PID</th><th>USER</th><th class="num" title="Percent of a single core &#8212; multi-threaded processes can exceed 100">CPU%</th><th class="num">MEM%</th><th>TIME</th><th>COMMAND</th></tr></thead><tbody id="pt-cpu">
@@ -863,19 +863,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">16:26</span></div>
+<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">03:23</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Security degraded &#183; Imunify360, LFD</span><span class="log-ts">16:26</span></div>
+<span class="log-txt">Security degraded &#183; Imunify360, LFD</span><span class="log-ts">03:23</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">16:26</span></div>
+<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">03:23</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">16:26</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web server went offline &#183; Apache, HTTPS (443) +3</span><span class="log-ts">16:26</span></div>
-    <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Web response time high: 2029ms</span><span class="log-ts">16:26</span></div>
+<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">03:23</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">16:26</span></div>
+<span class="log-txt">Web server degraded &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">03:23</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">03:23</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="Drag to resize &#183; double-click for automatic height"></div>
 </div>
@@ -883,7 +881,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.62">v1.5.62</span> &middot; 2026-11-02 16:26:59</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.63">v1.5.63</span> &middot; 2026-11-06 03:23:40</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -962,7 +960,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="en";
-const PAGE_VER="1.5.62"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.63"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -990,7 +988,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:8,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'16:26:59'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'03:23:40'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1017,49 +1015,43 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP went offline \u00b7 FTP service, Kernel state",
-        "ts": "16:26",
-        "t": 1793636819
+        "ts": "03:23",
+        "t": 1793935420
     },
     {
         "type": "warn",
         "msg": "Security degraded \u00b7 Imunify360, LFD",
-        "ts": "16:26",
-        "t": 1793636819
+        "ts": "03:23",
+        "t": 1793935420
     },
     {
         "type": "err",
         "msg": "DNS went offline \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "16:26",
-        "t": 1793636819
+        "ts": "03:23",
+        "t": 1793935420
     },
     {
         "type": "err",
         "msg": "Mail services went offline \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "16:26",
-        "t": 1793636819
+        "ts": "03:23",
+        "t": 1793935420
     },
     {
-        "type": "err",
-        "msg": "Web server went offline \u00b7 Apache, HTTPS (443) +3",
-        "ts": "16:26",
-        "t": 1793636819
-    },
-    {
-        "type": "err",
-        "msg": "Web response time high: 2029ms",
-        "ts": "16:26",
-        "t": 1793636819
+        "type": "warn",
+        "msg": "Web server degraded \u00b7 HTTPS (443), WHM (2087) +1",
+        "ts": "03:23",
+        "t": 1793935420
     },
     {
         "type": "warn",
         "msg": "Service feed unavailable (root snapshot stale?)",
-        "ts": "16:26",
-        "t": 1793636819
+        "ts": "03:23",
+        "t": 1793935420
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1793636819,TZOFF=0;
+let srvNow=1793935420,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1125,7 +1117,7 @@ function seedAllowed(s,c){if(!c)return true;
     }
     renderLog();saveLogs();
   } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice();})();
-const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"ok","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"err","ssl":"ok","mailq":"ok"});
+const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"ok","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"ok","ssl":"ok","mailq":"ok"});
 const mpend={};
 // PHP lvlHyst'in ikizi: seviyeye giris normal esikten, cikis %10 altindan.
 // Eskiden JS'te histerezis yoktu: sayfa 0.9×esik bandinda acilinca PHP 'warn'
@@ -1390,6 +1382,12 @@ let hintZam=0;
 document.addEventListener('touchstart',e=>{
   const d=e.touches&&e.touches[0];
   if(!d)return;
+  // KOMUT HUCRESINDE IPUCU YOK. Ayni dokunus zaten hucreyi aciyor (.expanded,
+  // asagidaki click dinleyicisi) ve tam metni satir satir veriyor. Ipucu kutusu
+  // ayni metni TEKRAR ediyordu, ustelik kotusunu: kirpik, secilemez,
+  // kopyalanamaz ve kartin ustunu kapatiyor. Masaustu dokunulmadi -- orada
+  // dokunup acma aliskanligi yok, ipucu fareyle calismaya devam ediyor.
+  if(e.target.closest&&e.target.closest('.proc-cmd')){hintGizle();return;}
   hintIzle({target:e.target,clientX:d.clientX,clientY:d.clientY});
   clearTimeout(hintZam);
   if(hintFor)hintZam=setTimeout(hintGizle,4000);
@@ -1621,7 +1619,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1793636799; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1793935404; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -2056,7 +2054,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.62 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.63 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

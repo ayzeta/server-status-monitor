@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.62'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.63'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -4085,6 +4085,12 @@ let hintZam=0;
 document.addEventListener('touchstart',e=>{
   const d=e.touches&&e.touches[0];
   if(!d)return;
+  // KOMUT HUCRESINDE IPUCU YOK. Ayni dokunus zaten hucreyi aciyor (.expanded,
+  // asagidaki click dinleyicisi) ve tam metni satir satir veriyor. Ipucu kutusu
+  // ayni metni TEKRAR ediyordu, ustelik kotusunu: kirpik, secilemez,
+  // kopyalanamaz ve kartin ustunu kapatiyor. Masaustu dokunulmadi -- orada
+  // dokunup acma aliskanligi yok, ipucu fareyle calismaya devam ediyor.
+  if(e.target.closest&&e.target.closest('.proc-cmd')){hintGizle();return;}
   hintIzle({target:e.target,clientX:d.clientX,clientY:d.clientY});
   clearTimeout(hintZam);
   if(hintFor)hintZam=setTimeout(hintGizle,4000);

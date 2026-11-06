@@ -129,13 +129,23 @@ ck("demo: tavan da ipucunda", "of %s ceiling" in demo, True)
 # acilmaz. Dinleyici PASIF ve preventDefault YOK -- yoksa ipucu koydugumuz her
 # oge tiklanamaz hale gelirdi (sekmeler, baglantilar).
 print()
-ck("dokunusla aciliyor", "addEventListener('touchstart'" in src, True)
-ck("dinleyici pasif (kaydirmayi engellemesin)",
-   bool(re.search(r"touchstart'[\s\S]{0,400}?\{passive:true\}", src)), True)
-ck("tiklamayi yutmuyor (preventDefault yok)",
-   bool(re.search(r"touchstart'[\s\S]{0,400}?preventDefault", src)), False)
+# Karakter penceresiyle degil, dinleyicinin TAMAMIYLA sinanir: pencere yontemi
+# yoruma bagliydi, 2026-11-06'da eklenen aciklama {passive:true}'yu pencerenin
+# disina itip testi urun dogruyken kirdi.
+_m = re.search(r"addEventListener\('touchstart'[\s\S]*?\n\},\{[^\n]*\);", src)
+tdok = _m.group(0) if _m else ""
+ck("dokunusla aciliyor", bool(tdok), True)
+ck("dinleyici pasif (kaydirmayi engellemesin)", "{passive:true}" in tdok, True)
+ck("tiklamayi yutmuyor (preventDefault yok)", "preventDefault" in tdok, False)
 ck("parmagin altinda asili kalmiyor (sureli kapanis)",
    "setTimeout(hintGizle" in src, True)
+# Komut hucresinde dokunus ZATEN hucreyi aciyor (.expanded). Ipucu kutusu ayni
+# metni tekrar ediyordu, ustelik kirpik ve secilemez halde. Mobilde olculdu
+# (2026-11-06 ekran goruntusu): ikisi ust uste cikiyor. Masaustu dokunulmadi.
+ck("komut hucresinde dokunus ipucusu yok",
+   "if(e.target.closest&&e.target.closest('.proc-cmd')){hintGizle();return;}" in src, True)
+ck("masaustu hover ipucusu duruyor",
+   bool(re.search(r"mousemove[\s\S]{0,400}?hintIzle\(e\)", src)), True)
 
 # ── Toplayici: surum onbellegi yazilabilmeli ───────────────────
 # "} > tmp && mv" bloğun cikis koduna bagliydi; son satir kosullu bir echo
