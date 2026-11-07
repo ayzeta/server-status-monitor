@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.63'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.64'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -4006,6 +4006,9 @@ const hintEl=document.createElement('div');
 hintEl.className='spark-tip tip-wide';
 document.body.appendChild(hintEl);
 let hintFor=null,hintSup=false,hintBek=false;
+// Cihaz bir kez DOKUNULDUYSA kalici olarak dokunmatik sayilir. Masaustunde hic
+// kurulmaz, yani fare ipuculari oldugu gibi kalir.
+let hintDokunmatik=false;
 function hintGizle(){if(hintFor){hintFor=null;hintEl.style.opacity=0;}}
 // TASIMA SAYFA GENELINDE, bir kerede. Yalniz hover aninda tasimak YETMIYOR:
 // canli dongu kart icerigini dakikada bir yeniden yaziyor, title'li YENI dugum
@@ -4046,6 +4049,15 @@ function hintYer(x,y){
 function hintIzle(e){
   const el=e.target&&e.target.closest?e.target.closest('[title],[data-tip]'):null;
   if(!el){hintGizle();return;}
+  // KOMUT HUCRESINDE, DOKUNMATIKTE IPUCU YOK. Ayni dokunus zaten hucreyi aciyor
+  // (.expanded) ve tam metni satir satir veriyor; kutu ayni metni TEKRAR
+  // ediyordu, ustelik kirpik, secilemez ve kartin ustunu kapatir halde.
+  // Kontrol BURADA, cunku kutuyu acan IKI giris var: touchstart ve mousemove.
+  // Yalniz touchstart'i kapatmak YETMEDI (1.5.63, uretimde goruldu 2026-11-08):
+  // mobil tarayici dokunustan sonra sentetik fare olaylari uretiyor ve mousemove
+  // kutuyu hemen geri aciyordu. Tek bogazda durdurmak hangi yol olursa olsun
+  // calisir. Masaustu etkilenmez: bayrak yalnizca gercek touchstart'ta kurulur.
+  if(hintDokunmatik&&el.closest('.proc-cmd')){hintGizle();return;}
   if(el!==hintFor){
     if(el.hasAttribute('title')){
       const s=el.getAttribute('title');
@@ -4085,12 +4097,7 @@ let hintZam=0;
 document.addEventListener('touchstart',e=>{
   const d=e.touches&&e.touches[0];
   if(!d)return;
-  // KOMUT HUCRESINDE IPUCU YOK. Ayni dokunus zaten hucreyi aciyor (.expanded,
-  // asagidaki click dinleyicisi) ve tam metni satir satir veriyor. Ipucu kutusu
-  // ayni metni TEKRAR ediyordu, ustelik kotusunu: kirpik, secilemez,
-  // kopyalanamaz ve kartin ustunu kapatiyor. Masaustu dokunulmadi -- orada
-  // dokunup acma aliskanligi yok, ipucu fareyle calismaya devam ediyor.
-  if(e.target.closest&&e.target.closest('.proc-cmd')){hintGizle();return;}
+  hintDokunmatik=true;   // .proc-cmd istisnasi hintIzle icinde, tek bogazda
   hintIzle({target:e.target,clientX:d.clientX,clientY:d.clientY});
   clearTimeout(hintZam);
   if(hintFor)hintZam=setTimeout(hintGizle,4000);

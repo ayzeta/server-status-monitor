@@ -142,8 +142,15 @@ ck("parmagin altinda asili kalmiyor (sureli kapanis)",
 # Komut hucresinde dokunus ZATEN hucreyi aciyor (.expanded). Ipucu kutusu ayni
 # metni tekrar ediyordu, ustelik kirpik ve secilemez halde. Mobilde olculdu
 # (2026-11-06 ekran goruntusu): ikisi ust uste cikiyor. Masaustu dokunulmadi.
-ck("komut hucresinde dokunus ipucusu yok",
-   "if(e.target.closest&&e.target.closest('.proc-cmd')){hintGizle();return;}" in src, True)
+# Kontrol hintIzle'IN ICINDE olmali: kutuyu acan iki giris var (touchstart ve
+# mousemove) ve 1.5.63'te yalniz touchstart kapatilmisti -- mobil tarayicinin
+# dokunustan sonra urettigi sentetik mousemove kutuyu geri aciyordu (uretimde
+# goruldu 2026-11-08). Tek bogazda durdurulunca hangi yol olursa olsun calisir.
+ck("komut hucresi istisnasi hintIzle icinde",
+   bool(re.search(r"function hintIzle\(e\)\{[\s\S]{0,900}?if\(hintDokunmatik&&el\.closest\('\.proc-cmd'\)\)\{hintGizle\(\);return;\}", src)), True)
+ck("dokunmatik bayragi touchstart'ta kuruluyor", "hintDokunmatik=true;" in tdok, True)
+ck("bayrak masaustunde kurulmuyor (tek atama yeri)",
+   src.count("hintDokunmatik=true"), 1)
 ck("masaustu hover ipucusu duruyor",
    bool(re.search(r"mousemove[\s\S]{0,400}?hintIzle\(e\)", src)), True)
 
