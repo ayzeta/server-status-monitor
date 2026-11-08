@@ -94,6 +94,24 @@ ck "python3.6 <betik> -> betik adi"    "$(adsatir 6)" "agent360"
 ck "lsphp:/yol -> yol atilir"          "$(adsatir 7)" "lsphp"
 ck "cekirdek is parcacigi bozulmaz"    "$(adsatir 8)" "jbd2sda1-8"
 
+# ── 5c) 16. kolon: en cok I/O yapan SUREC ──────────────────────
+# Girdinin BICIMI urunun kendi print satirindan geliyor
+# ("ioproc %d %s %.1f %s" -> ioproc PID KULLANICI KBPS KOMUT; komutta bosluk
+# yok, python tarafi bosluklari alt cizgiye ceviriyor). Komutlar 2026-11-08'de
+# uretimde panonun surec I/O kartinda GERCEKTEN gorulenler.
+TOPIOP_SRC="$(sed -n '/^  TOPIOP=\$(printf/,/exit }.)$/p' "$KOK/src/collector.sh")"
+[ -n "$TOPIOP_SRC" ] || { echo "CIKARILAMADI: TOPIOP"; exit 2; }
+topiop(){ IOP_OUT="$1"; eval "$TOPIOP_SRC"; printf '%s' "$TOPIOP"; }
+ck "16. kolon: deger:kullanici:ad:betik" \
+   "$(topiop 'ioproc 1 root 163.0 /usr/sbin/crond_-n')" "163:root:crond:"
+ck "16. kolon: en bastaki satir alinir" \
+   "$(topiop "$(printf 'ioproc 1 root 163.0 /usr/sbin/crond_-n\nioproc 2 mysql 36.0 /usr/sbin/mariadbd')")" \
+   "163:root:crond:"
+ck "16. kolon: lsphp betigi ayri alanda" \
+   "$(topiop 'ioproc 3 acmeco 12.0 lsphp:/home/acmeco/public_html/index.php')" \
+   "12:acmeco:lsphp:public_html/index.php"
+ck "16. kolon: hareket yoksa bos" "$(topiop 'ioproc_ok 1m')" ""
+
 # ── 6) Surec I/O python'una verilen bicim ──────────────────────
 IOP_STATE="$BURASI/t_iop"
 eval "$IOP_PIPE"

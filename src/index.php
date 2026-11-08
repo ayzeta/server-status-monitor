@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.69'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.70'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1850,7 +1850,7 @@ $sslColorCss = $sslLvl === 'err' ? 'var(--danger)' : ($sslLvl === 'warn' ? 'var(
 // /home/ayzeta/.metrics_history dosyasına yazar (son 30 dk).
 // Sayfa bu geçmişle grafikleri açılışta doldurur; mail ekinde de
 // spike'a giden trend görünür.
-$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[], 'topio'=>[]];
+$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[], 'topio'=>[], 'topiop'=>[]];
 $histFile = $HOME_DIR . '/.metrics_history';
 if (is_readable($histFile)) {
     foreach (@file($histFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
@@ -1870,7 +1870,10 @@ if (is_readable($histFile)) {
             $histSeed['mq'][]   = isset($p[11]) ? (int)$p[11] : 0;
             $histSeed['top'][]  = (isset($p[12]) && $p[12] !== '-') ? $p[12] : ''; // "comm:cpu[:user]" — eski satırlarda yok
             $histSeed['topr'][] = (isset($p[13]) && $p[13] !== '-') ? $p[13] : ''; // "comm:rss_mb:user" — 1.5.11+
-            $histSeed['topio'][] = (isset($p[14]) && $p[14] !== '-') ? $p[14] : ''; // "user:kbps" — 1.5.16+
+            $histSeed['topio'][] = (isset($p[14]) && $p[14] !== '-') ? $p[14] : ''; // "kbps::hesap" — 1.5.16+
+            // En cok I/O yapan SUREC — 1.5.70+. 15. kolon yalnizca HESAP
+            // tarafini tasir (LVE) ve LVE root sureclerini hic gormez.
+            $histSeed['topiop'][] = (isset($p[15]) && $p[15] !== '-') ? $p[15] : ''; // "kbps:user:ad:betik"
         }
     }
     // Pencere NOKTA SAYISIYLA değil ZAMANLA tanımlı: son 30 dakika.
@@ -1950,8 +1953,8 @@ if (!empty($histSeed['t'])) {
         // gorunmesin. Ayirt edici ilk parcanin SAYI olmasi.
         // Ayirici DUZ karakter olmali: olay kaydi metni ayrica kacisliyor,
         // '&middot;' yazilirsa '&amp;middot;' olup harfi harfine gorunuyordu.
-        $topSfx = function ($raw, $fmt, $lead = null) {
-            if ($raw === '' || strpos($raw, ':') === false) return '';
+        $topAyir = function ($raw) {
+            if ($raw === '' || strpos($raw, ':') === false) return null;
             $tp = explode(':', $raw, 4);
             $kut = '/[^A-Za-z0-9_.\-]/';            // ad ve hesap: duz belirtec
             $yol = '/[^A-Za-z0-9_.\/\-]/';          // betik: '/' de gecerli
@@ -1966,23 +1969,47 @@ if (!empty($histSeed['t'])) {
                 $tv = (int)($tp[1] ?? 0);
                 $tu = preg_replace($kut, '', $tp[2] ?? '');
             }
-            if ($tn === '') return '';
-            // Canli taraftaki rowTop ile AYNI dizilis: 'ad · hesap · betik deger'
-            $who = $tn . ($tu !== '' ? ' · ' . $tu : '') . ($ts !== '' ? ' · ' . $ts : '');
-            return ' ' . ($lead ?: '— ' . t('top:')) . ' ' . $who . ' ' . $fmt($tv);
+            if ($tn === '') return null;
+            // Canli taraftaki rowTop ile AYNI dizilis: 'ad · hesap · betik'
+            return [$tv, $tn . ($tu !== '' ? ' · ' . $tu : '') . ($ts !== '' ? ' · ' . $ts : '')];
+        };
+        $topSfx = function ($raw, $fmt, $lead = null) use ($topAyir) {
+            $a = $topAyir($raw);
+            if ($a === null) return '';
+            return ' ' . ($lead ?: '— ' . t('top:')) . ' ' . $a[1] . ' ' . $fmt($a[0]);
+        };
+        // I/O FAILI IKI OLCUDEN GELIR VE IKISI AYNI SEY DEGIL, bu yuzden
+        // ETIKETLENIRLER. Etiketsiz yan yana yazilinca ' · ' bu panoda "ayni
+        // seyin parcalari" demek oldugu icin (ornegin 'lsphp · hesap · dosya')
+        // okuyan ikisini tek bir seyin devami saniyordu.
+        //   surec : /proc/<pid>/io farklari -- ROOT sureclerini de gorur, ama
+        //           iki olcum arasinda dogup olen sureci goremez.
+        //   hesap : CloudLinux LVE cekirdek sayaclari -- kisa omurluler dahil
+        //           hesabin her seyini sayar, ama ROOT'u HIC GORMEZ.
+        // Toplamlari kasten tutmaz. Buyuk olan one yazilir (canli taraftaki
+        // kararin ikizi). 16. kolon yoksa (eski satir) yalniz hesap yazilir,
+        // yani 1.5.69 davranisi aynen korunur.
+        $ioFail = function ($i) use ($histSeed, $topAyir) {
+            $p = $topAyir($histSeed['topiop'][$i] ?? '');
+            $a = $topAyir($histSeed['topio'][$i]  ?? '');
+            $pd = $p ? t('process') . ' ' . $p[1] . ' ' . fmtKbps($p[0]) : '';
+            $ad = $a ? t('account') . ' ' . $a[1] . ' ' . fmtKbps($a[0]) : '';
+            $sira = ($p && (!$a || $p[0] >= $a[0])) ? [$pd, $ad] : [$ad, $pd];
+            return implode(' · ', array_filter($sira));
         };
         $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
         $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
         // IO wait faili: en cok disk I/O yapan hesap ("kbps::hesap", 1.5.68+;
         // ortadaki alan bos, cunku burada sahip yok, adin kendisi hesap). Eski
         // satirlarda yoksa top-CPU surecine duser (eskisi gibi).
-        $sfxI = $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps') ?: $sfx;
+        $ioTxt = $ioFail($i);
+        $sfxI  = $ioTxt !== '' ? ' — ' . t('top:') . ' ' . $ioTxt : $sfx;
         // Yuk uyarisina I/O faili de iliştirilir: yuk islemciden de diskten de
         // gelebilir ve hangisi oldugunu AYNI satirda gormek gerekiyor. RAM
         // kasten yok — en cok RSS tutan surec yuksek yukun faili degildir.
         // Burada $sfxI'nin CPU'ya dusen yedegi KULLANILMAZ, yoksa ayni fail
         // satirda iki kez yazilirdi; veri yoksa ek bos kalir.
-        $sfxLd = $sfx . $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps', '· I/O:');
+        $sfxLd = $sfx . ($ioTxt !== '' ? ' · I/O: ' . $ioTxt : '');
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
                        tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd),
@@ -2324,7 +2351,7 @@ if (isset($_GET['json'])) {
         'sslLvl'            => $sslLvl,
         'whmApiOk'          => $whmApiOk,
         'acctCount'         => $whmAcctCount, 'mailQ' => $mailQ, 'mailqTop' => $mailqTop, 'mailqSampled' => $mailqSampled, 'lsphpTotal' => $lsphpTotal, 'coreCount' => $coreCount, 'acctForMailq' => $mqBase, // KISITLANMIS taban (25-100): JS alarmi PHP ile ayni esigi kullansin
-        'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
+        'hist'              => array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1, 'topiop' => 1]), // top/topr/topio yalnız PHP tohumunda kullanılır // uyku/askı boşluğunda client grafikleri sunucunun 30dk'sından yeniden seed'lesin (reload yok)
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioProc' => $ioProc, 'ioSrc' => $ioSrc, 'ioWin' => $ioWin, 'ioProcOk' => $ioProcOk,
         'acctGrowSet' => $acctGrowSet,
@@ -3761,7 +3788,7 @@ function UPPER(s){return LANG_UI==='tr'
 function tnote(n){return String(n||'').split(' · ').map(t).join(' · ');} // ' · ' bileşik notlar (PHP tnote ile eş)
 
 const hist={l1:[],l5:[],l15:[],cpu:[],ram:[],disk:[],iow:[],wrk:[],rx:[],tx:[],mq:[]},MAX=92; // güvenlik tavanı — pencereyi HIST_WIN (süre) belirler
-const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1]), JSON_PRETTY_PRINT)?>;
+const seed=<?=json_encode(array_diff_key($histSeed, ['top' => 1, 'topr' => 1, 'topio' => 1, 'topiop' => 1]), JSON_PRETTY_PRINT)?>;
 const init={l1:<?=json_encode($load1)?>,l5:<?=json_encode($load5)?>,l15:<?=json_encode($load15)?>,t:<?=(int)$coreCount?>,cpu:<?=(int)$cpuUsage?>,ram:<?=(int)$memUsagePercent?>,disk:<?=(int)$diskUsagePercent?>,iow:<?=(int)$ioWait?>,wrk:<?=(int)($lsphpTotal ?? 0)?>,rx:<?=(int)round(($rxRate ?? 0)/1024)?>,tx:<?=(int)round(($txRate ?? 0)/1024)?>,mq:<?=(int)($mailQ ?? 0)?>,time:'<?=date('H:i:s')?>'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
@@ -4661,8 +4688,17 @@ function checkAlerts(data){
   {
     const a=(data.ioAcct&&data.ioAcct.length&&data.ioAcct[0][1]>0)?data.ioAcct[0]:null;
     const p=(data.ioProc&&data.ioProc.length&&data.ioProc[0][1]>0)?data.ioProc[0]:null;
-    const ad=a?a[0]+' '+fmtKbps(a[1]):'';
-    const pd=p?p[2].split('/').pop()+' '+fmtKbps(p[1]):'';
+    // ETIKETLI: 'surec ...' / 'hesap ...'. Ikisi ayni seyi olcmuyor (surec
+    // /proc/<pid>/io, root dahil; hesap LVE sayaclari, root HARIC) ve
+    // toplamlari kasten tutmuyor. Etiketsizken ' · ' bu panoda "ayni seyin
+    // parcalari" demek oldugu icin okuyan ikisini tek sey saniyordu.
+    // PHP tarafindaki $ioFail ile AYNI dizilis ve ayni siralama.
+    const ad=a?t('account')+' '+a[0]+' '+fmtKbps(a[1]):'';
+    // ptok: ad ilk BELIRTEC. Komut argumanlariyla birlikte geliyor
+    // ('/usr/sbin/crond -n'); pbase tek basina bosluga bakmadigi icin
+    // 'crond -n' yaziyordu. Toplayici tarafi ayni kesmeyi yapiyor (TOPIOP).
+    const pd=p?t('process')+' '+pbase(ptok(p[2]))+(p[0]?' · '+p[0]:'')
+             +(pscript(p[2])?' · '+pscript(p[2]):'')+' '+fmtKbps(p[1]):'';
     const parts=(p&&(!a||p[1]>=a[1]))?[pd,ad]:[ad,pd];
     const s=parts.filter(Boolean).join(' · ');
     if(s){topIo=suffix(s);topIoTxt=s;}

@@ -172,7 +172,16 @@ ck("bitis olcutu artik \\r\\n\\r\\n degil",
 # Yuk islemciden de diskten de gelebilir; ikisi ayni satirda yazilmazsa alarm
 # "15.34" deyip susuyor. RAM kasten disarida: en cok RSS tutan surec yuksek
 # yukun faili degildir (mariadbd her zaman listenin basinda).
-ck("PHP: yuk uyarisi I/O ekini tasiyor", "$sfxLd = $sfx . $topSfx(" in src, True)
+# Capa birebir IFADE degil, ILISKI: yuk eki CPU failinin uzerine I/O metnini
+# ekliyor mu. Eskiden "$sfxLd = $sfx . $topSfx(" araniyordu ve 1.5.70'te o satir
+# $ioFail ile yeniden kurulunca test URUN DOGRUYKEN kirildi.
+ck("PHP: yuk uyarisi I/O ekini tasiyor",
+   bool(re.search(r"\$sfxLd\s*=\s*\$sfx\s*\.\s*\(\$ioTxt", src)), True)
+ck("PHP: I/O faili surec VE hesap tarafina bakiyor",
+   "$p = $topAyir($histSeed['topiop']" in src
+   and "$a = $topAyir($histSeed['topio']" in src, True)
+ck("PHP: iki olcu ETIKETLI (sirali okunmasin)",
+   "t('process')" in src and "t('account')" in src, True)
 ck("PHP: yuk metni $sfxLd kullaniyor",
    "tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd)" in src, True)
 ck("PHP: yuk uyarisinda RAM eki yok", "number_format($l1v, 2), $sfxR" in src, False)

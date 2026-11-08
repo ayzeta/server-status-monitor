@@ -1569,6 +1569,32 @@ PYEOF
   # tasimadi ve I/O bekleme uyarisi da CPU failine dustu. Uretimde goruldu
   # 2026-11-08. Liste zaten buyukten kucuge sirali, ilk eslesen en buyugu.
   TOPIO=$(printf '%s\n' "$IO_OUT" | awk '$1=="ioacct" && $3+0 > 0 {printf "%d::%s", int($3+0.5), $2; exit}')
+  # 16. kolon: o dakikanin en cok I/O yapan SURECI "kbps:kullanici:ad:betik".
+  # 15. kolon yalnizca HESAP tarafini tasiyor (LVE sayaclari) ve LVE root
+  # sureclerini HIC GORMEZ -- uretimde goruldu 2026-11-08: yuk uyarisi
+  # "I/O: hotel 1 KB/s" diyordu, oysa ayni dakikada diskte crond 163 KB/s,
+  # imunify-resident 72 KB/s vardi ve hicbiri satira giremiyordu. Canli sayfa
+  # ikisine birden bakiyordu (ioAcct + ioProc), eksik olan gecmis sutunuydu,
+  # yani MAIL EKI. Iki olcu kasten ayri durur: surec /proc/<pid>/io farklarindan
+  # gelir (root dahil, ama iki olcum arasinda dogup olen surec yok), hesap LVE
+  # cekirdek sayaclarindan (kisa omurluler dahil, ama root yok). Toplamlari
+  # tutmaz; bu yuzden gosterimde de "surec"/"hesap" diye ETIKETLENIRLER.
+  # IOP_OUT alanlari: ioproc PID KULLANICI KBPS KOMUT (komutta bosluk yok,
+  # python tarafi bosluklari alt cizgiye ceviriyor).
+  # Komuttaki alt cizgiler BOSLUKTU (yukaridaki python birlestiriyor, cunku satir
+  # boslukla ayriliyor) -- panonun kendisi de onlari okurken bosluga geri ceviriyor.
+  # Bu yuzden ADI ilk alt cizgide bitiyor: "crond_-n" -> "crond". ':/' kalibinda
+  # (LiteSpeed lsphp) KESILMEZ, orada alt cizgi gercek bir karakterdir
+  # (public_html). Canli taraf ayni sonucu pbase(ptok(...)) ile uretiyor.
+  TOPIOP=$(printf '%s\n' "$IOP_OUT" | awk '$1=="ioproc" && $4+0 > 0 {
+      c = $5; i = index(c, ":/")
+      if (i > 1) { b = substr(c, 1, i - 1); y = substr(c, i + 1) }
+      else       { b = c; sub(/_.*$/, "", b); y = "" }
+      if (b ~ /^\//) sub(/.*\//, "", b)
+      sub(/^\/home\/[^\/]+\//, "", y); sub(/^\//, "", y)
+      gsub(/[^A-Za-z0-9_.-]/, "", b); gsub(/[^A-Za-z0-9_.\/-]/, "", y)
+      u = $3; gsub(/[^A-Za-z0-9_.-]/, "", u)
+      printf "%d:%s:%s:%s", int($4+0.5), u, b, y; exit }')
   echo
   prof "surec I/O (/proc io)"
   echo "--- MySQL queries ---"
@@ -1694,7 +1720,7 @@ TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%d:%s:%s:%s"
 # kisaliyor ve grafik o dakikayi iki nokta ciziyor. Yeni satir eskisinin yerine
 # gecer -- ayni dakikanin EN GUNCEL olcumu kazanir. Pencere 35 satir oldugu icin
 # ayni "SS:DD" damgasinin bir gun onceden kalmis olmasi mumkun degil.
-HSATIR="$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}"
+HSATIR="$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--} ${TOPIOP:--}"
 { [ -f "$HIST" ] && grep -v "^${HSATIR%% *} " "$HIST"
   printf '%s\n' "$HSATIR"; } | tail -35 > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"

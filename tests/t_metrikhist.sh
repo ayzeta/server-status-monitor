@@ -28,7 +28,7 @@ date(){ printf '%s\n' "$FAKE_HM"; }
 yaz(){   # DAKIKA L1 -> bir tur yaz
   FAKE_HM="$1"; L1="$2"
   L5=1 L15=1 CPU=5 RAM=50 DSK=53 IOW=0 WRK=2 RXK=1 TXK=1 MQ=0
-  TOPP="5:root:lsphp:" TOPR="10:mysql:mariadbd:" TOPIO="3::ayzeta"
+  TOPP="5:root:lsphp:" TOPR="10:mysql:mariadbd:" TOPIO="3::ayzeta" TOPIOP="9:root:crond:"
   eval "$YAZ_SRC"
 }
 
@@ -58,8 +58,9 @@ done
 ck "pencere 35 satirda kalir" "$(wc -l < "$HIST" | tr -d ' ')" "35"
 ck "en eski satir dusmus (ilk kalan 5. tur)" "$(sed -n '1p' "$HIST" | awk '{print $2}')" "5"
 
-# ── 5) Alan sayisi: 15 kolon (son uc fail alani dahil) ─────────
-ck "satirda 15 alan var" "$(awk 'NR==1{print NF}' "$HIST")" "15"
+# ── 5) Alan sayisi: 16 kolon (son dordu fail alanlari) ─────────
+# 13 CPU sureci, 14 RAM sureci, 15 I/O HESABI, 16 I/O SURECI.
+ck "satirda 16 alan var (16. = surec I/O)" "$(awk 'NR==1{print NF}' "$HIST")" "16"
 
 rm -f "$HIST"
 echo
