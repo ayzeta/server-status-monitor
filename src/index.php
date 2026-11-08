@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.64'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.65'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -2552,7 +2552,7 @@ function diskGrowRows($rows, $h) {
         $w = round($gb / $mx * 100);
         $n = fmtGrow($gb);
         $out .= '<tr><td class="proc-user">' . $h($u)
-              . ($yeni ? '<span class="sub-ver" title="' . htmlspecialchars(t('No record at the start of the window — account is new or was not yet measured')) . '">' . t('new') . '</span>' : '')
+              . ($yeni ? '<span class="acct-yeni" title="' . htmlspecialchars(t('No record at the start of the window — account is new or was not yet measured')) . '">' . t('new') . '</span>' : '')
               . '</td><td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
               . '<td class="num">+' . $n . '</td></tr>' . "\n";
     }
@@ -3149,6 +3149,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){min-width:104px;}
 .proc-cmd.expanded{white-space:normal;word-break:normal;overflow-wrap:anywhere;overflow:visible;max-width:none;}
 .proc-user{font-weight:600;color:var(--text);}
+/* 'yeni' ROZETI (disk artis tablosu). Once .sub-ver kullaniliyordu ve IKI sey
+   bozuktu: (1) .proc-user bir flex kutusu DEGIL, yani araya bosluk girmiyordu
+   ve isaret hesap adina bitisik yaziliyordu -- "hirsizkelepceyeni", ad devam
+   ediyormus gibi (uretimde goruldu 2026-11-08); (2) @media(max-width:680px)
+   icinde .sub-ver gizleniyor (surum metni dar ekranda gurultu diye), yani
+   isaret MOBILDE HIC CIKMIYORDU. Oysa 'yeni' sayinin ne oldugunu anlatan
+   bilgi: o satirdaki +642 MB bir ARTIS degil, hesabin tamami. Kendi sinifi:
+   ayrik, rozet, mobilde de duruyor. */
+.acct-yeni{display:inline-block;margin-left:6px;vertical-align:1px;font-size:9px;
+  font-weight:600;line-height:15px;padding:0 6px;border-radius:999px;
+  background:var(--hint-bg,rgba(127,127,127,.12));color:var(--hint);white-space:nowrap;}
 .proc-table tbody tr:hover td{background:var(--card2);}
 .php-bar-cell{width:56px;}
 .php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
@@ -3234,6 +3245,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-note[title],.sub-note[data-tip]{text-decoration:underline dotted var(--scroll-hov);text-underline-offset:3px;}
 .sub-note[title],.sub-note[data-tip],.sub-age[title],.sub-age[data-tip],
 .sub-ver[title],.sub-ver[data-tip],.sec-range[title],.sec-range[data-tip],
+.acct-yeni[title],.acct-yeni[data-tip],
 .res-meta[title],.res-meta[data-tip],.proc-cmd[title],.proc-cmd[data-tip]{cursor:help;}
 .static-mode .dot,.static-mode .hdr-status-dot{animation:none;}
 /* Veri BAYAT (fetch basarisiz): baslik ve footer'daki yesil nokta turuncuya doner,
@@ -4475,7 +4487,7 @@ function renderProcs(data){
       return rows.map(r=>{
         const w=Math.round(r[1]/mx*100);
         const n=fmtGrow(r[1]);   // PHP fmtGrow() ikizi
-        const yeni=r[2]?`<span class="sub-ver" title="${esc(t('No record at the start of the window — account is new or was not yet measured'))}">${t('new')}</span>`:'';
+        const yeni=r[2]?`<span class="acct-yeni" title="${esc(t('No record at the start of the window — account is new or was not yet measured'))}">${t('new')}</span>`:'';
         return `<tr><td class="proc-user">${esc(r[0])}${yeni}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num">+${n}</td></tr>`;}).join('');
     };
     const set=data.acctGrowSet||[];

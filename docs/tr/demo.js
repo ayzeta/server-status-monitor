@@ -55,11 +55,19 @@
       ck('CageFS','enabled','7.6.38')]},
     db:   {status:'operational',ok:2,total:2,checks:[
       ck('MySQL (3306)','running · listening','10.11.13',518400), ck('MySQL ping','alive')]},
-    // Kullanici basina Redis: seed.snapshot'taki sayilarla AYNI (sunucu render'i
-    // ile canli tick ayni satiri gostersin). Not ve ipucu urunun kendi
-    // cevirileriyle kurulur, elle TR metin yazilmaz.
-    cache:{status:'operational',ok:3,total:3,checks:[
-      ck('Redis (6379)','responding · listening','5.0.3',1641600), ck('Memcached (11211)','responding · listening','1.5.22',518400),
+    // ONBELLEK KARTI seed.snapshot ile AYNI olmak ZORUNDA: sayfa once sunucu
+    // render'iyla (seed'den, urunun kendi koduyla) basiliyor, ~1 sn sonra ilk
+    // tick bunun uzerine yaziyor. Eskiden ikisi celisiyordu (2026-11-08'de
+    // olculdu): render "1/1 active · 1 not in use", Redis gri, Memcached HIC
+    // YOK diyordu; tick ise "3/3", Redis yesil v5.0.3 ve yoktan bir Memcached
+    // satiri getiriyordu. Ziyaretci gozunun onunde degisimi goruyordu.
+    // Seed'e uyuldu (sistem Redis'i kapali, Memcached kurulu degil, kullanici
+    // basina Redis ayakta) -- LiteSpeed/CloudLinux'ta gercek hal bu ve
+    // "kurulu olmayani gizle" davranisi demoda da gorunur oluyor.
+    // Gri satir: ok YOK, unknown + note 'not in use' -> urun onu sayacta
+    // "1 not in use" diye yaziyor. Metinler urunun kendi cevirileriyle kurulur.
+    cache:{status:'operational',ok:1,total:1,checks:[
+      {unknown:true,label:'Redis (6379)',note:'not in use'},
       ck(t('Redis · user'), tf('%s/%s up',180,180)+' · '+tf('%s in use',150), 0, 15000,
          tf('%s accounts in use, %s non-empty databases',150,170)+' · '+
          tf('%s of %s ceiling','1.1 GB','11.3 GB'))]},

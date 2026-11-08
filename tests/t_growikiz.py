@@ -112,5 +112,45 @@ for v, a, b in zip(ORNEK, p, j):
         print("  %-46s tutuyor" % ad)
 
 print()
-print("AYRISMA: %d" % fail)
-sys.exit(1 if fail else 0)
+
+# ── 'yeni' ROZETI: ayri sinif, ayrik ve MOBILDE DE GORUNUR ──────────────────
+# Once .sub-ver kullaniliyordu. Iki somut hata vardi (2026-11-08):
+#  1) .proc-user flex degil -> isaret ada bitisik basiliyordu ("xxhesapyeni"),
+#     adin devami gibi okunuyordu;
+#  2) @media(max-width:680px) icinde .sub-ver gizleniyor -> isaret telefonda
+#     HIC cikmiyordu. Oysa 'yeni' sayinin ne oldugunu soyler: o satirdaki deger
+#     bir ARTIS degil, hesabin tamami. Kaybolunca sayi yanlis okunuyor.
+# Bu yuzden rozet hem kendi sinifinda hem de hicbir kuralda gizlenmemis olmali.
+import re as _re
+
+ck_fail = 0
+
+
+def ck(ad, gelen, beklenen):
+    global ck_fail
+    if gelen == beklenen:
+        print("  %-54s tamam" % ad)
+    else:
+        ck_fail += 1
+        print("  BASARISIZ %s: beklenen=%r gelen=%r" % (ad, beklenen, gelen))
+
+
+ck("PHP dali acct-yeni sinifini kullaniyor", 'class="acct-yeni"' in php_fn, True)
+ck("JS dali acct-yeni sinifini kullaniyor", 'class="acct-yeni"' in js_blok, True)
+ck("mobilde gizlenen .sub-ver artik kullanilmiyor",
+   "sub-ver" in php_fn or "sub-ver" in js_blok, False)
+ck(".acct-yeni CSS'te tanimli", ".acct-yeni{" in src, True)
+ck("addan ayrik (sol bosluk var)",
+   bool(_re.search(r"\.acct-yeni\{[^}]*margin-left:", src)), True)
+# Rozetten bahseden HICBIR kural onu gizlemiyor olmali.
+_gizli = [g for s, g in _re.findall(r"([^{}]*acct-yeni[^{}]*)\{([^}]*)\}", src)
+          if "display:none" in g]
+ck("hicbir kural rozeti gizlemiyor", _gizli, [])
+# Eski sinifin gercekten mobilde gizlendigini de sabitler: bu dogru olmasa
+# yukaridaki kural bos yere durmus olurdu.
+ck(".sub-ver dar ekranda gizli (eski sinifin sorunu)",
+   bool(_re.search(r"@media\(max-width:680px\)\{[\s\S]*?\.sub-ver\{display:none;\}", src)), True)
+
+print()
+print("AYRISMA: %d  ROZET HATASI: %d" % (fail, ck_fail))
+sys.exit(1 if (fail or ck_fail) else 0)
