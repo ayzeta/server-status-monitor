@@ -70,8 +70,14 @@ ck "sayim: R durumu"          "$PS_RS" "1"
 
 # ── 5) Tarihce kolonlari ───────────────────────────────────────
 eval "$TOP_AD_SRC"; eval "$TOPP_PIPE"; eval "$TOPR_PIPE"
-ck "TOPP: ad:cpu:kullanici" "$TOPP" "lsphp:26:acmeco"
-ck "TOPR: ad:rss_mb:kullanici" "$TOPR" "mariadbd:8192:mysql"
+# Alan sirasi "deger:hesap:ad:betik" (1.5.68). Degisken uzunluktaki iki parca
+# (ad, betik yolu) SONDA: okuyan taraf dorde bolerken son parcayi hic bolmuyor,
+# boylece yolun icindeki '/' ve ':' ayirici sanilmiyor. Betik yolu ancak ':/'
+# kalibinda vardir (LiteSpeed lsphp), mariadbd gibi sade bir komutta BOS kalir.
+ck "TOPP: deger:hesap:ad:betik" "$TOPP" "26:acmeco:lsphp:public_html/index.php"
+ck "TOPR: betigi olmayan surecte alan bos" "$TOPR" "8192:mysql:mariadbd:"
+# Betik yolundan '/home/<hesap>/' oneki kirpilir: hesap adi zaten ayri alanda.
+ck "betik: /home/<hesap>/ oneki yok" "$(printf '%s' "$TOPP" | cut -d: -f4)" "public_html/index.php"
 
 # ── 5b) Genel yorumlayici adi args'tan cozulur ─────────────────
 # Fixture'in BICIMI ve args sutunu gercek (uretimde olculdu 2026-11-02); yalniz

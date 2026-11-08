@@ -1568,7 +1568,7 @@ PYEOF
   # yani sayfa acilisinda gecmisten kurulan yuk uyarilari I/O failini hic
   # tasimadi ve I/O bekleme uyarisi da CPU failine dustu. Uretimde goruldu
   # 2026-11-08. Liste zaten buyukten kucuge sirali, ilk eslesen en buyugu.
-  TOPIO=$(printf '%s\n' "$IO_OUT" | awk '$1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5); exit}')
+  TOPIO=$(printf '%s\n' "$IO_OUT" | awk '$1=="ioacct" && $3+0 > 0 {printf "%d::%s", int($3+0.5), $2; exit}')
   echo
   prof "surec I/O (/proc io)"
   echo "--- MySQL queries ---"
@@ -1645,6 +1645,25 @@ function tmz(t,   i) {
   if (t ~ /^\//) sub(/.*\//, "", t)
   gsub(/[^A-Za-z0-9_.-]/, "", t); return t
 }
+# CALISAN BETIK YOLU — adin yaninda AYRI tasinir (2026-11-08). Eskiden yalnizca
+# ad yaziliyordu ("lsphp") ve HANGI DOSYANIN islemciyi yaktigi atiliyordu; oysa
+# olay kaydi tam da gecip gitmis ani okumak icin var, surec tablosu o anda baska
+# bir sey gosteriyor. Canli sayfa bunu zaten yaziyordu (index.php icindeki
+# pscript), eksik olan GECMIS sutunuydu -- dolayisiyla MAIL EKI, cunku ekte JS
+# kosmuyor ve olay kaydi tamamen sunucu render sonucundan geliyor. Kural canli
+# taraftakinin ikizi: yol yalnizca ":/" kalibinda vardir ve hesap adi ayrica
+# gosterildigi icin /home/<hesap>/ oneki kirpilir -> public_html/index.php.
+# NOT: bu blok kabukta TEK TIRNAKLI bir dizgi — icine tek tirnak yazilamaz.
+function betik(   t, i) {
+  t = $8
+  i = index(t, ":/"); if (i < 1) return ""
+  t = substr(t, i + 1)
+  sub(/^\/home\/[^\/]+\//, "", t)
+  sub(/^\//, "", t)
+  gsub(/[^A-Za-z0-9_.\/-]/, "", t)
+  if (length(t) > 100) t = "..." substr(t, length(t) - 96)
+  return t
+}
 function adi(   i, b) {
   b = tmz($8)
   if (b !~ /^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/) return b
@@ -1655,13 +1674,20 @@ function adi(   i, b) {
 }
 function kim(   u) { u = $3; gsub(/[^A-Za-z0-9_.-]/, "", u); return u }
 '
-TOPP=$(sort -k5,5 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%s:%d:%s", adi(), $5, kim()}')
-# 14. kolon: en cok BELLEK (RSS) tutan surec "ad:rss_mb:kullanici". RAM uyarisinin
+# ALAN SIRASI "deger:hesap:ad:betik" (2026-11-08). Eskiden "ad:deger:hesap" idi
+# ve yol icin yer yoktu. Yeni sirada degisken uzunluktaki parcalar SONDA: ad ve
+# betik yolu. Deger ilk parca cunku icinde ':' gecemeyecek tek parca o; okuyan
+# taraf dorde bolerken son parcayi hic bolmuyor, yani yolun icinde ne olursa
+# olsun butun kaliyor. Betik bos olabilir (yalnizca lsphp bicimi yol tasir).
+TOPP=$(sort -k5,5 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%d:%s:%s:%s", $5, kim(), adi(), betik()}')
+# 14. kolon: en cok BELLEK (RSS) tutan surec "rss_mb:kullanici:ad:betik". RAM uyarisinin
 # faili top-CPU sureci degildir; sayfa acilisinda tarihceden uretilen RAM satiri
 # bu sayede canli satirla ayni bilgiyi tasir ("— top: mariadbd · mysql 8.3 GB").
-TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%s:%d:%s", adi(), int($7/1024), kim()}')
-# 15. kolon: en cok I/O yapan HESAP "hesap:kbps" (Top IO accounts bolumunden).
+TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%d:%s:%s:%s", int($7/1024), kim(), adi(), betik()}')
+# 15. kolon: en cok I/O yapan HESAP "kbps::hesap" (Top IO accounts bolumunden).
 # IO wait uyarisinin faili top-CPU sureci degil, en cok disk I/O yapan hesaptir.
+# Ortadaki alan BOS: burada "hesap" ayri bir sahip degil, adin kendisi -- oteki
+# iki kolonla ayni siralamayi kullansin diye yerinde bos birakiliyor.
 echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}" >> "$HIST"
 tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"

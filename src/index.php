@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.67'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.68'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -1937,22 +1937,44 @@ if (!empty($histSeed['t'])) {
         // cron koşusunda yazıldığı için zaman uyumu birebir — yük uyarısı kendini
         // açıklar ("— top: pigz · root 72%"). RAM için ayrı sütun (top-RSS süreci):
         // top-CPU süreci RAM spike'ının faili olmayabilir, yanıltır.
-        // "ad:deger" (eski) veya "ad:deger:kullanici". Ucuncu alan yoksa sadece ad
-        // gosterilir — eski history satirlari kirilmaz. Ayirici DUZ karakter olmali:
-        // olay kaydi metni ayrica kacisliyor, '&middot;' yazilirsa '&amp;middot;'
-        // olup harfi harfine gorunuyordu (cikti tamponu ASCII disini entity yapar).
+        // ALAN SIRASI "deger:hesap:ad:betik" (1.5.68+). Degisken uzunluktaki iki
+        // parca (ad ve BETIK YOLU) sonda; explode(..., 4) son parcayi hic
+        // bolmedigi icin yolun icinde ne olursa olsun butun kaliyor. Deger ilk
+        // parca, cunku icinde ':' gecemeyecek tek parca o.
+        // Betik yolu 1.5.68'de EKLENDI: canli sayfa onu zaten yaziyordu
+        // (asagidaki pscript/rowTop ikizi), ama gecmis sutununda yoktu -- yani
+        // MAIL EKINDE hic gorunmuyordu, cunku ekte JS kosmaz ve olay kaydi
+        // tamamen bu sunucu render'indan gelir.
+        // ESKI SIRA ("ad:deger:hesap") da okunur: guncellemeden sonra gecmis
+        // dosyasinda ~35 dakika eski bicimli satir kaliyor, o pencere bozuk
+        // gorunmesin. Ayirt edici ilk parcanin SAYI olmasi.
+        // Ayirici DUZ karakter olmali: olay kaydi metni ayrica kacisliyor,
+        // '&middot;' yazilirsa '&amp;middot;' olup harfi harfine gorunuyordu.
         $topSfx = function ($raw, $fmt, $lead = null) {
             if ($raw === '' || strpos($raw, ':') === false) return '';
-            $tp = explode(':', $raw, 3);
-            $tn = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[0]);
-            $tu = preg_replace('/[^A-Za-z0-9_.\-]/', '', $tp[2] ?? '');
+            $tp = explode(':', $raw, 4);
+            $kut = '/[^A-Za-z0-9_.\-]/';            // ad ve hesap: duz belirtec
+            $yol = '/[^A-Za-z0-9_.\/\-]/';          // betik: '/' de gecerli
+            $ts  = '';
+            if (ctype_digit($tp[0])) {
+                $tv = (int)$tp[0];
+                $tu = preg_replace($kut, '', $tp[1] ?? '');
+                $tn = preg_replace($kut, '', $tp[2] ?? '');
+                $ts = preg_replace($yol, '', $tp[3] ?? '');
+            } else {
+                $tn = preg_replace($kut, '', $tp[0]);
+                $tv = (int)($tp[1] ?? 0);
+                $tu = preg_replace($kut, '', $tp[2] ?? '');
+            }
             if ($tn === '') return '';
-            $who = str_replace('_', ' ', $tn) . ($tu !== '' ? ' · ' . $tu : '');
-            return ' ' . ($lead ?: '— ' . t('top:')) . ' ' . $who . ' ' . $fmt((int)($tp[1] ?? 0));
+            // Canli taraftaki rowTop ile AYNI dizilis: 'ad · hesap · betik deger'
+            $who = $tn . ($tu !== '' ? ' · ' . $tu : '') . ($ts !== '' ? ' · ' . $ts : '');
+            return ' ' . ($lead ?: '— ' . t('top:')) . ' ' . $who . ' ' . $fmt($tv);
         };
         $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
         $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
-        // IO wait faili: en cok disk I/O yapan hesap ("hesap:kbps", 1.5.16+). Eski
+        // IO wait faili: en cok disk I/O yapan hesap ("kbps::hesap", 1.5.68+;
+        // ortadaki alan bos, cunku burada sahip yok, adin kendisi hesap). Eski
         // satirlarda yoksa top-CPU surecine duser (eskisi gibi).
         $sfxI = $topSfx($histSeed['topio'][$i] ?? '', 'fmtKbps') ?: $sfx;
         // Yuk uyarisina I/O faili de iliştirilir: yuk islemciden de diskten de

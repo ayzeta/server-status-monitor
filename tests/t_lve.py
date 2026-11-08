@@ -170,10 +170,13 @@ def topio(ciktisi):
 # Hiz alani SINANMAZ: dt duvar saatinden geliyor (bkz. yakin()), sayac da
 # kumulatif oldugu icin onceki ornekten tasiyor. Regresyonun konusu zaten hiz
 # degil: kolon DOLUYOR MU ve DOGRU HESABI mi yaziyor.
+# Bicim "deger::hesap" (1.5.68): oteki iki kolonla ayni siralama
+# ("deger:hesap:ad:betik"), ortadaki alan bos cunku burada ayri bir sahip yok --
+# adin kendisi hesap. Geriye donuk: 1.5.67'ye kadar "hesap:kbps" idi.
 def topio_ad(c):
-    t = topio(c)
-    return (t.split(":")[0], t.count(":") == 1 and t.split(":")[1].isdigit()
-            and int(t.split(":")[1]) > 0)
+    p = topio(c).split(":")
+    return (p[2] if len(p) > 2 else "",
+            len(p) == 3 and p[1] == "" and p[0].isdigit() and int(p[0]) > 0)
 
 
 ck("kural isaret satirini veri sanmiyor", TOPIO_AWK.startswith("NR==1"), False)
