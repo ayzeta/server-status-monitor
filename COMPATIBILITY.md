@@ -21,8 +21,8 @@ separately.
 
 | | Read through |
 |---|---|
-| cPanel & WHM | 138.0.19 (2026-10-26) |
-| CSF | 16.33-1 (2026-10-08) |
+| cPanel & WHM | 138.0.21 (2026-11-05) |
+| CSF | 16.34-1 (2026-11-02) |
 
 Older and newer releases are not excluded — these are simply the ones whose
 notes have been reviewed.
@@ -73,6 +73,18 @@ directory, or the unit stops running as the account, the card loses its numbers
 silently — the denominator is then omitted rather than guessed.
 
 ## Review log
+
+**2026-11-08** — cPanel 138.0.20 and 138.0.21; CSF 16.34-1. Nothing that
+required a change. 138 is still the current series — there is no 140 change log
+yet. One entry was close enough to check in the code rather than wave off: three
+UAPI `LangPHP` fixes for addon and parked domains (CPANEL-57573,
+`php_get_domain_handler` and `php_set_vhost_versions`). The dashboard calls no
+UAPI function at all; its only cPanel API call is `whmapi1 servicestatus`, so
+those fixes cannot reach it. The rest were package updates (proftpd 1.3.9d,
+pdns 5.1.5), licensing and installer fixes, and a TuxCare ELS PHP maintenance
+fix that has no bearing on how EA-PHP versions are read. The single CSF entry
+removed obsolete cPAddons checks from Server Check, which this dashboard never
+reads — it looks at `csf.conf`, `csf.disable` and the `LOCALINPUT` chain.
 
 **2026-11-01** — cPanel 138.0.17, 138.0.18 and 138.0.19; CSF unchanged at
 16.33-1. Nothing that required a change. Three entries sat close enough to the

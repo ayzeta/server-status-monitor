@@ -870,12 +870,24 @@ import json, os, sys, time
 
 # Her is turu sayilir; tur gizlenmez, rozete yazilir. Gruplama yalnizca
 # etiket okunur kalsin diye — PHP/JS tarafi bu jetonu ceviriyor.
+# Liste ARACIN KENDI KODUNDAN cikarildi (2026-11-08 taramasi): is turleri
+# ar_is_kur() ile kuruluyor, hepsi meta.json'a 'kind' olarak dusuyor. O gun 18
+# tur vardi, buradaki eslemede 14 vardi -- dordu (gunluk, gunluk_oku, dns_oku,
+# dns_uygula) 2026-10-04 ve 10-15'te eklenmisti ve BURAYA GIRMEMISTI. Eslesmeyen
+# tur None donuyor ve is SESSIZCE atlaniyordu: hata yok, rozet hic cikmiyor.
+# 'gunluk' = LOG yedegi (gunluk/gunduz degil); aracin kendi kodu onu
+# backup/yapilandirma ile ayni aileye koyuyor (api.php: ['backup',
+# 'yapilandirma', 'gunluk']), esleme de oyle. Arac yeni tur eklerse burasi
+# yeniden bakilir -- kardes arac takibi kuralinin tam olcusu bu.
 GRUP = {
     "backup": "backup", "yapilandirma": "backup", "tamamla": "backup",
+    "gunluk": "backup",
     "single": "restore", "batch": "restore", "dosya": "restore",
     "posta": "restore", "vt": "restore", "cron_uygula": "restore",
+    "dns_uygula": "restore",
     "scan": "archive check", "indir": "download",
     "liste": "read", "vt_oku": "read", "cron_oku": "read",
+    "gunluk_oku": "read", "dns_oku": "read",
 }
 root = sys.argv[1]
 now = int(time.time())
