@@ -1572,8 +1572,15 @@ out.sort(reverse=True)
 # Komut tek satira sigsin; bosluk alan ayiraci oldugu icin ciktida bosluk kalamaz.
 # Alanlar: ioproc PID KULLANICI KBPS KOMUT — PID, CPU/RAM kartlariyla ayni
 # sutun dilini kurmak icin tasiniyor (surec orada da PID'iyle listeleniyor).
+# AYIRAC '|' (2026-11-08, eskiden '_' idi). Iki sebep:
+#  1) Alt cizgi YOLLARDA GECIYOR ("public_html"), yani geri cevrilemiyordu;
+#     pano komutu gosterirken butun alt cizgileri bosluga ceviriyor ve
+#     "redis_svc.sh" ekranda "redis svc.sh" oluyordu.
+#  2) 16. kolonu uretirken komutu belirteclerine ayirmak gerekiyor; alt cizgiden
+#     bolmek "/opt/my_app/bin/python3" gibi bir yolu ikiye bolerdi. '|' bir
+#     dosya yolunda pratikte gecmez, bolme belirsiz kalmaz.
 for kb, u, c, pid in out[:10]:
-    c = "_".join(c.split())[:70]
+    c = "|".join(c.split())[:70]
     print("ioproc %d %s %.1f %s" % (pid, u, kb, c))
 PYEOF
   )
@@ -1605,11 +1612,30 @@ PYEOF
   # Bu yuzden ADI ilk alt cizgide bitiyor: "crond_-n" -> "crond". ':/' kalibinda
   # (LiteSpeed lsphp) KESILMEZ, orada alt cizgi gercek bir karakterdir
   # (public_html). Canli taraf ayni sonucu pbase(ptok(...)) ile uretiyor.
+  # AD, GENEL YORUMLAYICIDA ARGUMANLARDAN COZULUR — CPU sutunundaki adi()
+  # kuralinin ikizi. Uretimde goruldu 2026-11-08: olay kaydi "I/O: surec
+  # python3 · root 1.5 MB/s" diyordu, fail ise
+  # "/opt/imunify360/venv/bin/python3 -m im360.run" idi. AYNI SUREC icin CPU
+  # sutunu "im360.run", I/O sutunu "python3" yaziyordu -- pano kendi kendisiyle
+  # celisiyordu. Komut '|' ile ayrildigi icin belirteclere bolmek guvenli.
+  # Uc kademe, ilk eslesen kazanir: betik uzantili / noktali ve '='siz / '-'siz.
   TOPIOP=$(printf '%s\n' "$IOP_OUT" | awk '$1=="ioproc" && $4+0 > 0 {
-      c = $5; i = index(c, ":/")
-      if (i > 1) { b = substr(c, 1, i - 1); y = substr(c, i + 1) }
-      else       { b = c; sub(/_.*$/, "", b); y = "" }
+      n = split($5, tk, "|")
+      b = tk[1]; y = ""
+      i = index(b, ":/")
+      if (i > 1) { y = substr(b, i + 1); b = substr(b, 1, i - 1) }
       if (b ~ /^\//) sub(/.*\//, "", b)
+      if (b ~ /^(php|python|perl|node|bash|sh|ruby|java|dash|zsh)[0-9.]*$/) {
+        r = ""
+        for (j = 2; j <= n; j++) if (tk[j] ~ /\.(php|py|pl|sh|rb|js)/)                 { r = tk[j]; break }
+        if (r == "") for (j = 2; j <= n; j++) if (tk[j] !~ /^-/ && tk[j] ~ /\./ && tk[j] !~ /=/) { r = tk[j]; break }
+        if (r == "") for (j = 2; j <= n; j++) if (tk[j] !~ /^-/)                       { r = tk[j]; break }
+        # ONCE TEMIZLE, SONRA KIRP (tmz ile ayni sira): wp-toolkit satirinda
+        # belirtec "+/usr/.../wpt-wp-cli.php+;" gibi tirnakli geliyor ve tirnak
+        # yuzunden "mutlak yol" sayilmiyordu; yol atilamayip butun dizin adlari
+        # ada yapisiyordu.
+        if (r != "") { gsub(/[^A-Za-z0-9_.:=#@+\/-]/, "", r); if (r ~ /^\//) sub(/.*\//, "", r); b = r }
+      }
       sub(/^\/home\/[^\/]+\//, "", y); sub(/^\//, "", y)
       gsub(/[^A-Za-z0-9_.-]/, "", b); gsub(/[^A-Za-z0-9_.\/-]/, "", y)
       u = $3; gsub(/[^A-Za-z0-9_.-]/, "", u)

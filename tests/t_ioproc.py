@@ -117,10 +117,19 @@ ck("pid yeniden kullanildi: ucuk hiz YAZILMAZ",
 # ── Bosluklu komut tek alana sikisir ───────────────────────────
 kur()
 tik([surec(7, 500, "root", "/usr/bin/perl -w /script.pl", 0, 0)])
-ck("bosluklu komut tek alan",
-   tik([surec(7, 560, "root", "/usr/bin/perl -w /script.pl", 0, 10 * 1024 * 1024)],
-       bekle=60),
-   "ioproc 7 root 170.7 /usr/bin/perl_-w_/script.pl")
+# AYIRAC '|' (1.5.72; eskiden '_'). Alt cizgi YOLLARDA geciyor ("public_html"),
+# o yuzden geri cevrilemiyordu ve komutu belirteclerine ayirmak imkansizdi --
+# 16. kolonda genel yorumlayicinin adi bu yuzden "python3" kaliyordu.
+# HIZ ALANI AYRI ve TOLERANSLI sinaniyor: dt duvar saatinden geliyor, 60 sn'lik
+# pencerede 0,07 sn gecikme 170.7'yi 170.5 yapiyor ve testi URUN DOGRUYKEN
+# kiriyordu (t_lve'de ogrenilen ders).
+_io = tik([surec(7, 560, "root", "/usr/bin/perl -w /script.pl", 0, 10 * 1024 * 1024)],
+          bekle=60).split()
+ck("bosluklu komut tek alan, ayirac '|'",
+   " ".join(_io[:3] + _io[4:]) if len(_io) == 5 else " ".join(_io),
+   "ioproc 7 root /usr/bin/perl|-w|/script.pl")
+ck("hiz makul (10 MB / 60 sn ~ 170.7 KB/s)",
+   len(_io) == 5 and abs(float(_io[3]) - 170.7) <= 3.5, True)
 
 # ── Siralama: buyukten kucuge ──────────────────────────────────
 kur()

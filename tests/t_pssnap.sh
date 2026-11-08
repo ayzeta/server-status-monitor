@@ -114,10 +114,22 @@ TOPIOP_SRC="$(sed -n '/^  TOPIOP=\$(printf/,/exit }.)$/p' "$KOK/src/collector.sh
 [ -n "$TOPIOP_SRC" ] || { echo "CIKARILAMADI: TOPIOP"; exit 2; }
 topiop(){ IOP_OUT="$1"; eval "$TOPIOP_SRC"; printf '%s' "$TOPIOP"; }
 ck "16. kolon: deger:kullanici:ad:betik" \
-   "$(topiop 'ioproc 1 root 163.0 /usr/sbin/crond_-n')" "163:root:crond:"
+   "$(topiop 'ioproc 1 root 163.0 /usr/sbin/crond|-n')" "163:root:crond:"
 ck "16. kolon: en bastaki satir alinir" \
-   "$(topiop "$(printf 'ioproc 1 root 163.0 /usr/sbin/crond_-n\nioproc 2 mysql 36.0 /usr/sbin/mariadbd')")" \
+   "$(topiop "$(printf 'ioproc 1 root 163.0 /usr/sbin/crond|-n\nioproc 2 mysql 36.0 /usr/sbin/mariadbd')")" \
    "163:root:crond:"
+# ASIL KUSUR: genel yorumlayicida ad argumanlardan cozulmeli. Uretimde olay
+# kaydi "I/O: surec python3 · root 1.5 MB/s" diyordu, fail ise im360.run idi;
+# AYNI SUREC icin CPU sutunu "im360.run" yaziyordu (2026-11-08).
+ck "16. kolon: python3 -m <modul> -> modul" \
+   "$(topiop 'ioproc 4 root 1536.0 /opt/imunify360/venv/bin/python3|-m|im360.run')" \
+   "1536:root:im360.run:"
+ck "16. kolon: php -r ... -> betik adi" \
+   "$(topiop "ioproc 5 acmeco 40.0 php|-r|require|'/usr/local/cpanel/3rdparty/wp-toolkit/plib/vendor/wp-cli/wpt-wp-cli.php';|-d|safe_mode=off")" \
+   "40:acmeco:wpt-wp-cli.php:"
+ck "16. kolon: genel OLMAYAN ad dokunulmaz" \
+   "$(topiop 'ioproc 6 root 72.0 /usr/bin/imunify-resident|--quiet')" \
+   "72:root:imunify-resident:"
 ck "16. kolon: lsphp betigi ayri alanda" \
    "$(topiop 'ioproc 3 acmeco 12.0 lsphp:/home/acmeco/public_html/index.php')" \
    "12:acmeco:lsphp:public_html/index.php"

@@ -67,6 +67,14 @@ ck('komut argumanlari ada karismaz',
    fn({ ioAcct: [], ioProc: [['root', 163, '/usr/sbin/crond -n']] }, kb, ek, t),
    ' — process crond · root 163 KB/s');
 
+// GENEL YORUMLAYICI: ad argumanlardan cozulur. Uretimde olay kaydi
+// "I/O: surec python3 · root 1.5 MB/s" diyordu, fail ise im360.run idi ve AYNI
+// SUREC icin CPU sutunu "im360.run" yaziyordu (2026-11-08). Iki sutun ayni
+// seyi soylemeli.
+ck('genel yorumlayici adi argumandan cozulur',
+   fn({ ioAcct: [], ioProc: [['root', 1536, '/opt/imunify360/venv/bin/python3 -m im360.run']] }, kb, ek, t),
+   ' — process im360.run · root 1.5 MB/s');
+
 // Esitlikte surec onde (genis kapsamli olan once okunsun)
 ck('esitlikte surec onde',
    fn({ ioAcct: [['h', 500]], ioProc: [['r', 500, '/x/y']] }, kb, ek, t),

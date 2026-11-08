@@ -165,6 +165,11 @@ IO_ORNEK = [
      [["agir", 90]], [["acmeco", 12, "lsphp:/home/acmeco/public_html/index.php"]]),
     ("", "5::ayzeta", [["ayzeta", 5]], []),
     ("40:mysql:mariadbd:", "", [], [["mysql", 40, "/usr/sbin/mariadbd"]]),
+    # Genel yorumlayici: iki yol da adi ARGUMANDAN cozmeli. 1.5.71'e kadar
+    # gecmis sutunu "python3", canli tik "python3" diyordu; CPU sutunu ise ayni
+    # surec icin "im360.run". Uretimde goruldu 2026-11-08.
+    ("1536:root:im360.run:", "", [],
+     [["root", 1536, "/opt/imunify360/venv/bin/python3 -m im360.run"]]),
 ]
 io.open(os.path.join(BURASI, "t_fail_io.json"), "w", encoding="utf-8").write(json.dumps(
     {"topiop": [a for a, _, _, _ in IO_ORNEK], "topio": [b for _, b, _, _ in IO_ORNEK]}))

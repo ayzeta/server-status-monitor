@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.71';
+const APP_VERSION = '1.5.72';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -383,10 +383,19 @@ if (is_readable($procSnapFile)) {
                 $p = preg_split('/\s+/', trim($ln), 5);
                 if ($p[0] === 'ioproc_ok') { $ioProcOk = true; continue; }
                 if ($p[0] !== 'ioproc') continue;
+                // Ayirac 1.5.72'den beri '|'; ondan onceki toplayici '_'
+                // kullaniyordu. ESKI BICIM DE OKUNUR (guncelleme sirasinda
+                // diskteki anlik goruntu bir tur boyunca eski olabilir), ama
+                // '_' yalnizca '|' HIC YOKKEN bosluga cevrilir -- yoksa yeni
+                // bicimde "public_html" yine "public html" olurdu.
+                $ioCmd = function ($s) {
+                    return strpos($s, '|') !== false
+                         ? str_replace('|', ' ', $s) : str_replace('_', ' ', $s);
+                };
                 if (count($p) === 5 && ctype_digit($p[1]) && is_numeric($p[3]))
-                    $ioProc[] = [$p[2], (float)$p[3], str_replace('_', ' ', $p[4])];
+                    $ioProc[] = [$p[2], (float)$p[3], $ioCmd($p[4])];
                 elseif (count($p) === 4 && is_numeric($p[2]))
-                    $ioProc[] = [$p[1], (float)$p[2], str_replace('_', ' ', $p[3])];
+                    $ioProc[] = [$p[1], (float)$p[2], $ioCmd($p[3])];
             }
         }
     }
@@ -4737,10 +4746,12 @@ function checkAlerts(data){
     // parcalari" demek oldugu icin okuyan ikisini tek sey saniyordu.
     // PHP tarafindaki $ioFail ile AYNI dizilis ve ayni siralama.
     const ad=a?t('account')+' '+a[0]+' '+fmtKbps(a[1]):'';
-    // ptok: ad ilk BELIRTEC. Komut argumanlariyla birlikte geliyor
-    // ('/usr/sbin/crond -n'); pbase tek basina bosluga bakmadigi icin
-    // 'crond -n' yaziyordu. Toplayici tarafi ayni kesmeyi yapiyor (TOPIOP).
-    const pd=p?t('process')+' '+pbase(ptok(p[2]))+(p[0]?' · '+p[0]:'')
+    // pname: GENEL YORUMLAYICIDA adi argumanlardan cozer (python3 -> im360.run).
+    // pbase(ptok(...)) yalniz ilk belirteci aliyordu ve CPU sutunu "im360.run"
+    // derken I/O sutunu "python3" diyordu -- ayni surec, iki farkli ad
+    // (uretimde goruldu 2026-11-08). Toplayici tarafi da ayni uc kademeyi
+    // uyguluyor (TOPIOP), yani iki yol ayni sonucu veriyor.
+    const pd=p?t('process')+' '+pname(p[2])+(p[0]?' · '+p[0]:'')
              +(pscript(p[2])?' · '+pscript(p[2]):'')+' '+fmtKbps(p[1]):'';
     const parts=(p&&(!a||p[1]>=a[1]))?[pd,ad]:[ad,pd];
     const s=parts.filter(Boolean).join(' · ');
