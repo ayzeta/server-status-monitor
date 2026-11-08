@@ -1688,8 +1688,15 @@ TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%d:%s:%s:%s"
 # IO wait uyarisinin faili top-CPU sureci degil, en cok disk I/O yapan hesaptir.
 # Ortadaki alan BOS: burada "hesap" ayri bir sahip degil, adin kendisi -- oteki
 # iki kolonla ayni siralamayi kullansin diye yerinde bos birakiliyor.
-echo "$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}" >> "$HIST"
-tail -35 "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+# AYNI DAKIKAYA IKINCI SATIR YAZILMAZ (2026-11-08). Uretimde goruldu: guncelleme
+# indigi dakikada iki tur kosmus ve gecmise iki "04:27" satiri dusmustu. Zararsiz
+# gorunuyor ama "35 satir = 35 dakika" varsayimini SESSIZCE bozuyor: pencere
+# kisaliyor ve grafik o dakikayi iki nokta ciziyor. Yeni satir eskisinin yerine
+# gecer -- ayni dakikanin EN GUNCEL olcumu kazanir. Pencere 35 satir oldugu icin
+# ayni "SS:DD" damgasinin bir gun onceden kalmis olmasi mumkun degil.
+HSATIR="$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--}"
+{ [ -f "$HIST" ] && grep -v "^${HSATIR%% *} " "$HIST"
+  printf '%s\n' "$HSATIR"; } | tail -35 > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"
 
 # --- Disk buyume gecmisi (GUNDE bir satir: "YYYY-MM-DD kullanilan_gb") ---

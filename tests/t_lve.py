@@ -86,7 +86,18 @@ gecen = kalan = 0
 
 def yakin(g, b):
     """ioacct satirlarinda hiz alani TOLERANSLI (%2): dt duvar saatinden geliyor,
-    testteki iki kosu arasinda gecen sure tam 60.000 sn olmuyor."""
+    testteki iki kosu arasinda gecen sure tam yas saniye olmuyor.
+
+    PENCERE 300 SANIYE, 60 DEGIL (2026-11-08). Olcumun uzerine makinenin kendi
+    gecikmesi biniyor; 60 saniyelik pencerede 2 saniyelik gecikme %3,3 agirlik
+    tasiyor ve 136/60=2,27 ("2.3") degeri 136/62=2,19 ("2.2") oluyordu -- test
+    URUN DOGRUYKEN kirmizi yaniyordu, ama yalnizca TAKIM YUKU altinda, tek
+    basina kosunca geciyordu. Boyle bir test kirmizinin anlamini bitiriyor.
+    Pencere bes katina cikinca ayni gecikme %0,7'ye dusuyor. Daha uzuna
+    cikilamaz: urunun kendi tavani 600 sn ("now - pt > 600" ise olcum YOK
+    sayiliyor), 600 secilseydi gecikmeyle birlikte tavani asip hic cikti
+    vermiyordu -- denendi. Beklenen hizlar degismesin diye hem IO hem IOPS
+    sayac farklari da bes katina cikarildi."""
     gl, bl = g.split(NL), b.split(NL)
     if len(gl) != len(bl):
         return False
@@ -128,22 +139,22 @@ ck("ilk tur: isaret bile yazilmaz",
 
 # ── Ikinci tur: 60 sn'de 136 KB -> 2.3 KB/s (uretim olcumu) ────
 ck("fark hiza cevrilir (KB -> KB/s)",
-   calistir([satir(1089, 1136, 70), satir(1002, 604, 5)], yas=60),
+   calistir([satir(1089, 1680, 310), satir(1002, 1020, 5)], yas=300),
    NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1", "ioacct ayzeta 1.7 0"]))
 
 # ── Degisim yok: satir yok ama OLCUM ISARETI var ───────────────
 ck("hareket yoksa yalniz isaret",
-   calistir([satir(1089, 1136, 70), satir(1002, 604, 5)], yas=60), "io_src lve 1m")
+   calistir([satir(1089, 1680, 310), satir(1002, 1020, 5)], yas=300), "io_src lve 1m")
 
 # ── Sayac geri gitti (LVE yeniden kuruldu): o hesap atlanir ────
 ck("sayac sifirlanmis hesap atlanir",
-   calistir([satir(1089, 5, 1), satir(1002, 1204, 5)], yas=60),
+   calistir([satir(1089, 5, 1), satir(1002, 4020, 5)], yas=300),
    NL.join(["io_src lve 1m", "ioacct ayzeta 10.0 0"]))
 
 # ── cPanel hesabi olmayanlar elenir (root, sistem kullanicisi) ─
 calistir([satir(0, 0, 0), satir(1500, 0, 0), satir(1089, 100, 0)])
 ck("cpanel disi uid elenir",
-   calistir([satir(0, 600000, 0), satir(1500, 600000, 0), satir(1089, 160, 0)], yas=60),
+   calistir([satir(0, 600000, 0), satir(1500, 600000, 0), satir(1089, 400, 0)], yas=300),
    NL.join(["io_src lve 1m", "ioacct pixelcart 1.0 0"]))
 
 # ── Bosluga gore ayirsaydik ne olurdu (regresyon korumasi) ─────
@@ -181,12 +192,12 @@ def topio_ad(c):
 
 ck("kural isaret satirini veri sanmiyor", TOPIO_AWK.startswith("NR==1"), False)
 ck("en cok I/O yapan hesap yazilir",
-   topio_ad(calistir([satir(1089, 2272, 70), satir(1002, 604, 5)], yas=60)),
+   topio_ad(calistir([satir(1089, 2272, 70), satir(1002, 604, 5)], yas=300)),
    ("pixelcart", True))
 # Sabit bir hesaba degil, SIRAYA bakiyor: bu turda artisi buyuk olan ayzeta,
 # yani bir onceki iddiada kazanan pixelcart degil.
 ck("en buyugu alir (sabit hesap degil)",
-   topio_ad(calistir([satir(1089, 8272, 70), satir(1002, 99999, 5)], yas=60)),
+   topio_ad(calistir([satir(1089, 8272, 70), satir(1002, 99999, 5)], yas=300)),
    ("ayzeta", True))
 ck("hareket yoksa kolon bos kalir", topio("io_src lve 1m"), "")
 

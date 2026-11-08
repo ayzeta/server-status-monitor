@@ -37,8 +37,23 @@ E_R=$(ps -eo state --no-headers | awk '$1 ~ /^R/{c++} END{print c+0}')
 read Y_LT Y_LI Y_D Y_R < <(awk '
     $6=="lsphp" && $1 ~ /^[RD]/ {a++} $6=="lsphp" && $1 ~ /^S/ {b++}
     $1 ~ /^D/ {c++} $1 ~ /^R/ {d++} END{print a+0,b+0,c+0,d+0}' "$C")
-ck "D sayimi makul (fark <=2)" "$([ $((E_D>Y_D?E_D-Y_D:Y_D-E_D)) -le 2 ] && echo evet || echo hayir)" "evet"
-ck "R sayimi makul (fark <=2)" "$([ $((E_R>Y_R?E_R-Y_R:Y_R-E_R)) -le 2 ] && echo evet || echo hayir)" "evet"
+# TOLERANS KALDIRILDI, AYNI ORNEK KULLANILIYOR (2026-11-08). Eskiden canli bir
+# "ps -eo state" kosusuyla karsilastiriliyordu; iki olcum arasinda surec sayisi
+# degistigi icin "fark <=2" toleransi gerekiyordu ve takim yukunde o tolerans
+# asiliyordu -- test URUN DOGRUYKEN kirmizi yaniyor, tek basina kosunca
+# geciyordu. Boyle bir test kirmizinin anlamini bitiriyor.
+# Asil sinanan sey zaten orneklem kararliligi DEGIL: dort sayimi TEK GECISTE
+# yapan awk, sayaclari dogru sutuna baglamis mi. Ayni dosyadan tek amacli
+# sayimla karsilastirilinca bu birebir olculuyor, hem de oynamadan.
+T_D=$(awk '$1 ~ /^D/{c++} END{print c+0}' "$C")
+T_R=$(awk '$1 ~ /^R/{c++} END{print c+0}' "$C")
+ck "D sayimi tek gecisle birebir" "$Y_D" "$T_D"
+ck "R sayimi tek gecisle birebir" "$Y_R" "$T_R"
+# Canli kontrol ama oynak DEGIL: durum sutunu dogru yerdeyse R sayisi mutlaka
+# sifirdan buyuktur (en azindan ps'in kendisi calisir durumdadir). Yanlis sutun
+# okunsaydi burasi 0 verirdi -- yani sutun kaymasini hala yakalar.
+ck "durum sutunu dogru yerde (R>0)" \
+   "$([ "$E_R" -gt 0 ] && [ "$Y_R" -gt 0 ] && echo evet || echo hayir)" "evet"
 
 # En cok CPU yiyen surec: eski ps sortu ile yeni sort ayni pid'i mi veriyor
 # Siralama denkligi: "sort -k5,5 -rn" ile ps'in "--sort=-pcpu"su ayni mi?
