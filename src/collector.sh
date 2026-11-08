@@ -297,13 +297,20 @@ OUT="$HOME_DIR/.proc_snapshot"
   prof "hazirlik (ps anlik goruntuleri, cpu/ag sayaclari)"
   echo "--- Top 15 by CPU ---"
   echo "PID USER %CPU %MEM ELAPSED COMMAND"
-  sort -k5,5 -rn "$PS_SNAP" | head -15 | awk "$PS_ELAPSED"'{
+  # ZOMBI (durum Z) ELENIR. Olmus bir surec islemci yakmaz; ps'in verdigi %CPU
+  # OMUR BOYU ORTALAMA oldugu icin 1 saniye yasayip olmus bir surec ebeveyni onu
+  # toplayana kadar listede yuksek bir yuzdeyle duruyordu. Uretimde goruldu
+  # 2026-11-08: "[cpsrvd (SSL) - ] <defunct> · 4.0" listenin ustlerindeydi.
+  # RSS'leri de 0 oldugu icin RAM listesinde de yeri yok. Sayilari CPU kartinin
+  # alt satirinda ayrica yaziliyor -- yani bilgi kaybolmuyor, yanlis yerde
+  # durmuyor.
+  sort -k5,5 -rn "$PS_SNAP" | awk '$2 !~ /^Z/' | head -15 | awk "$PS_ELAPSED"'{
       a=$8; for(i=9;i<=NF;i++) a=a " " $i;
       print $1, $3, $5, $6, gecen($4), a }' | cut -c1-280
   echo
   echo "--- Top 15 by RSS ---"
   echo "PID USER %CPU %MEM RSS COMMAND"
-  sort -k7,7 -rn "$PS_SNAP" | head -15 | awk '{
+  sort -k7,7 -rn "$PS_SNAP" | awk '$2 !~ /^Z/' | head -15 | awk '{
       a=$8; for(i=9;i<=NF;i++) a=a " " $i;
       print $1, $3, $5, $6, $7, a }' | cut -c1-280
   echo
@@ -731,12 +738,17 @@ PYEOF
     [ "$SP" -gt 0 ] 2>/dev/null && echo "netspeed $N $SP"
   done
   # Dort sayim TEK geciste, tek anlik goruntuden (eskiden 4 ayri "ps" idi).
-  read PS_LT PS_LI PS_DS PS_RS < <(awk '
+  # Z (zombi) de ayni geciste sayilir: surec listelerinden ELENIYOR (olmus bir
+  # surec yukun faili olamaz, bkz. yukarisi) ama sayisi bilgidir — artiyorsa
+  # ebeveyn cocuklarini toplamiyor demektir. Eleyip hic yazmamak bilgiyi
+  # kaybederdi, o yuzden sayi CPU kartinin alt satirina giriyor.
+  read PS_LT PS_LI PS_DS PS_RS PS_ZS < <(awk '
       $6=="lsphp" && $1 ~ /^[RD]/ {a++}
       $6=="lsphp" && $1 ~ /^S/    {b++}
       $1 ~ /^D/ {c++}
       $1 ~ /^R/ {d++}
-      END{print a+0, b+0, c+0, d+0}' "$PS_COMM")
+      $1 ~ /^Z/ {z++}
+      END{print a+0, b+0, c+0, d+0, z+0}' "$PS_COMM")
   prof "SMART / RAID / inode / ag hizi"
   echo "lsphp_total $PS_LT"
   echo "lsphp_idle $PS_LI"
@@ -745,6 +757,10 @@ PYEOF
   # rstate: kosan (R) surec sayisi. Load anatomisi: load ~ R + D (uninterruptible).
   # Root'tan alinir cunku CageFS surec sayimini cage'e sanallastirabilir.
   echo "rstate $PS_RS"
+  # zstate: zombi (Z) surec sayisi. Surec listelerinden eleniyor (olmus surec
+  # islemci yakmaz, %CPU'su omur boyu ortalamadir), sayisi burada duruyor:
+  # artan zombi "ebeveyn cocuklarini toplamiyor" demektir.
+  echo "zstate $PS_ZS"
   # CPU/IO wait 60 sn ortalamasi (yukarida hesaplandi) — dashboard'un anlik
   # olcumunun yerine gecer; ilk calismada bos oldugu icin hic yazilmaz.
   [ -n "$CPU" ] && echo "cpu_pct $CPU"
@@ -1037,11 +1053,14 @@ PYEOF
       case "$CAG_BLK" in ''|*[!0-9]*) CAG_BLK=0;; esac
     fi
   fi
-  # Turlar 4-25 sn suruyor ve cron varsayilani 30 dk: dakikada bir bakan toplayici
-  # cogu turu kacirir. Amac zaten TAKILIP KALAN turu gostermek — o durumda surec
-  # ayakta kalir, rozet durur ve yasi buyur. YAKALANAN turun bitisi ise tur
-  # kaydindan gercek damgayi ve o turda konan engel sayisini alir; kacirilan tur
-  # hic yazilmaz, yani olay kaydi 30 dakikalik rutinle dolmaz.
+  # Turlar 4-25 sn suruyor ve cron araliginin yaninda bu kisa kaliyor: dakikada
+  # bir bakan toplayici cogu turu kacirir. (Aracin CRON_MIN varsayilani 2026-11-08
+  # itibariyla */10; eskiden */30'du ve bu yorum oyle yaziliydi. Sayi burada
+  # onemli degil, tur suresinden buyuk olmasi yeterli.) Amac zaten TAKILIP KALAN
+  # turu gostermek — o durumda surec ayakta kalir, rozet durur ve yasi buyur.
+  # YAKALANAN turun bitisi ise tur kaydindan gercek damgayi ve o turda konan
+  # engel sayisini alir; kacirilan tur hic yazilmaz, yani olay kaydi rutin
+  # turlarla dolmaz.
   # Burada artık özel bir ayar yok: rozet BÜTÜN etkinliklerde kanıta bağlı, yani
   # yalnızca süreç o tikte görüldüğünde çıkıyor. Bu turu 5DK/9DK diye gösteren
   # kusur (ölçüldü 2026-10-21: cron */30, 'ps' boş, rozet büyüyordu) oradan geliyordu.

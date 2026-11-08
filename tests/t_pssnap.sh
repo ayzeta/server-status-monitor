@@ -24,10 +24,12 @@ ck(){
 # ── Donusumleri KAYNAKTAN cikar ────────────────────────────────
 PS_ELAPSED="$(sed -n "/^PS_ELAPSED='function gecen/,/^'$/p" "$KOK/src/collector.sh" \
               | sed "1s/^PS_ELAPSED='//; \$s/^'$//")"
-CPU_PIPE="$(sed -n '/sort -k5,5 -rn "\$PS_SNAP" | head -15/,/cut -c1-280/p' "$KOK/src/collector.sh" | head -4)"
-RSS_PIPE="$(sed -n '/sort -k7,7 -rn "\$PS_SNAP" | head -15/,/cut -c1-280/p' "$KOK/src/collector.sh" | head -3)"
+# Capa 'head -15'e DEGIL, sort ifadesine: 1.5.71'de araya zombi elemesi girdi
+# (sort | awk '$2 !~ /^Z/' | head -15) ve 'head -15' iceren eski desen tutmadi.
+CPU_PIPE="$(sed -n '/sort -k5,5 -rn "\$PS_SNAP"/,/cut -c1-280/p' "$KOK/src/collector.sh" | head -4)"
+RSS_PIPE="$(sed -n '/sort -k7,7 -rn "\$PS_SNAP"/,/cut -c1-280/p' "$KOK/src/collector.sh" | head -3)"
 LSPHP_PIPE="$(grep -F 'awk '"'"'$6=="lsphp"{c[$2]++}' "$KOK/src/collector.sh")"
-SAYIM_PIPE="$(sed -n '/read PS_LT PS_LI PS_DS PS_RS/,/PS_COMM")/p' "$KOK/src/collector.sh")"
+SAYIM_PIPE="$(sed -n "/read PS_LT PS_LI PS_DS PS_RS PS_ZS/,/PS_COMM\")/p" "$KOK/src/collector.sh")"
 TOP_AD_SRC="$(sed -n "/^TOP_AD='\$/,/^'\$/p" "$KOK/src/collector.sh")"
 TOPP_PIPE="$(grep -F 'TOPP=$(sort -k5,5' "$KOK/src/collector.sh")"
 TOPR_PIPE="$(grep -F 'TOPR=$(sort -k7,7' "$KOK/src/collector.sh")"
@@ -47,7 +49,13 @@ ck "CPU: en yuksek pcpu basta" "$(echo "$CPU_OUT" | head -1)" \
 ck "CPU: 1 gun = 1-00:00:00" "$(echo "$CPU_OUT" | sed -n '2p')" \
    "2295514 mysql 19.2 6.1 1-00:00:00 /usr/sbin/mariadbd"
 ck "CPU: 11 gunluk surec" "$(echo "$CPU_OUT" | sed -n '3p' | awk '{print $5}')" "11-13:46:40"
-ck "CPU: satir sayisi" "$(echo "$CPU_OUT" | wc -l | tr -d ' ')" "8"
+# Ornekte 8 surec var, biri ZOMBI (9002 Z ... [php74] <defunct>) ve 1.5.71'den
+# beri eleniyor: olmus surec islemci yakmaz, ps'in verdigi %CPU omur boyu
+# ortalamadir. Uretimde "[cpsrvd (SSL) - ] <defunct> · 4.0" listenin ustlerinde
+# duruyordu (2026-11-08).
+ck "CPU: satir sayisi (zombi elendi)" "$(echo "$CPU_OUT" | wc -l | tr -d ' ')" "7"
+ck "CPU: zombi listede yok" "$(echo "$CPU_OUT" | grep -c 'defunct')" "0"
+ck "RSS: zombi listede yok" "$(eval "$RSS_PIPE" | grep -c 'defunct')" "0"
 ck "CPU: bosluklu komut butun kaliyor" \
    "$(echo "$CPU_OUT" | sed -n '3p' | cut -d' ' -f6-)" "/usr/bin/imunify-resident --quiet"
 ck "CPU: bosluklu args (lfd) bozulmuyor" \
@@ -67,6 +75,9 @@ ck "sayim: lsphp aktif (R/D)" "$PS_LT" "1"
 ck "sayim: lsphp bosta (S)"   "$PS_LI" "2"
 ck "sayim: D durumu"          "$PS_DS" "1"
 ck "sayim: R durumu"          "$PS_RS" "1"
+# Zombi listelerden ELENIYOR ama sayisi bilgidir: artiyorsa ebeveyn cocuklarini
+# toplamiyor demektir. Bu yuzden ayni geciste sayilip CPU kartina yaziliyor.
+ck "sayim: Z (zombi) durumu" "$PS_ZS" "1"
 
 # ── 5) Tarihce kolonlari ───────────────────────────────────────
 eval "$TOP_AD_SRC"; eval "$TOPP_PIPE"; eval "$TOPR_PIPE"

@@ -360,6 +360,51 @@ else:
     ck("okunamayan varsa tavan da sınırsız da yazılmaz", ipucu(kart, "Redis · user"),
        "150 accounts in use, 170 non-empty databases · 1.1 GB")
 
+    # 9b) TAVAN TOPLAMI FİZİKSEL RAM'İ AŞIYOR MU (aşırı taahhüt).
+    #     maxmemory bir SINIR, ayrılmış bellek değil: örnekler aynı anda
+    #     dolmadıkça sorun çıkmaz, o yüzden kırmızı değil SARI. Hesap başına
+    #     Redis'te kolay oluşur — 50 hesaplı 8 GB makinede 512 MB'lık tavanlar
+    #     RAM'in üç katıdır; hepsi dolarsa tek hesap kısıtlanmaz, çekirdek
+    #     OOM'a girer.
+    #     TAM SAYFA RENDER'IYLA SINANAMAZ: $memTotal doğrudan /proc/meminfo'dan
+    #     okunuyor, bu testler Windows'ta koşuyor ve dosya yok (0 kalır, dal hiç
+    #     çalışmaz). O yüzden karar satırı KAYNAKTAN çıkarılıp doğrudan
+    #     koşuluyor — fikstür uydurmak yerine ürünün kendi ifadesi.
+    kaynak = io.open(KOK + "src/index.php", encoding="utf-8", errors="replace").read()
+    kb = kaynak.index("        $urAsim = $urCap > 0")
+    ke = kaynak.index("$memTotalGB . ' GB');", kb) + len("$memTotalGB . ' GB');")
+    karar = kaynak[kb:ke]
+
+    def asim(cap_mb, mem_kb):
+        kod = "\n".join([
+            "function t($s){return $s;}",
+            "function tf($s){$a=func_get_args();array_shift($a);"
+            "return preg_replace_callback('/%s/',function($m)use(&$a){return array_shift($a);},$s);}",
+            "$urCap=%d; $memTotal=%d;" % (cap_mb, mem_kb),
+            "$urCapT = $urCap >= 1024 ? round($urCap/1024,1).' GB' : $urCap.' MB';",
+            "$memTotalGB = $memTotal > 0 ? round($memTotal/1024/1024,1) : 0;",
+            "$urTips=[];",
+            karar.strip(),
+            "echo ($urAsim ? '1' : '0').'|'.implode(' · ', $urTips);",
+        ])
+        r = subprocess.run(["php", "-r", kod], capture_output=True, text=True,
+                           encoding="utf-8")
+        return r.stdout.strip()
+
+    LIN = 98355136          # lin.ayzeta.net, ölçüldü 2026-11-08 (93.8 GB)
+    ck("lin'in gerçek sayıları: aşım yok", asim(11520, LIN), "0|")
+    ck("tavan RAM'i aşarsa işaretlenir", asim(98304, LIN).split("|")[0], "1")
+    # Koşucuda çeviri sözlüğü yok (t() birebir döner), yani burada İngilizce
+    # anahtar görünür. TR karşılığının varlığı ayrıca çapalanıyor.
+    ck("aşım metni iki sayıyı da yazar", asim(98304, LIN).split("|")[1],
+       "ceiling 96 GB exceeds physical RAM 93.8 GB")
+    ck("TR çevirisi tanımlı",
+       "'ceiling %s exceeds physical RAM %s' =>" in kaynak, True)
+    # Ölçülemeyen iki durumda SUSAR: tavan eksik toplanmışsa (0) ya da RAM
+    # okunamamışsa (0). "Ölçmediğimiz şeyi gösterme" kuralı.
+    ck("tavan ölçülmediyse susar", asim(0, LIN), "0|")
+    ck("RAM okunamadıysa susar", asim(98304, 0), "0|")
+
     # 10) HAYALET SATIR OLMAYACAK. Güvenlik satırları koşullu (CSF/ModSecurity/
     #     CageFS kurulu değilse satır yok) ama sürüm etiketleme indisle
     #     yapılıyordu ve tagVer parametreyi REFERANSLA alıyor: olmayan indise

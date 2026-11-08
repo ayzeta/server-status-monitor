@@ -3,7 +3,15 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.70'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const APP_VERSION = '1.5.71';
+// ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
+// ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
+// tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
+const STATE_LEGEND = 'run (R): using the CPU or waiting in the run queue · '
+    . 'blocked (D): in uninterruptible sleep waiting on disk or network — this is where iowait comes from · '
+    . 'sleeping (S): idle, waiting for work; produces no load and is not shown because the count is meaninglessly large · '
+    . 'zombie (Z): dead but not yet reaped by its parent; burns no CPU and is filtered out of the process lists — '
+    . 'a rising count means a parent is not reaping its children'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -158,6 +166,18 @@ $TR = [
     // %s'leri sırayla değiştiriyor, "%2$s" gibi konumlu biçim desteklemiyor.
     '%s accounts in use, %s non-empty databases' => '%s hesapta %s dolu db',
     '%s of %s ceiling' => '%s / %s tavan', '%s unlimited' => '%s sınırsız',
+    'ceiling %s exceeds physical RAM %s' => 'tavan toplamı %s, fiziksel RAM %s — aşırı taahhüt',
+    'zombie' => 'zombi',
+    // ps'in durum harfleri. Sayının YANINDA dursun diye ipucuna konuyor;
+    // ayrı bir yardım sayfası açmaya değmez, bakan kişi zaten oraya bakıyor.
+    // ANAHTAR İNGİLİZCE METNİN KENDİSİ (t() çeviri bulamazsa anahtarı basar).
+    // Dizgi TEK YERDE: STATE_LEGEND sabiti. Burada ikinci bir kopya dursaydı
+    // biri değişince arama sessizce tutmaz, TR sayfasında İngilizcesi çıkardı.
+    STATE_LEGEND => 'çalışan (R): işlemciyi kullanan ya da sırada bekleyen süreç · '
+                    . 'bloklu (D): disk/ağ bekleyen, kesilemez uykudaki süreç — iowait buradan gelir · '
+                    . 'uyuyan (S): iş bekliyor, yük üretmez, sayısı anlamsızca büyük olduğu için yazılmaz · '
+                    . 'zombi (Z): ölmüş ama ebeveyni henüz toplamamış; işlemci yakmaz, '
+                    . 'süreç listelerinden elenir — sayısı artıyorsa ebeveyn süreç çocuklarını toplamıyordur',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
     'MySQL · query' => 'MySQL · sorgu',
@@ -1203,6 +1223,13 @@ $dState = ($rootFresh && isset($procSec['dstate']) && is_numeric($procSec['dstat
 // (CloudLinux'ta throttle edilen görevler load'a girer ama R/D'de görünmez).
 $rState = ($rootFresh && isset($procSec['rstate']) && is_numeric($procSec['rstate']))
        ? (int)$procSec['rstate'] : null;
+// Z-state: zombi süreç sayısı. Süreç listelerinden ELENİR (ölmüş süreç işlemci
+// yakmaz; ps'in verdiği %CPU ömür boyu ortalama olduğu için 1 saniye yaşayıp
+// ölmüş bir süreç listenin başında duruyordu — üretimde görüldü 2026-11-08).
+// Sayı burada kalır: artıyorsa ebeveyn çocuklarını toplamıyor demektir.
+// SIFIRSA HİÇ YAZILMAZ — sağlıklı sunucuda satırı boşuna uzatmasın.
+$zState = ($rootFresh && isset($procSec['zstate']) && is_numeric($procSec['zstate']))
+       ? (int)$procSec['zstate'] : null;
 // Inode kullanımı (%): disk alanı boş olsa da inode tükenince sunucu çöker.
 // Milyonlarca küçük dosya (cache vb) tüketir — LiteSpeed cache olayının erken
 // sinyali. Eşik %90 kritik / %80 uyarı. PHP inode okuyamaz, root df -i verir.
@@ -1560,14 +1587,28 @@ if ($rootFresh && isset($procSec['userredis'])) {
         // "2.3 GB" alt alta gelirdi). Bellek ayrıca Bellek kartında da var.
         if ($urMem) $urTips[] = $urCap > 0 ? tf('%s of %s ceiling', $urMemT, $urCapT) : $urMemT;
         if ($urCapSiz) $urTips[] = tf('%s unlimited', $urCapSiz);
+        // TAVAN TOPLAMI FİZİKSEL RAM'İ AŞIYOR MU — aşırı taahhüt kontrolü.
+        // maxmemory bir SINIR, ayrılmış bellek değil: örnekler aynı anda
+        // dolmadıkça sorun çıkmaz, bu yüzden "şu an bozuk" değil "yapılandırma
+        // riskli" uyarısıdır. Hesap başına Redis'te bu kolayca oluşur — 50
+        // hesaplı 8 GB'lık bir makinede 512 MB'lık tavanlar toplamı RAM'in üç
+        // katıdır; hepsi dolarsa tek hesap kısıtlanmaz, çekirdek OOM'a girer.
+        // (Ölçüldü 2026-11-08, lin: 23,4 GB tavan / 93,8 GB RAM — sorun yok.)
+        // Yeni veri toplanmıyor: iki sayı da zaten elimizde.
+        $urAsim = $urCap > 0 && $memTotal > 0 && ($urCap * 1024) > $memTotal;
+        if ($urAsim) $urTips[] = tf('ceiling %s exceeds physical RAM %s', $urCapT,
+                                    $memTotalGB . ' GB');
         // Sütuna bu satırın kendi uptime'ı: örnekler arasında en eskisi —
         // panonun geri kalanında da kural bu ("en eski süreç = servisin
         // kendisi"). Ortak Redis'in yaşıyla karışmaz, ayrı alandan gelir.
         $urAge = isset($procSec['userredis_age']) && ctype_digit(trim($procSec['userredis_age']))
                ? (int)trim($procSec['userredis_age']) : 0;
         $cacheChecks[] = ['label' => t('Redis · user'), 'type' => 'check',
-                          'ok'   => $urUp > 0 && $urUp >= $urTot,
-                          'warn' => $urUp > 0 && $urUp < $urTot,   // kısmi: uyarı, arıza değil
+                          'ok'   => $urUp > 0 && $urUp >= $urTot && !$urAsim,
+                          // kısmi ayakta: uyarı, arıza değil. Tavan aşımı da
+                          // uyarı — ölçülmüş ve kötü, ama şu an bir şey bozuk
+                          // değil; kırmızı "ölçtük, bozuk" için saklı.
+                          'warn' => ($urUp > 0 && $urUp < $urTot) || ($urUp > 0 && $urAsim),
                           'note' => $urNote]
                        + ($urAge  ? ['up' => fmtAge($urAge), 'upS' => fmtAgeShort($urAge)] : [])
                        + ($urTips ? ['noteT' => implode(' · ', $urTips)] : []);
@@ -2337,7 +2378,7 @@ if (isset($_GET['json'])) {
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
         'ioR'               => $ioRead !== null ? fmtBytes($ioRead) : null,
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
-        'dstate'            => $dState, 'rstate' => $rState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs, 'actLive' => $actLive,
+        'dstate'            => $dState, 'rstate' => $rState, 'zstate' => $zState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs, 'actLive' => $actLive,
         'updRev' => $updRev, 'updBehind' => $updBehind,
         'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
@@ -3525,7 +3566,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['cpu'], 260, 88, $cpuCardCol, 'ssr-cpu', [0, 100])?><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; ' . t('run') . ' ' . (int)$rState . ' / ' . t('blocked') . ' ' . (int)$dState : ''?></div>
+    <div class="res-meta" id="rm-cpu" title="<?=htmlspecialchars(t(STATE_LEGEND))?>"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; ' . t('run') . ' ' . (int)$rState . ' / ' . t('blocked') . ' ' . (int)$dState : ''?><?=$zState ? ' &middot; ' . t('zombie') . ' ' . (int)$zState : ''?></div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?>;--fill:<?=$memUsagePercent?>%<?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
@@ -3918,7 +3959,9 @@ function rtcol(ms,w,c){if(ms==null)return'var(--accent)';if(ms>=c)return'var(--d
 function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
 function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
-function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · '+t('run')+' '+(d.rstate||0)+' / '+t('blocked')+' '+(d.dstate||0);return s;}
+// PHP'deki rm-cpu satirinin ikizi. Zombi SIFIRSA yazilmaz (saglikli sunucuda
+// satiri bosuna uzatmasin); ipucu sabit, durum harflerini aciklar.
+function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · '+t('run')+' '+(d.rstate||0)+' / '+t('blocked')+' '+(d.dstate||0);if(d.zstate)s+=' · '+t('zombie')+' '+d.zstate;return s;}
 function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' '+t('mismatch')+'</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
 function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
