@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.73';
+const APP_VERSION = '1.5.74';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -167,6 +167,9 @@ $TR = [
     '%s accounts in use, %s non-empty databases' => '%s hesapta %s dolu db',
     '%s of %s ceiling' => '%s / %s tavan', '%s unlimited' => '%s sınırsız',
     'ceiling %s exceeds physical RAM %s' => 'tavan toplamı %s, fiziksel RAM %s — aşırı taahhüt',
+    // noeviction + tavan = dolunca yazma hatası döner, önbellek sessizce ölür.
+    '%s with a ceiling but no eviction (noeviction)' => '%s örnekte tavan var ama tahliye yok (noeviction) — dolunca yazma hatası verir',
+    '%s eviction policy unreadable' => '%s örnekte tahliye politikası okunamadı',
     'zombie' => 'zombi',
     // ps'in durum harfleri. Sayının YANINDA dursun diye ipucuna konuyor;
     // ayrı bir yardım sayfası açmaya değmez, bakan kişi zaten oraya bakıyor.
@@ -1607,17 +1610,33 @@ if ($rootFresh && isset($procSec['userredis'])) {
         $urAsim = $urCap > 0 && $memTotal > 0 && ($urCap * 1024) > $memTotal;
         if ($urAsim) $urTips[] = tf('ceiling %s exceeds physical RAM %s', $urCapT,
                                     $memTotalGB . ' GB');
+        // TAHLIYE POLİTİKASI: tavanı olan ama 'noeviction' olan örnekler.
+        // Redis tavana varınca hiçbir şey atmaz, yazma isteklerine hata döner:
+        // object cache sessizce ölür, servis AYAKTA görünmeye devam eder. Bu
+        // yüzden "çalışıyor" demek yetmiyor, davranışı da ölçmek gerekiyor.
+        // Panonun kendi yapılandırma dosyamızı izlemesi DOĞRU OLMAZDI (eklenti
+        // herkese açık); ölçülen şey etkinin kendisi.
+        $urNoEv = 0;
+        if (isset($procSec['userredis_evict'])) {
+            $ev = preg_split('/\s+/', trim($procSec['userredis_evict']));
+            if (count($ev) === 2 && ctype_digit($ev[0]) && ctype_digit($ev[1])) {
+                $urNoEv = (int)$ev[0];
+                if ($urNoEv) $urTips[] = tf('%s with a ceiling but no eviction (noeviction)', $urNoEv);
+                if ((int)$ev[1]) $urTips[] = tf('%s eviction policy unreadable', $ev[1]);
+            }
+        }
         // Sütuna bu satırın kendi uptime'ı: örnekler arasında en eskisi —
         // panonun geri kalanında da kural bu ("en eski süreç = servisin
         // kendisi"). Ortak Redis'in yaşıyla karışmaz, ayrı alandan gelir.
         $urAge = isset($procSec['userredis_age']) && ctype_digit(trim($procSec['userredis_age']))
                ? (int)trim($procSec['userredis_age']) : 0;
         $cacheChecks[] = ['label' => t('Redis · user'), 'type' => 'check',
-                          'ok'   => $urUp > 0 && $urUp >= $urTot && !$urAsim,
-                          // kısmi ayakta: uyarı, arıza değil. Tavan aşımı da
-                          // uyarı — ölçülmüş ve kötü, ama şu an bir şey bozuk
-                          // değil; kırmızı "ölçtük, bozuk" için saklı.
-                          'warn' => ($urUp > 0 && $urUp < $urTot) || ($urUp > 0 && $urAsim),
+                          'ok'   => $urUp > 0 && $urUp >= $urTot && !$urAsim && !$urNoEv,
+                          // kısmi ayakta: uyarı, arıza değil. Tavan aşımı ve
+                          // tahliyesiz tavan da uyarı — ölçülmüş ve kötü, ama
+                          // şu an bir şey bozuk değil; kırmızı "ölçtük, bozuk"
+                          // için saklı.
+                          'warn' => $urUp > 0 && ($urUp < $urTot || $urAsim || $urNoEv > 0),
                           'note' => $urNote]
                        + ($urAge  ? ['up' => fmtAge($urAge), 'upS' => fmtAgeShort($urAge)] : [])
                        + ($urTips ? ['noteT' => implode(' · ', $urTips)] : []);

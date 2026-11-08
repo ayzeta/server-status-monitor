@@ -596,6 +596,32 @@ durum = {}
 # (uretimde olculdu 2026-11-02: 364 x 64 MB + 7 x 128 MB) -- yani toplam ancak
 # her ornege tek tek sorularak bilinir.
 IG = b'maxmemory\r\n$'
+# TAHLIYE POLITIKASI ayni boru hattinda (26 bayt daha, yeni baglanti yok).
+# Neden gerekli: "maxmemory" dolu ama "maxmemory-policy" = noeviction ise Redis
+# tavana varinca HICBIR SEY ATMAZ, yazma isteklerine hata doner. Servis ayakta
+# gorunmeye devam eder, object cache sessizce olur. Bu kombinasyon kimde olursa
+# olsun kusurdur -- panonun kendi yapilandirma dosyamizi degil, ETKIYI izlemesi
+# gerekiyor (eklenti herkese acik).
+# 'maxmemory\r\n$' kalibi 'maxmemory-policy' icinde eslesmiyor: orada
+# "maxmemory"den sonra "-policy" geliyor, "\r\n" degil.
+IP = b'maxmemory-policy\r\n$'
+def politika(b):
+    """CONFIG GET yanitindaki politika adi; None = daha gelmedi, b'' = okunamadi."""
+    i = b.find(IP)
+    if i < 0:
+        return None
+    j = b.find(b'\r\n', i + len(IP))
+    if j < 0:
+        return None
+    try:
+        n = int(b[i + len(IP):j])
+    except ValueError:
+        return b''
+    if n < 0:
+        return b''
+    if len(b) < j + 2 + n:
+        return None
+    return b[j + 2:j + 2 + n]
 def tavan(b):
     """CONFIG GET yanitindaki bayt degeri; None = daha gelmedi, -1 = okunamadi."""
     i = b.find(IG)
@@ -639,18 +665,20 @@ while acik > 0:
         st = durum[c]
         try:
             if not st[1]:
-                c.sendall(b'INFO keyspace\r\nCONFIG GET maxmemory\r\n')
+                c.sendall(b'INFO keyspace\r\nCONFIG GET maxmemory\r\n'
+                          b'CONFIG GET maxmemory-policy\r\n')
                 st[1] = True
                 sel.modify(c, selectors.EVENT_READ)
                 continue
             d = c.recv(4096)
             st[0] += d
             # BITIS OLCUTU ARTIK "\r\n\r\n" DEGIL: o, TEK yanitin sonuydu.
-            # Simdi iki yanit var, ikincisi tam gelince kapatiriz. CONFIG
-            # kapatilmis/adi degistirilmis bir kurulumda hata doner ("-ERR");
-            # o zaman da kapatiriz, sayimlar calisir, yalniz tavan bilinmez.
-            # "-" keyspace satirlarinda gecmez, yalniz RESP hatasinda.
-            if not d or tavan(st[0]) is not None or b'\r\n-' in st[0]:
+            # Simdi UC yanit var; SONUNCUSU (politika) tam gelince kapatiriz.
+            # CONFIG kapatilmis/adi degistirilmis bir kurulumda hata doner
+            # ("-ERR"); o zaman da kapatiriz, sayimlar calisir, yalniz tavan ve
+            # politika bilinmez. "-" keyspace satirlarinda gecmez, yalniz RESP
+            # hatasinda.
+            if not d or politika(st[0]) is not None or b'\r\n-' in st[0]:
                 if not d: st[0] = b''
                 sel.unregister(c); c.close(); acik -= 1
         except Exception:
@@ -673,6 +701,17 @@ if sok:
         print("userredis_cap %d %d %d" % (top // 1048576,
                                           sum(1 for v in tv if v == 0),
                                           sum(1 for v in tv if v is None or v == -1)))
+    # TAHLIYE: tavani OLAN ama politikasi 'noeviction' olan ornek sayisi, ve
+    # politikasi okunamayan ornek sayisi. Yalniz bu ikili kusurdur: tavansiz
+    # (maxmemory 0) bir ornekte noeviction dogrudur, hic dolmaz.
+    # volatile-* politikalari KUSUR SAYILMAZ: TTL'li anahtarlari atarlar ve
+    # bu bir tercih; "yanlis" demek icin uygulamanin TTL koyup koymadigini
+    # bilmek gerekir, onu olcemeyiz.
+    pol = [(tavan(st[0]), politika(st[0])) for st in durum.values() if st[0]]
+    if pol:
+        print("userredis_evict %d %d" % (
+            sum(1 for v, p in pol if v is not None and v > 0 and p == b'noeviction'),
+            sum(1 for v, p in pol if p is None or p == b'')))
 PYEOF
   fi
   # YALNIZ SAYI. Onbellek dosyasinin yasi da yayinlaniyordu ve pano onu

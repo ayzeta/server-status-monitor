@@ -405,6 +405,57 @@ else:
     ck("tavan ölçülmediyse susar", asim(0, LIN), "0|")
     ck("RAM okunamadıysa susar", asim(98304, 0), "0|")
 
+    # 9c) TAHLİYE POLİTİKASI. "maxmemory dolu + noeviction" = Redis tavana
+    #     varınca hiçbir şey atmaz, yazma isteklerine hata döner; object cache
+    #     sessizce ölür ama servis AYAKTA görünmeye devam eder. Yani "çalışıyor"
+    #     demek yetmiyor, davranışı da ölçmek gerekiyor.
+    #     Panonun kendi yapılandırma dosyamızı izlemesi doğru olmazdı (eklenti
+    #     herkese açık) — ölçülen şey etkinin kendisi.
+    TABAN = ["unit redis disabled inactive", "userredis 180 180",
+             "userredis_mem 1126", "userredis_use 150 170", "userredis_cap 11520 0 0"]
+    kart, rozet, sinif, sayac = render(TABAN + ["userredis_evict 0 0"])
+    ck("hepsi tahliyeli: uyarı yok", chip(kart, "Redis · user")[0], "ok")
+    ck("tahliye sorunu yoksa ipucuna satır eklenmez",
+       "noeviction" in (ipucu(kart, "Redis · user") or ""), False)
+
+    kart, rozet, sinif, sayac = render(TABAN + ["userredis_evict 3 0"])
+    ck("tavan var tahliye yok -> SARI", chip(kart, "Redis · user")[0], "warn")
+    ck("ipucunda kaç örnek olduğu yazar",
+       "3 with a ceiling but no eviction (noeviction)" in (ipucu(kart, "Redis · user") or ""), True)
+    # Kırmızı DEĞİL: şu an bozuk bir şey yok, tavana varılınca bozulacak.
+    ck("arıza sayılmaz (kırmızı değil)", chip(kart, "Redis · user")[0] == "err", False)
+
+    # 9d) RESP AYRISTIRICI, REDIS'IN KENDI CIKTISIYLA.
+    #     Asagidaki baytlar uretimden AYNEN alindi (2026-11-08, lin; tek
+    #     sokete INFO keyspace + iki CONFIG GET gonderilip recv edildi).
+    #     Fiksturu kendim yazsaydim test yalnizca kendi varsayimimi dogrulardi:
+    #     ornegin "maxmemory\r\n$" kalibinin "maxmemory-policy" icinde
+    #     eslesmedigini ancak gercek yanitta gorulebilir.
+    GERCEK = (b'$54\r\n# Keyspace\r\ndb0:keys=2459,expires=14,avg_ttl=5772979\r\n\r\n'
+              b'*2\r\n$9\r\nmaxmemory\r\n$8\r\n67108864\r\n'
+              b'*2\r\n$16\r\nmaxmemory-policy\r\n$11\r\nallkeys-lru\r\n')
+    _k = io.open(KOK + "src/collector.sh", encoding="utf-8", errors="replace").read()
+    _b = _k.index("IG = b'maxmemory")
+    _e = _k.index("\nfor p in sok:", _b)
+    _g = {}
+    exec(compile(_k[_b:_e], "<collector>", "exec"), _g)
+    ck("gercek yanit: tavan 64 MB okunur", _g["tavan"](GERCEK), 67108864)
+    ck("gercek yanit: politika okunur", _g["politika"](GERCEK), b"allkeys-lru")
+    # 'maxmemory\r\n$' kalibi 'maxmemory-policy\r\n$' icinde ESLESMEMELI;
+    # eslesseydi tavan olarak 11 (politika adinin uzunlugu) okunurdu.
+    ck("tavan kalibi politika yanitina kaymiyor", _g["tavan"](GERCEK) != 11, True)
+    # Yarim gelen yanit: dongu beklemeye devam etmeli (None), '' DEGIL.
+    ck("yarim yanit -> None (beklemeye devam)", _g["politika"](GERCEK[:-6]), None)
+    # Bicim GERCEK, yalniz deger degistirildi: riskli politika.
+    ck("noeviction okunur",
+       _g["politika"](GERCEK.replace(b'$11\r\nallkeys-lru', b'$10\r\nnoeviction')),
+       b"noeviction")
+
+    kart, rozet, sinif, sayac = render(TABAN + ["userredis_evict 0 5"])
+    ck("okunamayan politika ayrı yazılır",
+       "5 eviction policy unreadable" in (ipucu(kart, "Redis · user") or ""), True)
+    ck("okunamamak tek başına uyarı değil", chip(kart, "Redis · user")[0], "ok")
+
     # 10) HAYALET SATIR OLMAYACAK. Güvenlik satırları koşullu (CSF/ModSecurity/
     #     CageFS kurulu değilse satır yok) ama sürüm etiketleme indisle
     #     yapılıyordu ve tagVer parametreyi REFERANSLA alıyor: olmayan indise

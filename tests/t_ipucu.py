@@ -165,8 +165,14 @@ ck("surum onbellegi blogun cikis koduna bagli DEGIL",
 ck("olcut dosyanin kendisi", '[ -s "$VC.tmp" ] && mv -f "$VC.tmp" "$VC"' in col, True)
 ck("tavan ayni turda, ek baglanti yok",
    "INFO keyspace\\r\\nCONFIG GET maxmemory\\r\\n" in col, True)
-ck("bitis olcutu artik \\r\\n\\r\\n degil",
-   "tavan(st[0]) is not None" in col, True)
+# Tahliye politikasi da AYNI boru hattinda (1.5.74): ek baglanti yok, 26 bayt.
+ck("politika da ayni boru hattinda",
+   "CONFIG GET maxmemory-policy\\r\\n" in col, True)
+# BITIS OLCUTU EN SONDAKI yaniti beklemeli. Uc yanit var; 'tavan' ikincisi,
+# ona bakmak politika yanitini yarida kesip okunamaz yapardi. Capa IFADEYE
+# degil ILISKIYE bagli: dongu politikanin gelmesini bekliyor mu.
+ck("bitis olcutu SON yanita (politika) bagli",
+   bool(re.search(r"if not d or politika\(st\[0\]\) is not None", col)), True)
 
 # ── Yuk uyarisi: CPU + I/O faili, RAM YOK ──────────────────────
 # Yuk islemciden de diskten de gelebilir; ikisi ayni satirda yazilmazsa alarm
