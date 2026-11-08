@@ -1428,6 +1428,10 @@ try:
     satirlar = open(sys.argv[2]).read().splitlines()
 except Exception:
     sys.exit(0)
+# SAYFA BOYUTU VARSAYILMAZ, cekirdege sorulur: MEMPHY sayac birimi SAYFA
+# (olculdu, asagida), sayfa boyutu ise mimariye bagli (x86_64'te 4 KB).
+try: SAYFA = os.sysconf('SC_PAGE_SIZE')
+except Exception: SAYFA = 4096
 for ln in satirlar:
     f = ln.split('\t')
     if len(f) < 23 or ',' not in f[0]: continue          # baslik satiri ve bozuklar
@@ -1435,42 +1439,81 @@ for ln in satirlar:
         uid = int(f[0].split(',')[1]); io = int(f[15]); iops = int(f[22])
     except (ValueError, IndexError):
         continue
-    cur[uid] = (io, iops)
+    # Ayni dosyadan, ayni turda: 14=CPU 19=MEMPHY 21=NPROC (1'den sayarak;
+    # baslik "10:LVE lCPU ... EP CPU MEM IO fMEM fEP MEMPHY fMEMPHY NPROC
+    # fNPROC IOPS ..."). Indis eslemesi IO/IOPS ile zaten dogrulanmis.
+    # HER ALAN AYRI AYRI: bu dosyada BOS alanlar var (tab duruyor, deger yok) ve
+    # bos olanlar satirdan satira degisiyor. Uretimden alinan bir satirda
+    # (lin, 2026-11-08) CPU ve IO DOLUYKEN son uc alan -- fMEMPHY, NPROC,
+    # fNPROC -- bostu. Uc alan tek try'da okunsaydi o hesabin CPU'su da RAM'i de
+    # sessizce dusuyordu; hepsi tek try'da olsaydi 16 gundur calisan I/O olcumu
+    # de giderdi.
+    def _alan(i):
+        try: return int(f[i])
+        except (ValueError, IndexError): return None
+    cur[uid] = (io, iops, _alan(13), _alan(18), _alan(20))
 prev = {}; pt = None
 try:
     with open(state) as fh:
         for ln in fh:
             p = ln.split()
             if len(p) == 2 and p[0] == 't': pt = float(p[1])
-            elif len(p) == 3: prev[int(p[0])] = (int(p[1]), int(p[2]))
+            # ESKI BICIM (3 alan, CPU'suz) da okunur: guncellemeden sonraki ilk
+            # turda diskteki durum dosyasi onceki toplayicinin yazdigi hal olur.
+            # CPU yoksa None kalir -> o turda CPU satiri YAZILMAZ (uydurulmaz).
+            elif len(p) == 3: prev[int(p[0])] = (int(p[1]), int(p[2]), None)
+            elif len(p) == 4: prev[int(p[0])] = (int(p[1]), int(p[2]), int(p[3]))
 except Exception:
     pass
 try:
     with open(state + '.tmp', 'w') as fh:
         fh.write('t %f\n' % now)
-        for u, (io, iops) in cur.items(): fh.write('%d %d %d\n' % (u, io, iops))
+        for u, (io, iops, cpu, mem, np) in cur.items():
+            if cpu is None: fh.write('%d %d %d\n' % (u, io, iops))
+            else: fh.write('%d %d %d %d\n' % (u, io, iops, cpu))
     os.chmod(state + '.tmp', 0o600); os.replace(state + '.tmp', state)
 except Exception:
     pass
 # Ilk tur / cok eski ornek: olcum YOK demektir, isaret de yazilmaz.
 if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)
 dt = now - pt
-out = []
-for uid, (io, iops) in cur.items():
+out = []; lvc = []; lvr = []
+for uid, (io, iops, cpu, mem, np) in cur.items():
     if uid not in prev: continue                 # ilk gorulen hesap
-    pio, piops = prev[uid]
-    d = io - pio
-    if d < 0: continue                           # sayac sifirlanmis (LVE yeniden kuruldu)
     try: name = pwd.getpwuid(uid).pw_name
     except KeyError: continue
     if not ok.match(name) or (cp is not None and name not in cp): continue
-    out.append((d / dt, name, max(0, iops - piops) / dt))
+    pio, piops, pcpu = prev[uid]
+    d = io - pio
+    if d >= 0:                                   # <0: sayac sifirlanmis (LVE yeniden kuruldu)
+        out.append((d / dt, name, max(0, iops - piops) / dt))
+    # CPU sayaci KUMULATIF NANOSANIYE, MEMPHY ise ANLIK. CPU birimi uretimde
+    # olculdu (lin, 2026-11-08): f[13] 60 saniyede 7879976103 artti -> bir
+    # cekirdegin %13,1'i; mikrosaniye olsaydi %13133 (131 cekirdek) cikardi.
+    # Bu yuzden CPU'da FARK alinir (I/O ile ayni pencere), MEMPHY'de alinmaz.
+    # IKI LISTE AYRI: biri bos gelse oteki yine yazilir (yukaridaki not).
+    nn = np if np is not None else 0
+    if pcpu is not None and cpu is not None and cpu >= pcpu:
+        lvc.append((name, (cpu - pcpu) / dt / 1e7, nn))
+    if mem is not None:
+        lvr.append((name, mem * SAYFA / 1048576.0, nn))
 # Olcum yapildi isareti: satir cikmasa bile yazilir ("yapan yok" != "olculemedi").
 print("io_src lve 1m")
 out.sort(reverse=True)
 for kb, name, iops in out[:15]:
     if kb <= 0: continue                         # sifir satiri yazilmaz
     print("ioacct %s %.1f %d" % (name, kb, round(iops)))
+# CPU ve RAM AYRI AYRI siralanir: iki kart iki listeyi okuyor, panonun sunucu
+# verisini yeniden siralamasi gerekmesin. Satirlar '--- LVE per account ---'
+# bolumune gidiyor (asagida suzuluyor), isaret satiri burada da ayni amacla.
+if lvc or lvr:
+    print("lve_ok 1m")
+    for name, pct, np in sorted(lvc, key=lambda r: -r[1])[:15]:
+        if pct <= 0: continue
+        print("lvecpu %s %.1f %d" % (name, pct, np))
+    for name, mb, np in sorted(lvr, key=lambda r: -r[1])[:15]:
+        if mb <= 0: continue
+        print("lveram %s %.1f %d" % (name, mb, np))
 PYEOF
 )
   fi
@@ -1531,9 +1574,18 @@ for kb, name in out[:15]: print("ioacct %s %.1f -" % (name, kb))
 PYEOF
 )
   fi
-  [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT"
+  # I/O bolumune YALNIZ I/O satirlari gider; CPU/RAM satirlari ayri bolume.
+  # Ikisi AYNI python turundan geliyor (dosya bir kez okunuyor, ek tarama yok),
+  # ayrilma burada yapiliyor cunku panonun ayristiricisi bolum basligina bakiyor.
+  [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT" | grep -v '^lve'
   echo
   prof "hesap I/O (lve)"
+  echo "--- LVE per account ---"
+  # Hesap basina CPU (bir cekirdegin yuzdesi, I/O ile AYNI pencere) ve anlik
+  # fiziksel RAM. Kaynak /proc/lve/list — CloudLinux yoksa bolum bos kalir ve
+  # pano "olculemedi" der (sifir yazmaz).
+  [ -n "$IO_OUT" ] && printf '%s\n' "$IO_OUT" | grep '^lve'
+  echo
   echo "--- Top IO processes ---"
   # SUREC basina disk I/O (KB/s). Kaynak /proc/<pid>/io: read_bytes+write_bytes
   # BLOK katmanindan okunur (sayfa onbelleginden degil), yani IO beklemeyi ureten

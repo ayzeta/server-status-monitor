@@ -198,6 +198,29 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 #iov-a:checked ~ .io-wrap .ioh-p{display:none;}
 #iov-p:checked ~ .io-wrap .ioh-a{display:none;}
 #iov-p:checked ~ .io-wrap .ioh-p{display:inline;}
+/* CPU ve RAM kartlari da iki gorunum: surec | hesap. I/O kartiyla ayni yontem,
+   tek fark iki AYRI tablo (surec gorunumu 5-6 sutun, hesap gorunumu 3 &#8212; ayni
+   tabloda tutmak sutunlari hizasiz birakirdi).
+   VARSAYILAN SUREC: kartta bugune kadar o vardi; radyoyu silen webmail'de
+   ":checked" hic eslesmez ve asagidaki temel kural kalir. */
+.cp-tabs,.rm-tabs{display:inline-flex;gap:6px;align-items:center;}
+.cp-tab,.rm-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
+  font:inherit;opacity:.5;transition:opacity .15s;}
+.cp-tab:hover,.rm-tab:hover{opacity:.8;}
+.cpa,.rma{display:none;}
+#cpv-p:checked~.ptp{display:table;}
+#cpv-p:checked~.cpa{display:none;}
+#cpv-a:checked~.ptp{display:none;}
+#cpv-a:checked~.cpa{display:table;}
+#rmv-p:checked~.ptp{display:table;}
+#rmv-p:checked~.rma{display:none;}
+#rmv-a:checked~.ptp{display:none;}
+#rmv-a:checked~.rma{display:table;}
+#cpv-p:checked~.proc-title .cp-t-proc,
+#cpv-a:checked~.proc-title .cp-t-acct,
+#rmv-p:checked~.proc-title .rm-t-proc,
+#rmv-a:checked~.proc-title .rm-t-acct{opacity:1;text-decoration:underline;
+  text-underline-offset:3px;}
 .ic-sun{display:none;}
 /* Uyanik-kal: pasifte sade fincan, aktifte dumani cikan fincan &#8212; tema dugmesindeki
    ay/gunes ile AYNI yontem, o yuzden kurallar da ayni yerde. '.ic' display veriyor
@@ -562,10 +585,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   .proc-table{font-size:10px;}
   .proc-table td,.proc-table th{padding-right:4px;}
   /* Mobilde PID/ID gizlenir (telefonda i&#351;levsiz); y&#252;zdeler ve renk sinyalleri g&#246;r&#252;n&#252;r kal&#305;r */
-  .proc-row .proc-card:nth-child(1) th:nth-child(1),
-  .proc-row .proc-card:nth-child(1) td:nth-child(1),
-  .proc-row .proc-card:nth-child(2) th:nth-child(1),
-  .proc-row .proc-card:nth-child(2) td:nth-child(1),
+    .proc-table.ptp th:nth-child(1),
+  .proc-table.ptp td:nth-child(1),
   .proc-row-sql th:nth-child(1),.proc-row-sql td:nth-child(1),
   .proc-row-sql th:nth-child(3),.proc-row-sql td:nth-child(3),
   .proc-row-sql th:nth-child(6),.proc-row-sql td:nth-child(6){display:none;}
@@ -640,7 +661,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">07:38:01</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">15:13:47</span></div></div>
   </div>
 </div>
 
@@ -728,11 +749,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>152</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>23</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>4</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -832,16 +853,28 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="sec" style="margin-top:12px"><span>S&#220;RE&#199;LER</span><i class="sec-hair"></i>
-  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 17 sn &#246;nce</span>
+  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 18 sn &#246;nce</span>
   <span id="act-chips"></span>
 </div>
-<div class="proc-row" id="proc-row"><div class="proc-card"><div class="proc-title">&#304;&#351;lemci &#183; s&#252;re&#231;</div><table class="proc-table"><thead><tr><th>PID</th><th>KULLANICI</th><th class="num" title="Tek &#231;ekirde&#287;in y&#252;zdesi &#8212; &#231;ok i&#351; par&#231;ac&#305;kl&#305; s&#252;re&#231;ler 100&#039;&#252; a&#351;abilir">CPU%</th><th class="num">MEM%</th><th>S&#220;RE</th><th>KOMUT</th></tr></thead><tbody id="pt-cpu">
+<div class="proc-row" id="proc-row"><div class="proc-card" id="cpu-card"><input type="radio" name="cpv" id="cpv-p" class="vw-radio" checked><input type="radio" name="cpv" id="cpv-a" class="vw-radio"><div class="proc-title">&#304;&#351;lemci<span class="proc-age cp-tabs">
+<label for="cpv-p" class="cp-tab cp-t-proc" title="Root anl&#305;k g&#246;r&#252;nt&#252;s&#252;ndeki s&#252;re&#231;ler: sistem s&#252;re&#231;leri dahil b&#252;t&#252;n sunucu.">s&#252;re&#231;</label>
+<label for="cpv-a" class="cp-tab cp-t-acct" title="Hesap ba&#351;&#305;na CPU: B&#304;R &#231;ekirde&#287;in y&#252;zdesi, I/O kart&#305;yla ayn&#305; pencerenin ortalamas&#305;. Kaynak: CloudLinux LVE &#231;ekirdek saya&#231;lar&#305; (k&#252;m&#252;latif nanosaniye), iki toplay&#305;c&#305; turu aras&#305;ndaki fark. Renk: %100 ve &#252;st&#252; k&#305;rm&#305;z&#305; (tam bir &#231;ekirdek), %50 ve &#252;st&#252; turuncu">hesap &#183; LVE 1dk</label></span></div><table class="proc-table ptp"><thead><tr><th>PID</th><th>KULLANICI</th><th class="num" title="Tek &#231;ekirde&#287;in y&#252;zdesi &#8212; &#231;ok i&#351; par&#231;ac&#305;kl&#305; s&#252;re&#231;ler 100&#039;&#252; a&#351;abilir">CPU%</th><th class="num">MEM%</th><th>S&#220;RE</th><th>KOMUT</th></tr></thead><tbody id="pt-cpu">
 <tr><td>2338317</td><td class="proc-user">mysql</td><td class="num ">17.4</td><td class="num warm">11.1</td><td>7-00:02:52</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td></tr>
 <tr><td>3199312</td><td class="proc-user">ikonikyapilar</td><td class="num hot">76.6</td><td class="num ">0.1</td><td>00:10</td><td class="td-fill"><span class="proc-cmd" title="lsphp">lsphp</span></td></tr>
 <tr><td>3198842</td><td class="proc-user">serviskl</td><td class="num hot">59.3</td><td class="num ">0.1</td><td>00:23</td><td class="td-fill"><span class="proc-cmd" title="lsphp:/home/serviskl/public_html/index.php">lsphp:/home/serviskl/public_html/index.php</span></td></tr>
-</tbody></table></div><div class="proc-card"><div class="proc-title">Bellek &#183; s&#252;re&#231;</div><table class="proc-table"><thead><tr><th>PID</th><th>KULLANICI</th><th class="num">MEM%</th><th class="num">RSS</th><th>KOMUT</th></tr></thead><tbody id="pt-ram">
+</tbody></table><table class="proc-table cpa"><thead><tr><th>HESAP</th><th></th><th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">
+<tr><td class="proc-user">makinem</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num hot" title="24 s&#252;re&#231;">118.4</td></tr>
+<tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:52%"></span></td><td class="num warm" title="11 s&#252;re&#231;">62.0</td></tr>
+<tr><td class="proc-user">riverside</td><td class="php-bar-cell"><span class="php-bar" style="width:16%"></span></td><td class="num " title="7 s&#252;re&#231;">18.6</td></tr>
+</tbody></table></div><div class="proc-card" id="ram-card"><input type="radio" name="rmv" id="rmv-p" class="vw-radio" checked><input type="radio" name="rmv" id="rmv-a" class="vw-radio"><div class="proc-title">Bellek<span class="proc-age rm-tabs">
+<label for="rmv-p" class="rm-tab rm-t-proc" title="Root anl&#305;k g&#246;r&#252;nt&#252;s&#252;ndeki s&#252;re&#231;ler: sistem s&#252;re&#231;leri dahil b&#252;t&#252;n sunucu.">s&#252;re&#231;</label>
+<label for="rmv-a" class="rm-tab rm-t-acct" title="Hesap ba&#351;&#305;na fiziksel RAM, anl&#305;k g&#246;r&#252;nt&#252; an&#305;ndaki de&#287;er (ortalama de&#287;il). Kaynak: CloudLinux LVE MEMPHY sayac&#305;, sayfa cinsinden. Renk: fiziksel RAM&#8217;in %5&#8217;i ve &#252;st&#252; k&#305;rm&#305;z&#305;, %2,5&#8217;i ve &#252;st&#252; turuncu">hesap &#183; LVE</label></span></div><table class="proc-table ptp"><thead><tr><th>PID</th><th>KULLANICI</th><th class="num">MEM%</th><th class="num">RSS</th><th>KOMUT</th></tr></thead><tbody id="pt-ram">
 <tr><td>2338317</td><td class="proc-user">mysql</td><td class="num warm">11.1</td><td class="num warm">10.4 GB</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td></tr>
 <tr><td>2337128</td><td class="proc-user">root</td><td class="num ">0.2</td><td class="num ">354 MB</td><td class="td-fill"><span class="proc-cmd" title="/usr/bin/imunify360-php-daemon">/usr/bin/imunify360-php-daemon</span></td></tr>
+</tbody></table><table class="proc-table rma"><thead><tr><th>HESAP</th><th></th><th class="num">RAM</th></tr></thead><tbody id="pt-ramacct">
+<tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num " title="11 s&#252;re&#231;">2.8 GB</td></tr>
+<tr><td class="proc-user">makinem</td><td class="php-bar-cell"><span class="php-bar" style="width:69%"></span></td><td class="num " title="24 s&#252;re&#231;">1.9 GB</td></tr>
+<tr><td class="proc-user">zencache</td><td class="php-bar-cell"><span class="php-bar" style="width:17%"></span></td><td class="num " title="4 s&#252;re&#231;">486 MB</td></tr>
 </tbody></table></div><div class="proc-card"><div class="proc-title">PHP &#183; hesap<span class="proc-age">aktif+bo&#351;ta</span></div><table class="proc-table"><thead><tr><th>HESAP</th><th></th><th class="num" title="Hesab&#305;n t&#252;m lsphp s&#252;re&#231;leri, bo&#351;taki havuz dahil &#8212; PHP &#304;&#351;&#231;ileri kart&#305; yaln&#305;z aktif (R/D) olanlar&#305; sayar">S&#220;RE&#199;</th></tr></thead><tbody id="pt-php">
 <tr><td class="proc-user">maplebox</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num ">3</td></tr>
 <tr><td class="proc-user">wholesale</td><td class="php-bar-cell"><span class="php-bar" style="width:67%"></span></td><td class="num ">2</td></tr>
@@ -875,17 +908,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">15:13</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">15:13</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">15:13</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">15:13</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Web sunucusu sorunlu &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">Web sunucusu sorunlu &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">15:13</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">07:38</span></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">15:13</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -893,7 +926,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.73">v1.5.73</span> &middot; 2026-11-08 07:38:01</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.75">v1.5.75</span> &middot; 2026-11-08 15:13:47</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -972,7 +1005,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.73"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.75"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1068,8 +1101,13 @@ const TR={
     "port bound": "port bağlı",
     "found": "bulundu",
     "not found": "bulunamadı",
-    "CPU · process": "İşlemci · süreç",
-    "RAM · process": "Bellek · süreç",
+    "Processes from the root snapshot: the whole server, system processes included.": "Root anlık görüntüsündeki süreçler: sistem süreçleri dahil bütün sunucu.",
+    "Per-account CPU: percent of ONE core, averaged over the same window as the I\/O card. Source: CloudLinux LVE kernel counters (cumulative nanoseconds), differenced between two collector runs. Color: red ≥100% (a full core), orange ≥50%": "Hesap başına CPU: BİR çekirdeğin yüzdesi, I\/O kartıyla aynı pencerenin ortalaması. Kaynak: CloudLinux LVE çekirdek sayaçları (kümülatif nanosaniye), iki toplayıcı turu arasındaki fark. Renk: %100 ve üstü kırmızı (tam bir çekirdek), %50 ve üstü turuncu",
+    "Per-account physical RAM at snapshot time (not an average). Source: the CloudLinux LVE MEMPHY counter, in pages. Color: red ≥5%, orange ≥2.5% of physical RAM": "Hesap başına fiziksel RAM, anlık görüntü anındaki değer (ortalama değil). Kaynak: CloudLinux LVE MEMPHY sayacı, sayfa cinsinden. Renk: fiziksel RAM’in %5’i ve üstü kırmızı, %2,5’i ve üstü turuncu",
+    "%s processes": "%s süreç",
+    "no account is burning CPU right now": "şu an CPU yakan hesap yok",
+    "no account RAM reported": "hesap başına RAM bildirilmedi",
+    "per-account CPU\/RAM needs CloudLinux LVE": "hesap başına CPU\/RAM için CloudLinux LVE gerekiyor",
     "Disk · account": "Disk · hesap",
     "I\/O · account": "I\/O · hesap",
     "I\/O data pending": "I\/O verisi bekleniyor",
@@ -1116,6 +1154,8 @@ const TR={
     "%s of %s ceiling": "%s \/ %s tavan",
     "%s unlimited": "%s sınırsız",
     "ceiling %s exceeds physical RAM %s": "tavan toplamı %s, fiziksel RAM %s — aşırı taahhüt",
+    "%s with a ceiling but no eviction (noeviction)": "%s örnekte tavan var ama tahliye yok (noeviction) — dolunca yazma hatası verir",
+    "%s eviction policy unreadable": "%s örnekte tahliye politikası okunamadı",
     "zombie": "zombi",
     "R = running, or waiting in the run queue · D = uninterruptible sleep, waiting on disk or network — this is where iowait comes from · S = sleeping; produces no load and is not shown, because the count is meaninglessly large · Z = zombie: dead but not yet reaped by its parent. It burns no CPU, so it is filtered out of the process lists — a rising count means a parent is not reaping its children": "R = çalışıyor ya da sırada bekliyor · D = kesintisiz uykuda, disk\/ağ bekliyor — iowait buradan gelir · S = uyuyor; yük üretmez ve sayısı anlamsızca büyük olduğu için yazılmaz · Z = zombi: ölmüş ama ebeveyni henüz toplamamış. İşlemci yakmadığı için süreç listelerinden elenir — sayısı artıyorsa ebeveyn süreç çocuklarını toplamıyordur",
     "not listening": "dinlemiyor",
@@ -1288,7 +1328,7 @@ const seed={
     "tx": [],
     "mq": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'07:38:01'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'15:13:47'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1315,43 +1355,43 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     },
     {
         "type": "warn",
         "msg": "G\u00fcvenlik sorunlu \u00b7 Imunify360, LFD",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     },
     {
         "type": "warn",
         "msg": "Web sunucusu sorunlu \u00b7 HTTPS (443), WHM (2087) +1",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "07:38",
-        "t": 1794123481
+        "ts": "15:13",
+        "t": 1794150827
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1794123481,TZOFF=0;
+let srvNow=1794150827,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1485,6 +1525,17 @@ function fmtKbps(kb){const b=Math.round(kb*1024);
 // PHP fmtGrow() ikizi — yuvarlama once tam sayi MB'ye, iki taraf ayni sonucu versin diye.
 function fmtGrow(gb){const mb=Math.round(gb*1024);if(mb<1024)return mb+' MB';
   const g=Math.round(mb/1024*100)/100;return g.toFixed(2).replace(/\.?0+$/,'')+' GB';}
+// PHP fmtMB() ikizi — hesap basina RAM. Yuvarlama once tam sayi MB'ye.
+function fmtMB(mb){const m=Math.round(mb);if(m<1024)return m+' MB';
+  const g=Math.round(m/1024*10)/10;return g.toFixed(1).replace(/\.0$/,'')+' GB';}
+// PHP lveAcctRows()'daki CPU metni: HER ZAMAN tek ondalik (surec gorunumuyle
+// ayni sutunda hizali durmasi icin).
+function fmtPct1(v){return (Math.round(v*10)/10).toFixed(1);}
+// PHP cpuAcctCls() / ramAcctCls() ikizleri. CPU mutlak (cekirdek cinsinden),
+// RAM oransal (fiziksel RAM'in yuzdesi) — gerekceleri PHP tarafinda yazili.
+function cpuAcctCls(p){return p>=100?'hot':p>=50?'warm':'';}
+function ramAcctCls(mb,totalGB){if(!totalGB||totalGB<=0)return '';
+  const p=mb/(totalGB*1024)*100;return p>=5?'hot':p>=2.5?'warm':'';}
 // Kuyrugu dolduran hesap metni: "bluewave 1180 (95%)" — PHP mailqTopTxt ile ayni.
 function mailqTopTxt(top,sampled){if(!top||!top.length)return '';const n=top[0][0]==='other'?t('other senders'):top[0][0];
   return n+' '+top[0][1]+(sampled>0?' ('+Math.round(top[0][1]/sampled*100)+'%)':'');}
@@ -1930,7 +1981,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1794123447; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1794150792; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -2088,6 +2139,33 @@ function renderProcs(data){
       const tb=document.querySelector('.dk-tab[data-win="'+g.win+'"]');
       if(tb)tb.textContent=tf('%sd',g.span);
     });
+  }
+  // Hesap basina CPU/RAM govdeleri — PHP lveAcctRows() ikizi. Gizliyken de
+  // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
+  const lveGovde=(rows,tur,ok,totalGB)=>{
+    if(!rows||!rows.length)return `<tr><td colspan="3" style="color:var(--hint)">${
+      ok?t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')
+        :t('per-account CPU/RAM needs CloudLinux LVE')}</td></tr>`;
+    const mx=Math.max(0.1,...rows.map(r=>r[1]));
+    return rows.map(r=>{
+      const w=Math.round(r[1]/mx*100);
+      const cls=(tur==='cpu')?cpuAcctCls(r[1]):ramAcctCls(r[1],totalGB);
+      const txt=(tur==='cpu')?fmtPct1(r[1]):fmtMB(r[1]);
+      return `<tr><td class="proc-user">${esc(r[0])}</td>`+
+        `<td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td>`+
+        `<td class="num ${cls}"${r[2]>0?' title="'+esc(tf('%s processes',r[2]))+'"':''}>${esc(txt)}</td></tr>`;
+    }).join('');
+  };
+  if(data.cpuAcct!==undefined){const b=document.getElementById('pt-cpuacct');
+    if(b)b.innerHTML=lveGovde(data.cpuAcct,'cpu',data.lveOk,data.memTotalGB);}
+  if(data.ramAcct!==undefined){const b=document.getElementById('pt-ramacct');
+    if(b)b.innerHTML=lveGovde(data.ramAcct,'ram',data.lveOk,data.memTotalGB);}
+  // Kaynak/pencere etiketi tikte de tazelenir: olculemediyse "· LVE" YAZILMAZ.
+  if(data.lveOk!==undefined){
+    const cpT=document.querySelector('.cp-t-acct'),rmT=document.querySelector('.rm-t-acct');
+    const w=/^(\d+)m$/.exec(data.lveWin||'');
+    if(cpT)cpT.textContent=t('account')+(data.lveOk?' · LVE'+(w?' '+tf('%sm',w[1]):''):'');
+    if(rmT)rmT.textContent=t('account')+(data.lveOk?' · LVE':'');   // anlik deger: pencere yok
   }
   const io=document.getElementById('pt-io'); // hesap basina I/O (alt satir orta)
   // Bos liste artik olagan (sifir satiri yazilmiyor): eski satirlar kalirsa
@@ -2376,7 +2454,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.73 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.75 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
@@ -2802,6 +2880,23 @@ if(location.protocol==='file:'){
       try{localStorage.setItem('az-io-view',e.target.id==='iov-p'?'proc':'acct');}catch(e){}
     });
   }
+
+  // CPU ve RAM kartlari: ayni desen, tek is secimi hatirlamak. Yukseklik
+  // esitlemesi YOK — surec tablosu 15 satir, hesap tablosu en fazla 15; ikisi
+  // de kendi yuksekliginde ve bu kartlar izgaranin ustunde, altindaki satiri
+  // oynatmiyorlar (I/O kartinda sarmal gerekiyordu, orada liste 2 satira da
+  // dusebiliyor).
+  [['cpu-card','az-cpu-view','cpv'],['ram-card','az-ram-view','rmv']].forEach(([kid,anahtar,on])=>{
+    const kart=document.getElementById(kid);
+    if(!kart)return;
+    try{const v=localStorage.getItem(anahtar);
+        const r=document.getElementById(on+(v==='acct'?'-a':'-p'));
+        if(v&&r)r.checked=true;}catch(e){}
+    kart.addEventListener('change',e=>{
+      if(!e.target.classList.contains('vw-radio'))return;
+      try{localStorage.setItem(anahtar,e.target.id===on+'-a'?'acct':'proc');}catch(e){}
+    });
+  });
 
   const dkCard=document.getElementById('disk-card');
   if(dkCard){

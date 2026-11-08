@@ -226,6 +226,15 @@
     for(var i=0;i<base.length;i++)r.push([base[i][0],base[i][1]*(0.5+S.iow/12),base[i][2],base[i][3]]);
     return r; }
   function diskAcct(){ var gb=[29.8,11.8,10.6,7.8,7.5,7.4,7.2,6.3,6.2,5.7,5.5,5.0,4.6,4.5], r=[]; for(var i=0;i<gb.length;i++)r.push([pick(i),gb[i]]); return r; }
+  // Hesap basina CPU (bir cekirdegin yuzdesi) ve anlik fiziksel RAM (MB) — ikisi
+  // de /proc/lve/list'ten gelir. CPU sunucu yuku ile birlikte oynar, RAM oynamaz
+  // (anlik deger, ortalama degil). Ucuncu alan surec sayisi.
+  function cpuAcct(){ var p=[118,62,41,33,24,19,14,9,6,4,3,2,1,1], r=[];
+    for(var i=0;i<p.length;i++)r.push([pick(i+2),p[i]*(0.5+S.cpu/60),Math.max(1,Math.round(p[i]/5))]);
+    return r; }
+  function ramAcct(){ var mb=[2841,1960,1204,980,845,712,604,523,486,402,355,290,241,180], r=[];
+    for(var i=0;i<mb.length;i++)r.push([pick(i+1),mb[i],Math.max(1,Math.round(mb[i]/120))]);
+    return r; }
   var SQLQ=['SELECT * FROM wp_options WHERE autoload=\'yes\'','SELECT SLEEP(6)',
     'UPDATE wp_postmeta SET meta_value=? WHERE post_id=?','SELECT COUNT(*) FROM wp_posts WHERE post_status=\'publish\'',
     'DELETE FROM wp_options WHERE option_name LIKE \'_transient_%\'','SELECT * FROM orders WHERE status=\'processing\' ORDER BY created',
@@ -271,6 +280,7 @@
       procAge:32, snapMtime:(snap++),
       procCpu:procCpu(), procRam:procRam(), procPhp:procPhp(), procSql:procSql(), diskAcct:diskAcct(),
       ioAcct:ioAcct(), ioProc:ioProc(), ioSrc:'lve', ioWin:'1m', ioProcOk:true,
+      cpuAcct:cpuAcct(), ramAcct:ramAcct(), lveOk:true, lveWin:'1m',
       // Artis gorunumu: pencere basina liste. Gercek panoda collector'in gunluk
       // kaydindan gelir; demoda sabit ornek.
       // Degerler GB; sutun birimini kendi yaziyor (1 GB alti MB).

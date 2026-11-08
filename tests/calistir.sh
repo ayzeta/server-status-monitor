@@ -26,8 +26,8 @@ HAS_PHP=0; command -v php  >/dev/null 2>&1 && HAS_PHP=1
 HAS_NODE=0; command -v node >/dev/null 2>&1 && HAS_NODE=1
 
 # PHP ve/veya node isteyen testler (gomulu ikizleri calistiriyorlar)
-PHP_GEREK=" t_growikiz.py t_ioikiz.py t_sslikiz.py t_bosdurum.py t_snapkoprusu.py "
-NODE_GEREK=" t_growikiz.py t_ioikiz.py t_sslikiz.py "
+PHP_GEREK=" t_growikiz.py t_ioikiz.py t_lveikiz.py t_sslikiz.py t_bosdurum.py t_snapkoprusu.py "
+NODE_GEREK=" t_growikiz.py t_ioikiz.py t_lveikiz.py t_sslikiz.py "
 # Gercek Linux "ps" isteyenler. Git Bash'te /proc taklidi VAR ama ps Windows'un
 # ps'i: "--sort" yok. O yuzden olcut dosya degil, procps'in kendisi.
 LINUX_GEREK=" t_pscanli.sh "

@@ -23,6 +23,15 @@ io_src lve 1m
 ioacct makinem 45.0 12
 ioacct riverside 35.0 9
 
+--- LVE per account ---
+lve_ok 1m
+lvecpu makinem 118.4 24
+lvecpu bluewave 62.0 11
+lvecpu riverside 18.6 7
+lveram bluewave 2841.0 11
+lveram makinem 1960.5 24
+lveram zencache 486.0 4
+
 --- Top IO processes ---
 ioproc_ok 1m
 ioproc 2295514 mysql 2048.0 /usr/sbin/mariadbd

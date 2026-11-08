@@ -51,6 +51,8 @@ ck("JS görünüm sınıfı çevirmiyor",
    bool(re.search(r"classList\.(toggle|add|remove)\(['\"](io-acct|io-proc|dk-size|dk-grow|dk-w)", js)),
    False)
 ck("JS seçimi hatırlıyor (localStorage)", "az-io-view" in js and "az-disk-view" in js, True)
+ck("CPU/RAM seçimi de hatırlanıyor",
+   "az-cpu-view" in js and "az-ram-view" in js, True)
 
 # ── CSS: görünürlük :checked ile ───────────────────────────────
 for kural in ("#iov-p:checked ~ .io-wrap .iop{display:table-row-group;}",
@@ -58,6 +60,18 @@ for kural in ("#iov-p:checked ~ .io-wrap .iop{display:table-row-group;}",
     ck("CSS kuralı var: " + kural[:34], kural in src, True)
 ck("disk pencereleri GROW_WINS'ten üretiliyor",
    "#dkv-<?=$w?>:checked~.proc-table #pt-dkg-<?=$w?>{display:table-row-group;}" in src, True)
+# CPU/RAM kartlarında iki AYRI tablo var (süreç görünümü 5-6 sütun, hesap
+# görünümü 3). Görünürlüğü yine :checked seçiyor.
+for kural in ("#cpv-a:checked~.cpa{display:table;}", "#cpv-a:checked~.ptp{display:none;}",
+              "#rmv-a:checked~.rma{display:table;}", "#rmv-a:checked~.ptp{display:none;}"):
+    ck("CSS kuralı var: " + kural[:30], kural in src, True)
+# MOBİLDE PID GİZLEME KURALI TABLOYA BAĞLI OLMALI, kartın sırasına değil:
+# eskiden "1. ve 2. kart"ın ilk sütunu gizleniyordu; o kartlara hesap tablosu
+# eklenince aynı kural HESAP sütununu gizliyordu.
+ck("mobil PID kuralı .ptp'ye bağlı",
+   ".proc-table.ptp th:nth-child(1)," in src, True)
+ck("mobil kuralı kart sırasına bakmıyor",
+   ".proc-row .proc-card:nth-child(1) td:nth-child(1)" in src, False)
 
 # ── Ürünü render et ────────────────────────────────────────────
 shutil.rmtree(IS, ignore_errors=True)
@@ -89,6 +103,21 @@ ck("I/O varsayılanı HESAP", [i for i, c in iov if c], ["iov-a"])
 ck("disk radyoları (boyut + pencereler)", len(dkv) >= 2, True)
 ck("diskte tam bir tanesi seçili", sum(1 for _, c in dkv if c), 1)
 ck("disk varsayılanı BOYUT", [i for i, c in dkv if c], ["dkv-s"])
+
+cpv = re.findall(r'<input type="radio" name="cpv" id="(cpv-[ap])" class="vw-radio"( checked)?>', sayfa)
+rmv = re.findall(r'<input type="radio" name="rmv" id="(rmv-[ap])" class="vw-radio"( checked)?>', sayfa)
+ck("CPU kartında iki radyo", len(cpv), 2)
+ck("RAM kartında iki radyo", len(rmv), 2)
+ck("CPU'da tam bir tanesi seçili", sum(1 for _, c in cpv if c), 1)
+ck("RAM'de tam bir tanesi seçili", sum(1 for _, c in rmv if c), 1)
+# VARSAYILAN SÜREÇ: kartta bugüne kadar o vardı; radyoyu silen webmail'de de
+# ":checked" hiç eşleşmez ve ek bugünküyle AYNI görünür.
+ck("CPU varsayılanı SÜREÇ", [i for i, c in cpv if c], ["cpv-p"])
+ck("RAM varsayılanı SÜREÇ", [i for i, c in rmv if c], ["rmv-p"])
+ck("radyosuz varsayılan: hesap tabloları gizli", ".cpa,.rma{display:none;}" in sayfa, True)
+cprm = re.findall(r'<label for="(cpv-[ap]|rmv-[ap])" class="(?:cp|rm)-tab', sayfa)
+ck("CPU/RAM sekmeleri de <label>",
+   sorted(cprm) == sorted([i for i, _ in cpv] + [i for i, _ in rmv]), True)
 
 etiketler = re.findall(r'<label for="(iov-[ap]|dkv-[a-z0-9]+)" class="(?:io|dk)-tab', sayfa)
 ck("sekmeler <label> (düğme değil)", len(etiketler) >= 4, True)
