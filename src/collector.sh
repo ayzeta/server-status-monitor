@@ -1561,7 +1561,14 @@ PYEOF
   rm -f "$IOP_STATE.ps"
   [ -n "$IOP_OUT" ] && printf '%s\n' "$IOP_OUT"
   # Tarihce 15. kolonu icin: o dakikanin en cok I/O yapan hesabi "hesap:kbps".
-  TOPIO=$(printf '%s\n' "$IO_OUT" | awk 'NR==1 && $1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5)}')
+  # ILK ioacct SATIRI alinir, "ilk satir" DEGIL: IO_OUT'un bas satiri her zaman
+  # "io_src lve 1m" (olcum yapildi isareti), hesap satirlari ikinciden basliyor.
+  # Eski kural 'NR==1 && $1=="ioacct"' idi ve 23 Ekim 2026'da io_src isareti
+  # eklendiginde SESSIZCE olmustu: 15. kolon 16 gun boyunca hep '-' yazildi,
+  # yani sayfa acilisinda gecmisten kurulan yuk uyarilari I/O failini hic
+  # tasimadi ve I/O bekleme uyarisi da CPU failine dustu. Uretimde goruldu
+  # 2026-11-08. Liste zaten buyukten kucuge sirali, ilk eslesen en buyugu.
+  TOPIO=$(printf '%s\n' "$IO_OUT" | awk '$1=="ioacct" && $3+0 > 0 {printf "%s:%d", $2, int($3+0.5); exit}')
   echo
   prof "surec I/O (/proc io)"
   echo "--- MySQL queries ---"

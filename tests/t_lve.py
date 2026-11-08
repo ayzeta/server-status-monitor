@@ -150,6 +150,43 @@ ck("cpanel disi uid elenir",
 bos_ayrim = BASLIK.replace(TAB, " ")
 ck("baslik satiri veri sayilmaz", "," in bos_ayrim.split()[0], False)
 
+# ── TARIHCE 15. KOLONU (TOPIO): "hesap:kbps" ───────────────────
+# Kural KAYNAKTAN cikarilir ve YUKARIDAKI kodun KENDI CIKTISIYLA beslenir --
+# elle yazilmis bir dizgiyle degil. Sebebi olculmus bir regresyon: kural
+# 'NR==1 && $1=="ioacct"' idi, 2026-10-23'te ciktinin basina "io_src lve 1m"
+# olcum isareti eklenince hesap satirlari ikinciye kaydi ve kural 16 gun
+# boyunca hep BOS dondu. Hata vermedi: 15. kolon '-' yazildi, sayfa acilisinda
+# gecmisten kurulan yuk uyarilari I/O failini hic tasimadi, I/O bekleme uyarisi
+# da CPU failine dustu (uretimde goruldu 2026-11-08). Test yoktu.
+TOPIO_AWK = src[src.index("TOPIO=$(printf"):].split("awk '", 1)[1].split("')", 1)[0]
+
+
+def topio(ciktisi):
+    r = subprocess.run(["awk", TOPIO_AWK], input=ciktisi + NL,
+                       capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+# Hiz alani SINANMAZ: dt duvar saatinden geliyor (bkz. yakin()), sayac da
+# kumulatif oldugu icin onceki ornekten tasiyor. Regresyonun konusu zaten hiz
+# degil: kolon DOLUYOR MU ve DOGRU HESABI mi yaziyor.
+def topio_ad(c):
+    t = topio(c)
+    return (t.split(":")[0], t.count(":") == 1 and t.split(":")[1].isdigit()
+            and int(t.split(":")[1]) > 0)
+
+
+ck("kural isaret satirini veri sanmiyor", TOPIO_AWK.startswith("NR==1"), False)
+ck("en cok I/O yapan hesap yazilir",
+   topio_ad(calistir([satir(1089, 2272, 70), satir(1002, 604, 5)], yas=60)),
+   ("pixelcart", True))
+# Sabit bir hesaba degil, SIRAYA bakiyor: bu turda artisi buyuk olan ayzeta,
+# yani bir onceki iddiada kazanan pixelcart degil.
+ck("en buyugu alir (sabit hesap degil)",
+   topio_ad(calistir([satir(1089, 8272, 70), satir(1002, 99999, 5)], yas=60)),
+   ("ayzeta", True))
+ck("hareket yoksa kolon bos kalir", topio("io_src lve 1m"), "")
+
 for f in (LISTE, STATE, MOD):
     if os.path.exists(f): os.remove(f)
 shutil.rmtree(CP, ignore_errors=True)
