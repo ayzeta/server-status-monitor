@@ -35,7 +35,7 @@ for ad in ("function cpuAcctCls(", "function ramAcctCls(", "function fmtMB(", "f
 jb = src.index("function fmtMB(mb){")
 je = src.index("return p>=5?'hot':p>=2.5?'warm':'';}", jb) + len("return p>=5?'hot':p>=2.5?'warm':'';}")
 js_fmt = src[jb:je]
-gb = src.index("  const lveGovde=(rows,tur,ok,totalGB)=>{")
+gb = src.index("  const lveGovde=(rows,tur,totalGB)=>{")
 ge = src.index(NL + "  };", gb) + len(NL + "  };")
 js_govde = src[gb:ge]
 
@@ -73,8 +73,8 @@ php = NL.join([
     "$h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');",
     "$cikti = [];",
     "foreach (json_decode(file_get_contents('t_lve_in.json'), true) as [$tur, $rows]) {",
-    "  $cikti[] = lveAcctRows($rows, $h, true, $tur);",
-    "  $cikti[] = lveAcctRows($rows, $h, false, $tur);",   # olculemedi dali
+    # LVE olcumu YOKSA bu tablo hic basilmiyor (bkz. t_sekme), yani tek dal var.
+    "  $cikti[] = lveAcctRows($rows, $h, $tur);",
     "}",
     "echo json_encode($cikti);",
 ])
@@ -87,13 +87,13 @@ js = NL.join([
     "function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')"
     ".replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#039;');}",
     js_fmt,
-    "function govde(tur,rows,ok){",
+    "function govde(tur,rows){",
     js_govde,
-    "  return lveGovde(rows,tur,ok,%d);" % RAM_GB,
+    "  return lveGovde(rows,tur,%d);" % RAM_GB,
     "}",
     "const giris=require('./t_lve_in.json');",
     "const cikti=[];",
-    "for(const [tur,rows] of giris){cikti.push(govde(tur,rows,true));cikti.push(govde(tur,rows,false));}",
+    "for(const [tur,rows] of giris){cikti.push(govde(tur,rows));}",
     "console.log(JSON.stringify(cikti));",
 ])
 
@@ -131,38 +131,43 @@ def ck(ad, gelen, beklenen):
               % (ad, NL, beklenen, NL, gelen))
 
 
-ck("iki taraf ayni sayida govde uretti", (len(p), len(j)), (len(ORNEK) * 2, len(ORNEK) * 2))
+ck("iki taraf ayni sayida govde uretti", (len(p), len(j)), (len(ORNEK), len(ORNEK)))
 for i, (a, b) in enumerate(zip(p, j)):
-    tur, rows = ORNEK[i // 2]
-    ad = "%s %s %s" % (tur, "olculdu" if i % 2 == 0 else "olculemedi", json.dumps(rows)[:24])
-    ck(ad, norm(a) == norm(b), True)
+    tur, rows = ORNEK[i]
+    ck("%s %s" % (tur, json.dumps(rows)[:30]), norm(a) == norm(b), True)
 
 # ── Govdenin kendisi dogru mu (ikizlik tek basina yetmez) ───────────────
-g = norm(p[4])          # CPU esikleri, olculdu
+g = norm(p[2])          # CPU esikleri
 ck("CPU %118.4 kirmizi", 'class="num hot" title="24 surec">118.4<' in g, True)
 ck("CPU tam bir cekirdek (%100) kirmizi", 'class="num hot" title="11 surec">100.0<' in g, True)
 ck("CPU %99.9 kirmizi DEGIL", 'class="num warm" title="7 surec">99.9<' in g, True)
 ck("CPU %50 turuncu", 'class="num warm" title="3 surec">50.0<' in g, True)
 ck("CPU %49.9 renksiz", 'class="num " title="2 surec">49.9<' in g, True)
-ck("CPU metni her zaman tek ondalik", ">62.0<" in norm(p[6]) and ">120.0<" in norm(p[6]), True)
+ck("CPU metni her zaman tek ondalik", ">62.0<" in norm(p[3]) and ">120.0<" in norm(p[3]), True)
 
-r = norm(p[8])          # RAM esikleri, olculdu
+r = norm(p[4])          # RAM esikleri
 ck("RAM 4813 MB (94 GB'in %5'i) kirmizi", 'class="num hot" title="40 surec">4.7 GB<' in r, True)
 ck("RAM 4812 MB (%5'in altinda) turuncu", 'class="num warm" title="30 surec">4.7 GB<' in r, True)
 ck("RAM 2407 MB (%2,5) turuncu", 'class="num warm" title="20 surec">2.4 GB<' in r, True)
 ck("RAM 2406 MB (%2,5 altinda) renksiz", 'class="num " title="10 surec">2.3 GB<' in r, True)
 
-b = norm(p[10])         # birim gecisleri
+b = norm(p[5])          # birim gecisleri
 for beklenen in (">1023 MB<", ">1 GB<", ">2.8 GB<", ">10 GB<", ">0 MB<"):
     ck("RAM birimi: " + beklenen, beklenen in b, True)
 
-ck("hesap adi kaciriliyor", "&lt;script&gt;" in norm(p[12]), True)
-ck("surec sayisi 0 ise ipucu yok", "title=" not in norm(p[14]), True)
+ck("hesap adi kaciriliyor", "&lt;script&gt;" in norm(p[6]), True)
+ck("surec sayisi 0 ise ipucu yok", "title=" not in norm(p[7]), True)
 
-bos_ok = norm(p[0]); bos_yok = norm(p[1])
-ck("olculdu + bos: 'CPU yakan hesap yok'", "burning CPU" in bos_ok, True)
-ck("olculemedi: CloudLinux LVE deniyor", "CloudLinux LVE" in bos_yok, True)
-ck("iki bos mesaji AYRI", bos_ok != bos_yok, True)
+# BOS LISTE = "olctuk, kimse yok". "Olculemedi" dali YOK: LVE olcumu gelmezse
+# tablo hic basilmiyor (bkz. t_sekme), yani kullaniciya "CloudLinux kur"
+# denmiyor. Iki bos mesaji yine de AYRI -- CPU'da "yakan yok", RAM'de
+# "bildirilmedi" ve bu ikisi ayni sey degil.
+bos_cpu = norm(p[0]); bos_ram = norm(p[1])
+ck("bos CPU: 'CPU yakan hesap yok'", "burning CPU" in bos_cpu, True)
+ck("bos RAM: ayri mesaj", "no account RAM reported" in bos_ram, True)
+ck("iki bos mesaji AYRI", bos_cpu != bos_ram, True)
+ck("hicbir bos mesajda 'CloudLinux' gecmiyor",
+   ("CloudLinux" in bos_cpu, "CloudLinux" in bos_ram), (False, False))
 
 for f in ("t_lve_in.json", "t_lveikiz.php", "t_lveikiz.js"):
     try: os.remove(os.path.join(BURASI, f))

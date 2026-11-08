@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.75';
+const APP_VERSION = '1.5.76';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -140,8 +140,8 @@ $TR = [
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları ("CPU · süreç" / "RAM · süreç" kalmadı: kart başlığı artık
     // yalnız ölçünün adı, hangi görünüm olduğunu SEKME söylüyor)
-    'Processes from the root snapshot: the whole server, system processes included.'
-        => 'Root anlık görüntüsündeki süreçler: sistem süreçleri dahil bütün sunucu.',
+    'Processes from the root snapshot: the whole server. root, mysql and nobody appear here but are not cPanel accounts, so they never appear in the account view. CPU% is each process own average over ITS OWN lifetime (see the TIME column): a 3-second process at 30% adds about 1.4% to a one-minute account average. The two views measure different windows and do not add up.'
+        => 'Root anlık görüntüsündeki süreçler: bütün sunucu. root, mysql ve nobody burada çıkar ama cPanel hesabı değildir, hesap görünümüne hiç girmez. CPU%, her sürecin KENDİ ömrü boyunca ortalamasıdır (SÜRE sütununa bakın): 3 saniyelik bir süreçteki %30, bir dakikalık hesap ortalamasına yaklaşık %1,4 ekler. İki görünüm farklı pencereleri ölçer, toplamları birbirini tutmaz.',
     'Per-account CPU: percent of ONE core, averaged over the same window as the I/O card. Source: CloudLinux LVE kernel counters (cumulative nanoseconds), differenced between two collector runs. Color: red ≥100% (a full core), orange ≥50%'
         => 'Hesap başına CPU: BİR çekirdeğin yüzdesi, I/O kartıyla aynı pencerenin ortalaması. Kaynak: CloudLinux LVE çekirdek sayaçları (kümülatif nanosaniye), iki toplayıcı turu arasındaki fark. Renk: %100 ve üstü kırmızı (tam bir çekirdek), %50 ve üstü turuncu',
     'Per-account physical RAM at snapshot time (not an average). Source: the CloudLinux LVE MEMPHY counter, in pages. Color: red ≥5%, orange ≥2.5% of physical RAM'
@@ -149,7 +149,6 @@ $TR = [
     '%s processes' => '%s süreç',
     'no account is burning CPU right now' => 'şu an CPU yakan hesap yok',
     'no account RAM reported' => 'hesap başına RAM bildirilmedi',
-    'per-account CPU/RAM needs CloudLinux LVE' => 'hesap başına CPU/RAM için CloudLinux LVE gerekiyor',
     'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
     'account' => 'hesap', 'process' => 'süreç', 'no process I/O measured' => 'süreç I/O ölçülemedi',
     "Service up/down comes from cPanel's own chkservd round, which does not run every minute; the port checks beside them are probed live. This is when that round ran."
@@ -2641,14 +2640,14 @@ function fmtMB($mb) {
 // Hesap basina CPU/RAM satirlari — iki renderer (PHP/JS) AYNI govdeyi uretsin
 // diye tek yerde. Biri CPU% yazar, oteki MB/GB; gerisi ayni (disk kartiyla ayni
 // duzen: HESAP | cubuk | deger). Surec sayisi ipucunda durur.
-// "OLCULDU, KIMSE YOK" ile "OLCULEMEDI" AYRI: CloudLinux yoksa bolum hic
-// gelmez ve sifir yazmak yalan olur.
-function lveAcctRows($rows, $h, $lveOk, $tur) {
+// LVE YOKSA BU TABLO HIC BASILMAZ (sekme de cikmaz, bkz. renderProcTables):
+// olcemedigimiz bir seyi kullaniciya "sende sunu kur" diye yazmak panonun isi
+// degil. Yani buraya yalnizca OLCUM VARKEN gelinir; bos liste "olculdu, kimse
+// yok" demektir ve sifir yazmak yalan olmaz.
+function lveAcctRows($rows, $h, $tur) {
     if (!$rows) {
-        $msg = $lveOk
-             ? ($tur === 'cpu' ? t('no account is burning CPU right now')
-                               : t('no account RAM reported'))
-             : t('per-account CPU/RAM needs CloudLinux LVE');
+        $msg = $tur === 'cpu' ? t('no account is burning CPU right now')
+                              : t('no account RAM reported');
         return '<tr><td colspan="3" style="color:var(--hint)">' . $msg . '</td></tr>';
     }
     $mx = 0.1;
@@ -2674,21 +2673,35 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     // SUREC ve HESAP ayni kartta, sekmeleri CSS ceviriyor (I/O kartiyla ayni
     // yontem: gizli radyo + <label>) — CSF mail ekinde script calismaz ama
     // tarayicida acilan ekte sekmeler gezinilebilir kaliyor.
-    // VARSAYILAN SUREC: bugune kadar kartta o vardi; radyoyu silen bir webmail'de
-    // de ":checked" hic eslesmez ve ek bugunkuyle ayni gorunur.
-    $pTip = htmlspecialchars(t('Processes from the root snapshot: the whole server, system processes included.'), ENT_QUOTES, 'UTF-8');
+    //
+    // VARSAYILAN HESAP, SIRA DA HESAP ONCE: disk ve I/O kartlarinda oyle. Kartin
+    // cevapladigi soru "kim yakiyor"; surec listesi onu cevaplamiyor (bir hesabin
+    // 40 ayri lsphp'si 40 ayri satir). LVE YOKSA sekme HIC CIKMAZ, kart eskisi
+    // gibi yalniz surec gosterir -- asagidaki $sekme buna bakiyor.
+    //
+    // IKI GORUNUM AYNI SEYI OLCMEZ, ipucunda yazili (uretimde olculdu, 2026-11-08):
+    // surec listesinin tepesi root/mysql/nobody olabiliyor -- bunlar cPanel hesabi
+    // degil, hesap gorunumune HIC giremez; ve ps'in CPU%'si surecin KENDI omrunun
+    // ortalamasi, 3 saniyelik bir surecteki %28 bir dakikalik pencerede %1,4 eder.
+    $pTip = htmlspecialchars(t('Processes from the root snapshot: the whole server. root, mysql and nobody appear here but are not cPanel accounts, so they never appear in the account view. CPU% is each process own average over ITS OWN lifetime (see the TIME column): a 3-second process at 30% adds about 1.4% to a one-minute account average. The two views measure different windows and do not add up.'), ENT_QUOTES, 'UTF-8');
     $cTip = htmlspecialchars(t('Per-account CPU: percent of ONE core, averaged over the same window as the I/O card. Source: CloudLinux LVE kernel counters (cumulative nanoseconds), differenced between two collector runs. Color: red ≥100% (a full core), orange ≥50%'), ENT_QUOTES, 'UTF-8');
-    $lveLbl = $lveOk ? ' · LVE' . (preg_match('/^(\d+)m$/', (string)$lveWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '') : '';
+    $sekme = $lveOk;
+    $lveLbl = ' · LVE' . (preg_match('/^(\d+)m$/', (string)$lveWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '');
     $out = '<div class="proc-card" id="cpu-card">'
-         . '<input type="radio" name="cpv" id="cpv-p" class="vw-radio" checked>'
-         . '<input type="radio" name="cpv" id="cpv-a" class="vw-radio">'
+         . ($sekme
+            ? '<input type="radio" name="cpv" id="cpv-a" class="vw-radio" checked>'
+              . '<input type="radio" name="cpv" id="cpv-p" class="vw-radio">'
+            : '')
          . '<div class="proc-title">' . t('CPU')
          // Her etiket AYRI satirda: ipuclari uzun ve hepsi tek satira basilinca
          // CSF mail ekinin 900 baytlik satir siniri asiliyor (bkz. I/O karti).
-         . '<span class="proc-age cp-tabs">' . "\n"
-         . '<label for="cpv-p" class="cp-tab cp-t-proc" title="' . $pTip . '">' . t('process') . '</label>' . "\n"
-         . '<label for="cpv-a" class="cp-tab cp-t-acct" title="' . $cTip . '">' . t('account') . $lveLbl . '</label>'
-         . '</span></div>'
+         . ($sekme
+            ? '<span class="proc-age cp-tabs">' . "\n"
+              . '<label for="cpv-a" class="cp-tab cp-t-acct" title="' . $cTip . '">' . t('account') . $lveLbl . '</label>' . "\n"
+              . '<label for="cpv-p" class="cp-tab cp-t-proc" title="' . $pTip . '">' . t('process') . '</label>'
+              . '</span>'
+            : '')
+         . '</div>'
          . '<table class="proc-table ptp"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num" title="' . htmlspecialchars(t('Percent of a single core — multi-threaded processes can exceed 100')) . '">CPU%</th><th class="num">MEM%</th><th>' . upper(t('Time')) . '</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-cpu">' . "\n";
     foreach ($procCpu as $p) {
         $out .= '<tr><td>' . $h($p[0]) . '</td><td class="proc-user">' . $h($p[1]) . '</td>'
@@ -2697,20 +2710,28 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
               . '<td class="td-fill"><span class="proc-cmd" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td></tr>' . "\n";
     }
     $out .= '</tbody></table>'
-          . '<table class="proc-table cpa"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
-          . '<th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">' . "\n"
-          . lveAcctRows($cpuAcct, $h, $lveOk, 'cpu') . '</tbody></table></div>';
+          . ($sekme
+             ? '<table class="proc-table cpa"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+               . '<th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">' . "\n"
+               . lveAcctRows($cpuAcct, $h, 'cpu') . '</tbody></table>'
+             : '')
+          . '</div>';
 
     $rTip = htmlspecialchars(t('Per-account physical RAM at snapshot time (not an average). Source: the CloudLinux LVE MEMPHY counter, in pages. Color: red ≥5%, orange ≥2.5% of physical RAM'), ENT_QUOTES, 'UTF-8');
     $out .= '<div class="proc-card" id="ram-card">'
-          . '<input type="radio" name="rmv" id="rmv-p" class="vw-radio" checked>'
-          . '<input type="radio" name="rmv" id="rmv-a" class="vw-radio">'
+          . ($sekme
+             ? '<input type="radio" name="rmv" id="rmv-a" class="vw-radio" checked>'
+               . '<input type="radio" name="rmv" id="rmv-p" class="vw-radio">'
+             : '')
           . '<div class="proc-title">' . t('RAM')
-          . '<span class="proc-age rm-tabs">' . "\n"
-          . '<label for="rmv-p" class="rm-tab rm-t-proc" title="' . $pTip . '">' . t('process') . '</label>' . "\n"
-          // RAM'de pencere YAZILMAZ: MEMPHY anlik deger, ortalama degil.
-          . '<label for="rmv-a" class="rm-tab rm-t-acct" title="' . $rTip . '">' . t('account') . ($lveOk ? ' · LVE' : '') . '</label>'
-          . '</span></div>'
+          . ($sekme
+             ? '<span class="proc-age rm-tabs">' . "\n"
+               // RAM'de pencere YAZILMAZ: MEMPHY anlik deger, ortalama degil.
+               . '<label for="rmv-a" class="rm-tab rm-t-acct" title="' . $rTip . '">' . t('account') . ' · LVE</label>' . "\n"
+               . '<label for="rmv-p" class="rm-tab rm-t-proc" title="' . $pTip . '">' . t('process') . '</label>'
+               . '</span>'
+             : '')
+          . '</div>'
           . '<table class="proc-table ptp"><thead><tr><th>PID</th><th>' . upper(t('User')) . '</th><th class="num">MEM%</th><th class="num">RSS</th><th>' . upper(t('Command')) . '</th></tr></thead><tbody id="pt-ram">' . "\n";
     foreach ($procRam as $p) {
         $mc = pmemClass($p[3]);
@@ -2719,9 +2740,12 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
               . '<td class="td-fill"><span class="proc-cmd" title="' . $h($p[5]) . '">' . $h($p[5]) . '</span></td></tr>' . "\n";
     }
     $out .= '</tbody></table>'
-          . '<table class="proc-table rma"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
-          . '<th class="num">RAM</th></tr></thead><tbody id="pt-ramacct">' . "\n"
-          . lveAcctRows($ramAcct, $h, $lveOk, 'ram') . '</tbody></table></div>';
+          . ($sekme
+             ? '<table class="proc-table rma"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+               . '<th class="num">RAM</th></tr></thead><tbody id="pt-ramacct">' . "\n"
+               . lveAcctRows($ramAcct, $h, 'ram') . '</tbody></table>'
+             : '')
+          . '</div>';
 
     // Sağdaki ipucu baştaki noktayı TAŞIMAZ: seçici düğmesi olan kartlarda nokta
     // yok, olmayanlarda vardı — aynı konumdaki aynı şey iki türlü yazılıyordu.
@@ -3230,16 +3254,22 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 #iov-a:checked ~ .io-wrap .ioh-p{display:none;}
 #iov-p:checked ~ .io-wrap .ioh-a{display:none;}
 #iov-p:checked ~ .io-wrap .ioh-p{display:inline;}
-/* CPU ve RAM kartlari da iki gorunum: surec | hesap. I/O kartiyla ayni yontem,
+/* CPU ve RAM kartlari da iki gorunum: hesap | surec. I/O kartiyla ayni yontem,
    tek fark iki AYRI tablo (surec gorunumu 5-6 sutun, hesap gorunumu 3 — ayni
    tabloda tutmak sutunlari hizasiz birakirdi).
-   VARSAYILAN SUREC: kartta bugune kadar o vardi; radyoyu silen webmail'de
-   ":checked" hic eslesmez ve asagidaki temel kural kalir. */
+   VARSAYILAN HESAP, disk ve I/O kartlariyla ayni. Radyoyu silen bir webmail'de
+   ":checked" hic eslesmez ve asagidaki TEMEL kural kalir — bu yuzden temel
+   kural da hesabi gosterir. LVE olcumu yoksa PHP hesap tablosunu ve sekmeleri
+   hic basmaz; o zaman .cpa/.rma ortada olmaz ve .ptp'yi gizleyen kural da
+   basilmaz (asagisi $lveOk'a bakiyor), kart yalniz surec gosterir. */
 .cp-tabs,.rm-tabs{display:inline-flex;gap:6px;align-items:center;}
 .cp-tab,.rm-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
   font:inherit;opacity:.5;transition:opacity .15s;}
 .cp-tab:hover,.rm-tab:hover{opacity:.8;}
-.cpa,.rma{display:none;}
+<?php if ($lveOk): ?>
+.ptp{display:none;}
+.cpa,.rma{display:table;}
+<?php endif; ?>
 #cpv-p:checked~.ptp{display:table;}
 #cpv-p:checked~.cpa{display:none;}
 #cpv-a:checked~.ptp{display:none;}
@@ -4771,10 +4801,11 @@ function renderProcs(data){
   }
   // Hesap basina CPU/RAM govdeleri — PHP lveAcctRows() ikizi. Gizliyken de
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
-  const lveGovde=(rows,tur,ok,totalGB)=>{
+  // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
+  // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
+  const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="3" style="color:var(--hint)">${
-      ok?t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')
-        :t('per-account CPU/RAM needs CloudLinux LVE')}</td></tr>`;
+      t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
     const mx=Math.max(0.1,...rows.map(r=>r[1]));
     return rows.map(r=>{
       const w=Math.round(r[1]/mx*100);
@@ -4786,9 +4817,9 @@ function renderProcs(data){
     }).join('');
   };
   if(data.cpuAcct!==undefined){const b=document.getElementById('pt-cpuacct');
-    if(b)b.innerHTML=lveGovde(data.cpuAcct,'cpu',data.lveOk,data.memTotalGB);}
+    if(b)b.innerHTML=lveGovde(data.cpuAcct,'cpu',data.memTotalGB);}
   if(data.ramAcct!==undefined){const b=document.getElementById('pt-ramacct');
-    if(b)b.innerHTML=lveGovde(data.ramAcct,'ram',data.lveOk,data.memTotalGB);}
+    if(b)b.innerHTML=lveGovde(data.ramAcct,'ram',data.memTotalGB);}
   // Kaynak/pencere etiketi tikte de tazelenir: olculemediyse "· LVE" YAZILMAZ.
   if(data.lveOk!==undefined){
     const cpT=document.querySelector('.cp-t-acct'),rmT=document.querySelector('.rm-t-acct');

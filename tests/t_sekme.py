@@ -110,11 +110,23 @@ ck("CPU kartında iki radyo", len(cpv), 2)
 ck("RAM kartında iki radyo", len(rmv), 2)
 ck("CPU'da tam bir tanesi seçili", sum(1 for _, c in cpv if c), 1)
 ck("RAM'de tam bir tanesi seçili", sum(1 for _, c in rmv if c), 1)
-# VARSAYILAN SÜREÇ: kartta bugüne kadar o vardı; radyoyu silen webmail'de de
-# ":checked" hiç eşleşmez ve ek bugünküyle AYNI görünür.
-ck("CPU varsayılanı SÜREÇ", [i for i, c in cpv if c], ["cpv-p"])
-ck("RAM varsayılanı SÜREÇ", [i for i, c in rmv if c], ["rmv-p"])
-ck("radyosuz varsayılan: hesap tabloları gizli", ".cpa,.rma{display:none;}" in sayfa, True)
+# VARSAYILAN HESAP: disk ve I/O kartlarıyla aynı. Kartın cevapladığı soru "kim
+# yakıyor" ve süreç listesi onu cevaplamıyor.
+ck("CPU varsayılanı HESAP", [i for i, c in cpv if c], ["cpv-a"])
+ck("RAM varsayılanı HESAP", [i for i, c in rmv if c], ["rmv-a"])
+# Sekme SIRASI da hesap önce (I/O kartındaki gibi): ilk <label> hesabı göstersin.
+ilk_cp = re.search(r'<label for="(cpv-[ap])"', sayfa)
+ilk_rm = re.search(r'<label for="(rmv-[ap])"', sayfa)
+ck("CPU'da ilk sekme HESAP", ilk_cp.group(1) if ilk_cp else None, "cpv-a")
+ck("RAM'de ilk sekme HESAP", ilk_rm.group(1) if ilk_rm else None, "rmv-a")
+# Radyoyu silen webmail'de ":checked" hiç eşleşmez; temel kural da hesabı
+# göstermeli, yoksa ek canlı sayfadan FARKLI görünür.
+# SATIR BAŞINA DEMİRLİ ara: ".ptp{display:none;}" düz dizgi olarak
+# "#cpv-a:checked~.ptp{display:none;}" içinde de geçiyor ve iddia boşa geçiyordu.
+temel_ptp = re.compile(r'^\.ptp\{display:none;\}$', re.M)
+ck("radyosuz varsayılan: süreç tablosu gizli", bool(temel_ptp.search(sayfa)), True)
+ck("radyosuz varsayılan: hesap tabloları açık",
+   bool(re.search(r'^\.cpa,\.rma\{display:table;\}$', sayfa, re.M)), True)
 cprm = re.findall(r'<label for="(cpv-[ap]|rmv-[ap])" class="(?:cp|rm)-tab', sayfa)
 ck("CPU/RAM sekmeleri de <label>",
    sorted(cprm) == sorted([i for i, _ in cpv] + [i for i, _ in rmv]), True)
@@ -130,6 +142,43 @@ ck("eski düğme işaretlemesi kalmamış",
 # ":checked" kuralları eşleşmez, geriye temel kurallar kalır.
 ck("radyosuz varsayılan: süreç gövdesi gizli (.iop)", ".iop{display:none;}" in sayfa, True)
 ck("radyosuz varsayılan: artış gövdeleri gizli", ".dkg,.dkh-g{display:none;}" in sayfa, True)
+
+# ── LVE YOKSA: sekme de hesap tablosu da HİÇ ÇIKMAZ ────────────
+# Ölçemediğimiz bir şeyi kullanıcıya "sende CloudLinux LVE yok" diye yazmak
+# panonun işi değil; CloudLinux'suz bir sunucuda kart eskisi gibi yalnız süreç
+# gösterir. Aynı anlık görüntü, yalnız LVE bölümü çıkarılmış hâliyle render
+# edilip sınanıyor.
+ham = io.open(KOK + "demo/seed.snapshot", encoding="utf-8").read()
+kesik = re.sub(r'--- LVE per account ---\n(?:(?!^--- ).*\n)*', '', ham, flags=re.M)
+ck("fikstürden LVE bölümü gerçekten çıktı",
+   ("lveram " in ham, "lveram " in kesik), (True, False))
+shutil.rmtree(IS, ignore_errors=True)
+seed2 = os.path.join(IS, "seed")
+os.makedirs(seed2)
+io.open(os.path.join(seed2, ".proc_snapshot"), "w", encoding="utf-8", newline="").write(kesik)
+io.open(cfg, "w", encoding="utf-8", newline=NL).write(
+    "<?php" + NL + "return ['home_dir' => " + json.dumps(seed2.replace("\\", "/")) + "];" + NL)
+try:
+    r2 = subprocess.run(["php", KOK + "src/index.php"], capture_output=True, timeout=120)
+finally:
+    os.remove(cfg)
+    shutil.rmtree(IS, ignore_errors=True)
+if r2.returncode:
+    sys.exit("php hatasi (LVE'siz): " + r2.stderr.decode("utf-8", "replace")[:300])
+sayfa2 = r2.stdout.decode("utf-8", "replace")
+ck("LVE'siz: CPU/RAM radyosu yok",
+   bool(re.search(r'name="(cpv|rmv)"', sayfa2)), False)
+ck("LVE'siz: hesap tablosu yok",
+   ('id="pt-cpuacct"' in sayfa2, 'id="pt-ramacct"' in sayfa2), (False, False))
+ck("LVE'siz: 'LVE gerekiyor' yazısı yok",
+   ("CloudLinux LVE gerekiyor" in sayfa2, "needs CloudLinux LVE" in sayfa2), (False, False))
+ck("LVE'siz: süreç tablosunu gizleyen temel kural basılmamış",
+   bool(temel_ptp.search(sayfa2)), False)
+# Kart yine de duruyor ve süreç listesi dolu — "sekme yok" ile "kart yok" ayrı.
+ck("LVE'siz: CPU kartı ve süreç tablosu duruyor",
+   ('id="cpu-card"' in sayfa2 and 'id="pt-cpu"' in sayfa2), True)
+ck("LVE'siz: RAM kartı ve süreç tablosu duruyor",
+   ('id="ram-card"' in sayfa2 and 'id="pt-ram"' in sayfa2), True)
 
 print()
 print("GECEN: %d  KALAN: %d" % (gecen, kalan))
