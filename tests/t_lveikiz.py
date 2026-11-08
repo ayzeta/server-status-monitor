@@ -38,6 +38,24 @@ js_fmt = src[jb:je]
 gb = src.index("  const lveGovde=(rows,tur,totalGB)=>{")
 ge = src.index(NL + "  };", gb) + len(NL + "  };")
 js_govde = src[gb:ge]
+ob = src.index("  const lveOzet=(tot,cores,srv)=>{")
+oe = src.index(NL + "  };", ob) + len(NL + "  };")
+js_ozet = src[ob:oe]
+
+# Ozet fiksturleri: (hesap toplami [tek cekirdek %], cekirdek, sunucu %).
+# Esikler SECIM degil bicim: 10'un altinda tek ondalik, ustunde tam sayi.
+OZET = [
+    [205.4, 12, 24],      # tipik: pay %17,1 -> sistem %6,9
+    [1200.0, 12, 100],    # hesaplar tam sunucu kadar -> sistem 0
+    [600.0, 12, 10],      # OLCUM KAYMASI: pay sunucudan buyuk -> sistem 0, eksi YOK
+    [119.9, 12, 24],      # pay 9,99 -> tek ondalik tarafi
+    [120.1, 12, 24],      # pay 10,01 -> tam sayi tarafi
+    [0.0, 12, 3],         # hic hesap yuk basmiyor ama sunucu mesgul (sistem)
+    [205.4, 1, 30],       # tek cekirdek
+    [None, 12, 24],       # toplayici bildirmedi -> satir BOS
+    [205.4, 0, 24],       # cekirdek bilinmiyor -> satir BOS
+    [205.4, 12, None],    # sunucu yuzdesi yok -> yalniz hesap payi
+]
 
 # RAM 94 GB (demo tohumuyla ayni): %5 = 4812 MB, %2,5 = 2406 MB.
 RAM_GB = 94
@@ -65,7 +83,10 @@ ORNEK = [
 
 php = NL.join([
     "<?php",
-    "$T = ['%s processes' => '%s surec'];",
+    # TR anahtarlari da konuyor: '%%' kacisinin iki tarafta ayni cozulmesi
+    # sinaniyor (PHP vsprintf vs JS iki asamali replace).
+    "$T = ['%s processes' => '%s surec', '%s%% accounts' => 'hesaplar %%%s',"
+    " '%s%% system' => 'sistem %%%s', '%s%% server' => 'sunucu %%%s'];",
     "function t($s) { global $T; return $T[$s] ?? $s; }",
     "function tf($s, ...$a) { global $T; return vsprintf($T[$s] ?? $s, $a); }",
     "$memTotalGB = %d;" % RAM_GB,
@@ -76,11 +97,15 @@ php = NL.join([
     # LVE olcumu YOKSA bu tablo hic basilmiyor (bkz. t_sekme), yani tek dal var.
     "  $cikti[] = lveAcctRows($rows, $h, $tur);",
     "}",
+    "foreach (json_decode(file_get_contents('t_lve_ozet.json'), true) as [$t, $c, $s]) {",
+    "  $cikti[] = lveOzetMetni($t, $c, $s);",
+    "}",
     "echo json_encode($cikti);",
 ])
 
 js = NL.join([
-    "const TRD={'%s processes':'%s surec'};",
+    "const TRD={'%s processes':'%s surec','%s%% accounts':'hesaplar %%%s',"
+    "'%s%% system':'sistem %%%s','%s%% server':'sunucu %%%s'};",
     "function t(s){return TRD[s]||s;}",
     "function tf(s){var a=[].slice.call(arguments,1),i=0;"
     "return (TRD[s]||s).replace(/%s/g,function(){return a[i++];}).replace(/%%/g,'%');}",
@@ -91,13 +116,19 @@ js = NL.join([
     js_govde,
     "  return lveGovde(rows,tur,%d);" % RAM_GB,
     "}",
+    "function ozet(t,c,s){",
+    js_ozet,
+    "  return lveOzet(t,c,s);",
+    "}",
     "const giris=require('./t_lve_in.json');",
     "const cikti=[];",
     "for(const [tur,rows] of giris){cikti.push(govde(tur,rows));}",
+    "for(const [t,c,s] of require('./t_lve_ozet.json')){cikti.push(ozet(t,c,s));}",
     "console.log(JSON.stringify(cikti));",
 ])
 
 io.open(os.path.join(BURASI, "t_lve_in.json"), "w", encoding="utf-8").write(json.dumps(ORNEK))
+io.open(os.path.join(BURASI, "t_lve_ozet.json"), "w", encoding="utf-8").write(json.dumps(OZET))
 io.open(os.path.join(BURASI, "t_lveikiz.php"), "w", encoding="utf-8", newline=NL).write(php)
 io.open(os.path.join(BURASI, "t_lveikiz.js"), "w", encoding="utf-8", newline=NL).write(js)
 
@@ -131,10 +162,13 @@ def ck(ad, gelen, beklenen):
               % (ad, NL, beklenen, NL, gelen))
 
 
-ck("iki taraf ayni sayida govde uretti", (len(p), len(j)), (len(ORNEK), len(ORNEK)))
-for i, (a, b) in enumerate(zip(p, j)):
+N = len(ORNEK) + len(OZET)
+ck("iki taraf ayni sayida cikti uretti", (len(p), len(j)), (N, N))
+for i, (a, b) in enumerate(zip(p[:len(ORNEK)], j[:len(ORNEK)])):
     tur, rows = ORNEK[i]
     ck("%s %s" % (tur, json.dumps(rows)[:30]), norm(a) == norm(b), True)
+for i, (a, b) in enumerate(zip(p[len(ORNEK):], j[len(ORNEK):])):
+    ck("ozet %s" % json.dumps(OZET[i]), a == b, True)
 
 # ── Govdenin kendisi dogru mu (ikizlik tek basina yetmez) ───────────────
 g = norm(p[2])          # CPU esikleri
@@ -168,6 +202,25 @@ ck("bos RAM: ayri mesaj", "no account RAM reported" in bos_ram, True)
 ck("iki bos mesaji AYRI", bos_cpu != bos_ram, True)
 ck("hicbir bos mesajda 'CloudLinux' gecmiyor",
    ("CloudLinux" in bos_cpu, "CloudLinux" in bos_ram), (False, False))
+
+# ── Ozet metni dogru mu (ikizlik tek basina yetmez) ─────────────────────
+o = p[len(ORNEK):]
+# 10'un ALTINDAKI her deger tek ondalik yazilir, 10 ve ustu tam sayi -- kural
+# her sayiya AYRI uygulanir, yani "%17" ile "%6.9" ayni satirda olagan.
+ck("tipik: 205,4 / 12 cekirdek", o[0], "hesaplar %17 · sistem %6.9 · sunucu %24")
+ck("hesaplar sunucu kadar -> sistem %0", o[1], "hesaplar %100 · sistem %0.0 · sunucu %100")
+# EN ONEMLI IDDIA: pay sunucu yuzdesini asiyorsa girdilerden biri guvenilmez.
+# "sistem %0" demek OLCMEDIGIMIZ bir seyi iddia etmek olurdu -> yalniz pay.
+ck("pay sunucudan buyuk -> sistem HIC yazilmaz", o[2], "hesaplar %50")
+ck("pay 9,99 -> tek ondalik", o[3].startswith("hesaplar %10.0 "), True)
+ck("pay 10,01 -> tam sayi", o[4].startswith("hesaplar %10 "), True)
+ck("hic hesap yok ama sunucu mesgul", o[5], "hesaplar %0.0 · sistem %3.0 · sunucu %3")
+ck("tek cekirdek: pay %205 > sunucu %30 -> yalniz pay", o[6], "hesaplar %205")
+ck("toplayici bildirmedi -> satir BOS", o[7], "")
+ck("cekirdek bilinmiyor -> satir BOS", o[8], "")
+ck("sunucu yuzdesi yok -> yalniz hesap payi", o[9], "hesaplar %17")
+ck("ozette '%%' kacisi cozulmus (cift yuzde yok)",
+   any("%%" in s for s in o), False)
 
 for f in ("t_lve_in.json", "t_lveikiz.php", "t_lveikiz.js"):
     try: os.remove(os.path.join(BURASI, f))

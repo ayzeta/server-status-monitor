@@ -1508,6 +1508,16 @@ for kb, name, iops in out[:15]:
 # bolumune gidiyor (asagida suzuluyor), isaret satiri burada da ayni amacla.
 if lvc or lvr:
     print("lve_ok 1m")
+    # HESAPLARIN TOPLAMI, listeyi kesmeden ONCE: pano "yukun ne kadari musteri,
+    # ne kadari sistem" diye sorabilsin. Ilk 15 kesmesinden ETKILENMEZ.
+    # BIRIM: tek cekirdegin yuzdesi (satirlarla ayni). Sunucu yuzdesine cevirmek
+    # cekirdek sayisina bolmek demek ve bunu PANO yapiyor -- cekirdek sayisi
+    # orada zaten var, burada yeniden okumaya gerek yok.
+    # KAPSAM: yalnizca bu turda SAYILABILEN hesaplar. Sayaci sifirlanan ya da
+    # ilk kez gorulen hesap listede de toplamda da yok; ikisi ayni kumeden
+    # geliyor, yani toplam listeyle TUTARLI.
+    if lvc:
+        print("lvecpu_tot %.1f %d" % (sum(r[1] for r in lvc), len(lvc)))
     for name, pct, np in sorted(lvc, key=lambda r: -r[1])[:15]:
         if pct <= 0: continue
         print("lvecpu %s %.1f %d" % (name, pct, np))

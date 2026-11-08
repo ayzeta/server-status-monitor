@@ -25,6 +25,7 @@ ioacct riverside 35.0 9
 
 --- LVE per account ---
 lve_ok 1m
+lvecpu_tot 205.4 338
 lvecpu makinem 118.4 24
 lvecpu bluewave 62.0 11
 lvecpu riverside 18.6 7

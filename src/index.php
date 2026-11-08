@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.76';
+const APP_VERSION = '1.5.77';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -140,8 +140,10 @@ $TR = [
     'enabled' => 'etkin', 'port bound' => 'port bağlı', 'found' => 'bulundu', 'not found' => 'bulunamadı',
     // Süreç tabloları ("CPU · süreç" / "RAM · süreç" kalmadı: kart başlığı artık
     // yalnız ölçünün adı, hangi görünüm olduğunu SEKME söylüyor)
-    'Processes from the root snapshot: the whole server. root, mysql and nobody appear here but are not cPanel accounts, so they never appear in the account view. CPU% is each process own average over ITS OWN lifetime (see the TIME column): a 3-second process at 30% adds about 1.4% to a one-minute account average. The two views measure different windows and do not add up.'
-        => 'Root anlık görüntüsündeki süreçler: bütün sunucu. root, mysql ve nobody burada çıkar ama cPanel hesabı değildir, hesap görünümüne hiç girmez. CPU%, her sürecin KENDİ ömrü boyunca ortalamasıdır (SÜRE sütununa bakın): 3 saniyelik bir süreçteki %30, bir dakikalık hesap ortalamasına yaklaşık %1,4 ekler. İki görünüm farklı pencereleri ölçer, toplamları birbirini tutmaz.',
+    // KISA TUTULUYOR: TR metni HTML varlıklarıyla şişiyor ve tek satıra basılan
+    // title, CSF mail ekinin 900 baytlık satır sınırını aşıyordu (t_satir).
+    'Processes from the root snapshot: the whole server. root, mysql and nobody are not cPanel accounts, so they never reach the account view. CPU% is each process average over ITS OWN lifetime (see TIME): 30% for 3 seconds is ~1.4% of a one-minute account average.'
+        => 'Root anlık görüntüsü: bütün sunucu. root, mysql, nobody cPanel hesabı değil, hesap görünümüne girmez. CPU%, sürecin KENDİ ömrünün ortalamasıdır (SÜRE sütunu): 3 saniyede %30, bir dakikalık hesap ortalamasında ~%1,4 eder.',
     'Per-account CPU: percent of ONE core, averaged over the same window as the I/O card. Source: CloudLinux LVE kernel counters (cumulative nanoseconds), differenced between two collector runs. Color: red ≥100% (a full core), orange ≥50%'
         => 'Hesap başına CPU: BİR çekirdeğin yüzdesi, I/O kartıyla aynı pencerenin ortalaması. Kaynak: CloudLinux LVE çekirdek sayaçları (kümülatif nanosaniye), iki toplayıcı turu arasındaki fark. Renk: %100 ve üstü kırmızı (tam bir çekirdek), %50 ve üstü turuncu',
     'Per-account physical RAM at snapshot time (not an average). Source: the CloudLinux LVE MEMPHY counter, in pages. Color: red ≥5%, orange ≥2.5% of physical RAM'
@@ -149,6 +151,10 @@ $TR = [
     '%s processes' => '%s süreç',
     'no account is burning CPU right now' => 'şu an CPU yakan hesap yok',
     'no account RAM reported' => 'hesap başına RAM bildirilmedi',
+    '%s%% accounts' => 'hesaplar %%%s', '%s%% system' => 'sistem %%%s',
+    '%s%% server' => 'sunucu %%%s',
+    'Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'
+        => 'Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil), çekirdek sayısına bölünerek tek çekirdek yüzdesinden sunucu yüzdesine çevrildi. Sistem geri kalanı: root, mysql, LiteSpeed, Imunify ve diğer taramalar — hiçbir hesaba yazılamayan yük. Pencere hesap listesiyle aynı.',
     'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
     'account' => 'hesap', 'process' => 'süreç', 'no process I/O measured' => 'süreç I/O ölçülemedi',
     "Service up/down comes from cPanel's own chkservd round, which does not run every minute; the port checks beside them are probed live. This is when that round ran."
@@ -287,6 +293,9 @@ $procCpu = []; $procRam = []; $procPhp = []; $procSql = []; $procSec = []; $root
 // Hesap basina CPU/RAM (LVE). Ikisi ayni bolumden gelir; $lveOk "olculdu"
 // isareti — "kimse CPU yakmiyor" ile "CloudLinux yok" ayri seyler.
 $cpuAcct = []; $ramAcct = []; $lveOk = false; $lveWin = '';
+// Hesaplarin CPU toplami (tek cekirdek yuzdesi) ve kac hesabin sayilabildigi.
+// null = toplayici bildirmedi (eski surum) -> satir hic cizilmez, uydurulmaz.
+$cpuAcctTot = null; $cpuAcctN = 0;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -421,6 +430,13 @@ if (is_readable($procSnapFile)) {
             foreach ($lines as $ln) {
                 $p = preg_split('/\s+/', trim($ln));
                 if ($p[0] === 'lve_ok') { $lveOk = true; $lveWin = $p[1] ?? ''; }
+                // Hesaplarin TOPLAMI (liste kesilmeden once hesaplanmis).
+                // Birim: tek cekirdegin yuzdesi; sunucu yuzdesine cevirme
+                // asagida, cekirdek sayisiyla.
+                elseif ($p[0] === 'lvecpu_tot' && count($p) === 3
+                        && is_numeric($p[1]) && ctype_digit($p[2])) {
+                    $cpuAcctTot = (float)$p[1]; $cpuAcctN = (int)$p[2];
+                }
                 elseif (count($p) === 4 && is_numeric($p[2]) && ctype_digit($p[3])) {
                     if ($p[0] === 'lvecpu')      $cpuAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
                     elseif ($p[0] === 'lveram')  $ramAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
@@ -2450,6 +2466,8 @@ if (isset($_GET['json'])) {
         'procCpu'           => $procCpu, 'procRam' => $procRam,
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioProc' => $ioProc, 'ioSrc' => $ioSrc, 'ioWin' => $ioWin, 'ioProcOk' => $ioProcOk,
         'cpuAcct' => $cpuAcct, 'ramAcct' => $ramAcct, 'lveOk' => $lveOk, 'lveWin' => $lveWin,
+        // Ozet tikte de tazelensin. null = toplayici bildirmedi (eski surum).
+        'cpuAcctTot' => $cpuAcctTot,
         'acctGrowSet' => $acctGrowSet,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
@@ -2644,6 +2662,32 @@ function fmtMB($mb) {
 // olcemedigimiz bir seyi kullaniciya "sende sunu kur" diye yazmak panonun isi
 // degil. Yani buraya yalnizca OLCUM VARKEN gelinir; bos liste "olculdu, kimse
 // yok" demektir ve sifir yazmak yalan olmaz.
+// "Yukun ne kadari musteri, ne kadari sistem": hesaplarin CPU toplami ile
+// sunucunun kendi yuzdesi yan yana. BIRIM CEVRILIYOR -- satirlar TEK cekirdegin
+// yuzdesi, sunucu yuzdesi ise BUTUN cekirdeklerin; toplam cekirdek sayisina
+// bolunmeden karsilastirilamaz. Bu yuzden ozet TABLONUN DISINDA degil tfoot'ta
+// ve tek hucrede duruyor: CPU% sutununa yazilsaydi iki ayri birim ayni sutunda
+// olurdu.
+// PENCERE AYNI (olculdu): sunucu yuzdesi /proc/stat sayaclarinin bir onceki
+// cron turuyla farki, LVE toplami da ayni turun farki. Bu yuzden cikarma
+// mesru. Yine de ASLA negatif yazilmaz: iki olcum ayni ANDA alinmiyor ve
+// sayilamayan hesaplar (sayaci sifirlanan, ilk kez gorulen) toplamda yok.
+function lveOzetMetni($tot, $cores, $srv) {
+    if ($tot === null || $cores < 1) return '';
+    $pay = $tot / $cores;
+    $s = tf('%s%% accounts', number_format($pay, $pay < 10 ? 1 : 0, '.', ''));
+    // SISTEM PAYI ANCAK IKI OLCUM BIRBIRIYLE TUTARLIYSA yazilir. Hesaplarin
+    // payi sunucu yuzdesini ASIYORSA girdilerden biri guvenilmez (cekirdek
+    // sayisi bilinmiyor, sunucu yuzdesi henuz olculmedi, ya da iki olcum cok
+    // farkli anlara denk geldi). O durumda "sistem %0" demek OLCMEDIGIMIZ bir
+    // seyi iddia etmek olurdu; yalniz hesap payi yazilir.
+    if ($srv !== null && $srv >= $pay) {
+        $sis = $srv - $pay;
+        $s .= ' · ' . tf('%s%% system', number_format($sis, $sis < 10 ? 1 : 0, '.', ''))
+            . ' · ' . tf('%s%% server', (string)(int)round($srv));
+    }
+    return $s;
+}
 function lveAcctRows($rows, $h, $tur) {
     if (!$rows) {
         $msg = $tur === 'cpu' ? t('no account is burning CPU right now')
@@ -2667,7 +2711,7 @@ function lveAcctRows($rows, $h, $tur) {
     return $out;
 }
 function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct = [], $ioSrc = '') {
-    global $cpuAcct, $ramAcct, $lveOk, $lveWin;
+    global $cpuAcct, $ramAcct, $lveOk, $lveWin, $cpuAcctTot, $coreCount, $cpuUsage;
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
     // SUREC ve HESAP ayni kartta, sekmeleri CSS ceviriyor (I/O kartiyla ayni
@@ -2683,9 +2727,11 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     // surec listesinin tepesi root/mysql/nobody olabiliyor -- bunlar cPanel hesabi
     // degil, hesap gorunumune HIC giremez; ve ps'in CPU%'si surecin KENDI omrunun
     // ortalamasi, 3 saniyelik bir surecteki %28 bir dakikalik pencerede %1,4 eder.
-    $pTip = htmlspecialchars(t('Processes from the root snapshot: the whole server. root, mysql and nobody appear here but are not cPanel accounts, so they never appear in the account view. CPU% is each process own average over ITS OWN lifetime (see the TIME column): a 3-second process at 30% adds about 1.4% to a one-minute account average. The two views measure different windows and do not add up.'), ENT_QUOTES, 'UTF-8');
+    $pTip = htmlspecialchars(t('Processes from the root snapshot: the whole server. root, mysql and nobody are not cPanel accounts, so they never reach the account view. CPU% is each process average over ITS OWN lifetime (see TIME): 30% for 3 seconds is ~1.4% of a one-minute account average.'), ENT_QUOTES, 'UTF-8');
     $cTip = htmlspecialchars(t('Per-account CPU: percent of ONE core, averaged over the same window as the I/O card. Source: CloudLinux LVE kernel counters (cumulative nanoseconds), differenced between two collector runs. Color: red ≥100% (a full core), orange ≥50%'), ENT_QUOTES, 'UTF-8');
     $sekme = $lveOk;
+    $ozet = lveOzetMetni($cpuAcctTot, $coreCount, $cpuUsage);
+    $oTip = htmlspecialchars(t('Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'), ENT_QUOTES, 'UTF-8');
     $lveLbl = ' · LVE' . (preg_match('/^(\d+)m$/', (string)$lveWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '');
     $out = '<div class="proc-card" id="cpu-card">'
          . ($sekme
@@ -2713,7 +2759,15 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
           . ($sekme
              ? '<table class="proc-table cpa"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
                . '<th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">' . "\n"
-               . lveAcctRows($cpuAcct, $h, 'cpu') . '</tbody></table>'
+               . lveAcctRows($cpuAcct, $h, 'cpu') . '</tbody>'
+               // Ozet TEK hucrede ve tfoot'ta: CPU% sutununa yazilsaydi tek
+               // cekirdek yuzdesi ile sunucu yuzdesi ayni sutunda olurdu.
+               // Ipucu AYRI satirda: TR metni uzun ve tek satira basilinca CSF
+               // mail ekinin 900 baytlik satir siniri asiliyor (t_satir yakaladi).
+               . '<tfoot><tr>' . "\n"
+               . '<td colspan="3" class="lve-ozet" id="pt-cpusum" title="' . $oTip . '">' . "\n"
+               . $h($ozet) . '</td></tr></tfoot>'
+               . '</table>'
              : '')
           . '</div>';
 
@@ -3266,6 +3320,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .cp-tab,.rm-tab{background:none;border:none;padding:0;cursor:pointer;color:inherit;
   font:inherit;opacity:.5;transition:opacity .15s;}
 .cp-tab:hover,.rm-tab:hover{opacity:.8;}
+/* Hesap listesinin ozeti: tablonun bir satiri DEGIL, altindaki not. Satir gibi
+   gorunmesin diye cizgisiz ve sonuk; bos oldugunda (toplayici bildirmediyse)
+   hic yer kaplamasin diye padding de bos hucrede dusuyor. */
+.lve-ozet{border-top:1px solid var(--line);color:var(--hint);font-size:11px;
+  padding-top:6px;}
+.lve-ozet:empty{border:none;padding:0;}
 <?php if ($lveOk): ?>
 .ptp{display:none;}
 .cpa,.rma{display:table;}
@@ -4816,6 +4876,20 @@ function renderProcs(data){
         `<td class="num ${cls}"${r[2]>0?' title="'+esc(tf('%s processes',r[2]))+'"':''}>${esc(txt)}</td></tr>`;
     }).join('');
   };
+  // PHP'deki lveOzetMetni()'nin ikizi.
+  const lveOzet=(tot,cores,srv)=>{
+    if(tot===null||tot===undefined||!(cores>=1))return '';
+    const pay=tot/cores;
+    const n=v=>v.toFixed(v<10?1:0);
+    let s=tf('%s%% accounts',n(pay));
+    if(srv!==null&&srv!==undefined&&srv>=pay){
+      const sis=srv-pay;
+      s+=' · '+tf('%s%% system',n(sis))+' · '+tf('%s%% server',String(Math.round(srv)));
+    }
+    return s;
+  };
+  if(data.cpuAcctTot!==undefined){const e=document.getElementById('pt-cpusum');
+    if(e)e.textContent=lveOzet(data.cpuAcctTot,data.threads,data.cpu);}
   if(data.cpuAcct!==undefined){const b=document.getElementById('pt-cpuacct');
     if(b)b.innerHTML=lveGovde(data.cpuAcct,'cpu',data.memTotalGB);}
   if(data.ramAcct!==undefined){const b=document.getElementById('pt-ramacct');
