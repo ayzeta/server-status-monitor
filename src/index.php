@@ -3,15 +3,15 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.72';
+const APP_VERSION = '1.5.73';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
-const STATE_LEGEND = 'run (R): using the CPU or waiting in the run queue · '
-    . 'blocked (D): in uninterruptible sleep waiting on disk or network — this is where iowait comes from · '
-    . 'sleeping (S): idle, waiting for work; produces no load and is not shown because the count is meaninglessly large · '
-    . 'zombie (Z): dead but not yet reaped by its parent; burns no CPU and is filtered out of the process lists — '
-    . 'a rising count means a parent is not reaping its children'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
+const STATE_LEGEND = 'R = running, or waiting in the run queue · '
+    . 'D = uninterruptible sleep, waiting on disk or network — this is where iowait comes from · '
+    . 'S = sleeping; produces no load and is not shown, because the count is meaninglessly large · '
+    . 'Z = zombie: dead but not yet reaped by its parent. It burns no CPU, so it is filtered out of '
+    . 'the process lists — a rising count means a parent is not reaping its children'; // sürüm — footer'da gösterilir, sürüm etiketiyle senkron tutulur
 
 // ════════════════════════════════════════════════════════════════
 // CONFIG — config.php varsa okunur; yoksa varsayılanlarla tek başına çalışır.
@@ -173,10 +173,10 @@ $TR = [
     // ANAHTAR İNGİLİZCE METNİN KENDİSİ (t() çeviri bulamazsa anahtarı basar).
     // Dizgi TEK YERDE: STATE_LEGEND sabiti. Burada ikinci bir kopya dursaydı
     // biri değişince arama sessizce tutmaz, TR sayfasında İngilizcesi çıkardı.
-    STATE_LEGEND => 'çalışan (R): işlemciyi kullanan ya da sırada bekleyen süreç · '
-                    . 'bloklu (D): disk/ağ bekleyen, kesilemez uykudaki süreç — iowait buradan gelir · '
-                    . 'uyuyan (S): iş bekliyor, yük üretmez, sayısı anlamsızca büyük olduğu için yazılmaz · '
-                    . 'zombi (Z): ölmüş ama ebeveyni henüz toplamamış; işlemci yakmaz, '
+    STATE_LEGEND => 'R = çalışıyor ya da sırada bekliyor · '
+                    . 'D = kesintisiz uykuda, disk/ağ bekliyor — iowait buradan gelir · '
+                    . 'S = uyuyor; yük üretmez ve sayısı anlamsızca büyük olduğu için yazılmaz · '
+                    . 'Z = zombi: ölmüş ama ebeveyni henüz toplamamış. İşlemci yakmadığı için '
                     . 'süreç listelerinden elenir — sayısı artıyorsa ebeveyn süreç çocuklarını toplamıyordur',
     'not listening' => 'dinlemiyor', 'not detected' => 'algılanmadı', 'not bound' => 'bağlı değil',
     'disabled' => 'devre dışı', 'ok' => 'ok', 'fail' => 'başarısız', 'TESTING mode' => 'TEST modu', 'Load' => 'Yük', 'unavailable' => 'yok',
@@ -3575,7 +3575,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['cpu'], 260, 88, $cpuCardCol, 'ssr-cpu', [0, 100])?><canvas class="res-spark" id="sp-cpu"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-cpu" title="<?=htmlspecialchars(t(STATE_LEGEND))?>"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; ' . t('run') . ' ' . (int)$rState . ' / ' . t('blocked') . ' ' . (int)$dState : ''?><?=$zState ? ' &middot; ' . t('zombie') . ' ' . (int)$zState : ''?></div>
+    <div class="res-meta" id="rm-cpu" title="<?=htmlspecialchars(t(STATE_LEGEND))?>"><?=t('Load')?>: <?=number_format($load1,2)?> / <?=number_format($load5,2)?> / <?=number_format($load15,2)?><?=($rState !== null || $dState !== null) ? ' &middot; R ' . (int)$rState . ' / D ' . (int)$dState : ''?><?=$zState ? ' &middot; Z ' . (int)$zState : ''?></div>
   </div>
   <div class="res-card" id="rc-ram" style="--c:<?=$ramCardCol?>;--fill:<?=$memUsagePercent?>%<?=cardBorderCss($ramCardCol)?>">
     <div class="res-top">
@@ -3970,7 +3970,9 @@ function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' 
 function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
 // PHP'deki rm-cpu satirinin ikizi. Zombi SIFIRSA yazilmaz (saglikli sunucuda
 // satiri bosuna uzatmasin); ipucu sabit, durum harflerini aciklar.
-function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · '+t('run')+' '+(d.rstate||0)+' / '+t('blocked')+' '+(d.dstate||0);if(d.zstate)s+=' · '+t('zombie')+' '+d.zstate;return s;}
+// Durum HARFLERI yazilir, kelime degil: satir mobilde sarmasin. Harfler ps'in
+// kendi dili, cevrilmez; ne anlama geldikleri ayni satirin ipucunda.
+function cpuMeta(d){let s=t('Load')+': '+d.load1.toFixed(2)+' / '+d.load5.toFixed(2)+' / '+d.load15.toFixed(2);if(d.rstate!=null||d.dstate!=null)s+=' · R '+(d.rstate||0)+' / D '+(d.dstate||0);if(d.zstate)s+=' · Z '+d.zstate;return s;}
 function diskMeta(d){if(d.diskUsedGB==null)return d.disk+'% used';let s=d.diskUsedGB+' / '+d.diskTotalGB+' GB';if(d.inodePct!=null)s+=' · <span style="color:'+(d.inodeCol||'var(--hint)')+'">inode '+d.inodePct+'%</span>';if(d.raidTxt&&d.raidState!=='ok')s+=' · <span style="color:'+(d.raidCol||'var(--hint)')+'">'+esc(d.raidTxt)+'</span>';if(d.raidMismatch>0)s+=' · <span style="color:var(--warn)">'+d.raidMismatch+' '+t('mismatch')+'</span>';if(d.smartTxt)s+=' · <span style="color:var(--danger)">'+d.smartTxt+'</span>';if(d.diskGrow)s+=' · '+d.diskGrow;return s;}
 function push(a,v){a.push(v);if(a.length>MAX)a.shift();}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
