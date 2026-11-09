@@ -377,6 +377,42 @@ ck("ayni satir MEMPHY dolu olunca RAM de yazilir",
             "lvecpu pixelcart 118.4 0",
             "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 0"]))
 
+# ── TARIHCE 17. KOLONU (TOPCPUA): "pct::hesap" ─────────────────────────
+# TOPIO'nun birebir esi ve ayni yontemle sinaniyor: kural KAYNAKTAN cikariliyor
+# ve YUKARIDAKI kodun KENDI CIKTISIYLA besleniyor -- elle yazilmis dizgiyle
+# degil. TOPIO'da tam bu yuzden 16 gunluk sessiz bir regresyon yasandi.
+TOPCPUA_AWK = src[src.index("TOPCPUA=$(printf"):].split("awk '", 1)[1].split("')", 1)[0]
+
+
+def topcpua(ciktisi):
+    r = subprocess.run(["awk", TOPCPUA_AWK], input=ciktisi + NL,
+                       capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+if os.path.exists(STATE): os.remove(STATE)
+calistir([satir_tam(1089, 1000, 10, C0, 2841 * SAYFA_MB, 42),
+          satir_tam(1002, 1000, 10, C0, 486 * SAYFA_MB, 7)])
+_c = calistir([satir_tam(1089, 1000, 10, C0 + 355200000000, 2841 * SAYFA_MB, 42),
+               satir_tam(1002, 1000, 10, C0 + 55800000000, 486 * SAYFA_MB, 7)], yas=300)
+_t = topcpua(_c).split(":")
+# Bu cikti ZATEN 'lvecpu_tot' satiriyla basliyor ve o satir lvecpu'lardan ONCE
+# geliyor: kural '^lvecpu' gibi gevsek olsaydi TOPLAMI hesap sanip ilk eslesmede
+# cikardi. Asagidaki ad iddiasi o tuzagi da kapatiyor.
+ck("en cok CPU yakan hesap yazilir", _t[2] if len(_t) > 2 else "", "pixelcart")
+ck("bicim 'pct::hesap': ortadaki alan bos, deger TAM SAYI",
+   (len(_t), _t[1], _t[0].isdigit()), (3, "", True))
+ck("kural isaret satirini veri sanmiyor", TOPCPUA_AWK.startswith("NR==1"), False)
+# ESIK 0,5: altinda kalan hesap int()+0.5 ile "0" olur ve satir "hesap X %0"
+# derdi -- olculen seyi yanlis anlatan bir sayi. Satirin BICIMI gercek ciktidan
+# aliniyor, yalnizca sayi degistiriliyor (esik bizim kuralimiz).
+_ad = [s for s in _c.split(NL) if s.startswith("lvecpu ")][0].split()[1]
+ck("0,5 altindaki hesap hic yazilmaz",
+   topcpua(NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu %s 0.4 3" % _ad])), "")
+ck("0,5 ve ustu yazilir (yuvarlanarak)",
+   topcpua(NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu %s 0.5 3" % _ad])),
+   "1::" + _ad)
+
 # ── BOLUMLERE AYIRMA (kabuk tarafi) ────────────────────────────────────
 # Tek python turunun ciktisi IKI bolume bolunuyor: I/O satirlari "Top IO
 # accounts"a, CPU/RAM satirlari "LVE per account"a. Panonun ayristiricisi bolum

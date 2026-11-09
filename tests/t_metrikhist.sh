@@ -58,9 +58,16 @@ done
 ck "pencere 35 satirda kalir" "$(wc -l < "$HIST" | tr -d ' ')" "35"
 ck "en eski satir dusmus (ilk kalan 5. tur)" "$(sed -n '1p' "$HIST" | awk '{print $2}')" "5"
 
-# ── 5) Alan sayisi: 16 kolon (son dordu fail alanlari) ─────────
-# 13 CPU sureci, 14 RAM sureci, 15 I/O HESABI, 16 I/O SURECI.
-ck "satirda 16 alan var (16. = surec I/O)" "$(awk 'NR==1{print NF}' "$HIST")" "16"
+# ── 5) Alan sayisi: 17 kolon (son besi fail alanlari) ──────────
+# 13 CPU SURECI, 14 RAM sureci, 15 I/O HESABI, 16 I/O SURECI, 17 CPU HESABI.
+# Her olcunun HEM surec HEM hesap tarafi var: ikisi ayni seyi olcmuyor (surec
+# root'u gorur ama ps ortalamasi omur boyu; hesap root'u hic gormez ama pencere
+# dogru) ve pano ikisini de yaziyor.
+ck "satirda 17 alan var (17. = CPU hesabi)" "$(awk 'NR==1{print NF}' "$HIST")" "17"
+# OLCULMEMIS ALAN '-' YAZILIR, BOS BIRAKILMAZ: bos birakilsa alanlar kayar ve
+# 17. kolon 16. sanilirdi. (yaz() TOPCPUA'yi tanimlamiyor -> varsayilan '-'.)
+ck "bildirilmeyen kolon '-' olur" "$(awk 'NR==1{print $17}' "$HIST")" "-"
+ck "dolu kolon oldugu gibi yazilir" "$(TOPCPUA='48::riverside'; yaz "05:00" 1.0; awk 'END{print $17}' "$HIST")" "48::riverside"
 
 rm -f "$HIST"
 echo

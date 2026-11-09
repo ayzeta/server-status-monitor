@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.78';
+const APP_VERSION = '1.5.79';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -1977,7 +1977,7 @@ $sslColorCss = $sslLvl === 'err' ? 'var(--danger)' : ($sslLvl === 'warn' ? 'var(
 // /home/ayzeta/.metrics_history dosyasına yazar (son 30 dk).
 // Sayfa bu geçmişle grafikleri açılışta doldurur; mail ekinde de
 // spike'a giden trend görünür.
-$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[], 'topio'=>[], 'topiop'=>[]];
+$histSeed = ['t'=>[], 'l1'=>[], 'l5'=>[], 'l15'=>[], 'cpu'=>[], 'ram'=>[], 'disk'=>[], 'iow'=>[], 'wrk'=>[], 'rx'=>[], 'tx'=>[], 'mq'=>[], 'top'=>[], 'topr'=>[], 'topio'=>[], 'topiop'=>[], 'topcpua'=>[]];
 $histFile = $HOME_DIR . '/.metrics_history';
 if (is_readable($histFile)) {
     foreach (@file($histFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $ln) {
@@ -2001,6 +2001,12 @@ if (is_readable($histFile)) {
             // En cok I/O yapan SUREC — 1.5.70+. 15. kolon yalnizca HESAP
             // tarafini tasir (LVE) ve LVE root sureclerini hic gormez.
             $histSeed['topiop'][] = (isset($p[15]) && $p[15] !== '-') ? $p[15] : ''; // "kbps:user:ad:betik"
+            // En cok CPU yakan HESAP — 1.5.78+. 13. kolon yalnizca SUREC
+            // tarafini tasir ve o liste root/mysql/nobody ile doluyor; hangi
+            // MUSTERININ yuku bastigi yuk olayinda hic gorunmuyordu.
+            // Bicim "pct::hesap": ortadaki alan bos, cunku sahip yok -- adin
+            // kendisi hesap (I/O hesap kolonuyla ayni dizilis).
+            $histSeed['topcpua'][] = (isset($p[16]) && $p[16] !== '-') ? $p[16] : '';
         }
     }
     // Pencere NOKTA SAYISIYLA değil ZAMANLA tanımlı: son 30 dakika.
@@ -2097,8 +2103,14 @@ if (!empty($histSeed['t'])) {
                 $tu = preg_replace($kut, '', $tp[2] ?? '');
             }
             if ($tn === '') return null;
-            // Canli taraftaki rowTop ile AYNI dizilis: 'ad · hesap · betik'
-            return [$tv, $tn . ($tu !== '' ? ' · ' . $tu : '') . ($ts !== '' ? ' · ' . $ts : '')];
+            // SAHIP VE BETIK PARANTEZ ICINDE: 'ad (hesap, betik)'.
+            // Once ' · ' ile yaziliyordu ve ayni isaret olay satirinda BOLUM
+            // ayiraci olarak da kullaniliyordu -- 'rustbolit · root 36% · I/O:'
+            // okuyunca goz bolum sinirini bulamiyordu. Artik tek kural:
+            // '—' bolum ayirir, '( )' sahibi/betigi gosterir, ',' bolum icini.
+            // Canli taraftaki rowTop ile AYNI dizilis.
+            $ek = array_filter([$tu, $ts], fn($x) => $x !== '');
+            return [$tv, $tn . ($ek ? ' (' . implode(', ', $ek) . ')' : '')];
         };
         $topSfx = function ($raw, $fmt, $lead = null) use ($topAyir) {
             $a = $topAyir($raw);
@@ -2122,7 +2134,26 @@ if (!empty($histSeed['t'])) {
             $pd = $p ? t('process') . ' ' . $p[1] . ' ' . fmtKbps($p[0]) : '';
             $ad = $a ? t('account') . ' ' . $a[1] . ' ' . fmtKbps($a[0]) : '';
             $sira = ($p && (!$a || $p[0] >= $a[0])) ? [$pd, $ad] : [$ad, $pd];
-            return implode(' · ', array_filter($sira));
+            // BOLUM ICI AYIRAC VIRGUL: ' · ' artik yalniz parantez icinde
+            // (sahip/betik) gecen bir isaret degil, hic gecmiyor -- bolum
+            // sinirlari '—', bolum ici ','.
+            return implode(', ', array_filter($sira));
+        };
+        // CPU faili: I/O'nun esi. SUREC ve HESAP birlikte yazilir ve ETIKETLENIR,
+        // cunku ikisi ayni seyi olcmuyor:
+        //   surec : root anlik goruntusu -- root/mysql/nobody dahil, AMA ps'in
+        //           CPU%'si surecin KENDI omrunun ortalamasi.
+        //   hesap : LVE sayaclari -- bir dakikalik pencere, ama root'u HIC gormez.
+        // SIRA SABIT, "buyugu one" KURALI YOK: iki sayi karsilastirilabilir
+        // degil (biri omur ortalamasi, oteki pencere ortalamasi); buyuk olani
+        // one almak, karsilastirilamaz iki sayiyi karsilastirmak olurdu.
+        // 17. kolon yoksa (eski satir) yalniz surec yazilir -- onceki davranis.
+        $cpuFail = function ($i) use ($histSeed, $topAyir) {
+            $p = $topAyir($histSeed['top'][$i]    ?? '');
+            $a = $topAyir($histSeed['topcpua'][$i] ?? '');
+            $pd = $p ? t('process') . ' ' . $p[1] . ' ' . $p[0] . '%' : '';
+            $ad = $a ? t('account') . ' ' . $a[1] . ' ' . $a[0] . '%' : '';
+            return implode(', ', array_filter([$pd, $ad]));
         };
         $sfx  = $topSfx($histSeed['top'][$i]  ?? '', function ($v) { return $v . '%'; });
         $sfxR = $topSfx($histSeed['topr'][$i] ?? '', function ($mb) { return $mb >= 1024 ? round($mb / 1024, 1) . ' GB' : $mb . ' MB'; });
@@ -2136,7 +2167,17 @@ if (!empty($histSeed['t'])) {
         // kasten yok — en cok RSS tutan surec yuksek yukun faili degildir.
         // Burada $sfxI'nin CPU'ya dusen yedegi KULLANILMAZ, yoksa ayni fail
         // satirda iki kez yazilirdi; veri yoksa ek bos kalir.
-        $sfxLd = $sfx . ($ioTxt !== '' ? ' · I/O: ' . $ioTxt : '');
+        //
+        // IKI BOLUM, IKISI DE ETIKETLI: 'üst:' demek yetmiyordu, cunku yuk
+        // satirinda IKI ayri olcu var (CPU ve I/O) ve her birinde IKI ayri
+        // kaynak (surec/hesap). Etiketsiz parcalar ' · ' ile dizilince okuyan
+        // hepsini tek bir seyin devami saniyordu -- I/O tarafinda ayni sorun
+        // 1.5.69'da cozulmustu, CPU tarafi geride kalmisti.
+        // ETIKET YALNIZ BURADA: tek olculu olaylarda (CPU kritik, RAM, I/O
+        // bekleme) fail'in turu zaten belli, orada '— üst: ...' sade kaliyor.
+        $cpuTxt = $cpuFail($i);
+        $sfxLd = ($cpuTxt !== '' ? ' — CPU: ' . $cpuTxt : '')
+               . ($ioTxt  !== '' ? ' — I/O: ' . $ioTxt  : '');
         $chk = [
             'load' => [$l1v / max($coreCount, 1), $TH['load_crit'], $TH['load_warn'],
                        tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd),
@@ -5082,11 +5123,13 @@ function checkAlerts(data){
   // olcumden, fail listesi 60-90sn geride olabilen cron goruntusunden gelir).
   const snapFresh=data.procAge!=null&&data.procAge<=TH.snap_stale;
   const suffix=txt=>snapFresh&&txt?' — '+t('top:')+' '+txt+tf(' (snap %ss)',data.procAge):'';
-  // Kullanici cPanel'de hesap adidir. Betik varsa o da eklenir:
-  // 'lsphp · acmeco · public_html/index.php 76.0%'
+  // Kullanici cPanel'de hesap adidir. Betik varsa o da eklenir, IKISI DE
+  // PARANTEZ ICINDE: 'lsphp (acmeco, public_html/index.php) 76.0%'.
+  // PHP $topAyir ile AYNI dizilis -- ' · ' olay satirinda bolum ayiraci olarak
+  // da kullanildigi icin birakildi (bkz. $topAyir'daki not).
   const rowTop=(row,val)=>{const n=pname(row[5]);if(!n)return '';
-    const u=row[1]?' · '+row[1]:'',sc=pscript(row[5]);
-    return n+u+(sc?' · '+sc:'')+' '+val;};
+    const ek=[row[1],pscript(row[5])].filter(Boolean);
+    return n+(ek.length?' ('+ek.join(', ')+')':'')+' '+val;};
   let top='';
   if(data.procCpu&&data.procCpu.length) top=suffix(rowTop(data.procCpu[0],data.procCpu[0][2]+'%'));
   // RAM'in faili top-CPU sureci DEGIL, top-RAM surecidir — liste zaten payloadda.
@@ -5122,26 +5165,44 @@ function checkAlerts(data){
     // derken I/O sutunu "python3" diyordu -- ayni surec, iki farkli ad
     // (uretimde goruldu 2026-11-08). Toplayici tarafi da ayni uc kademeyi
     // uyguluyor (TOPIOP), yani iki yol ayni sonucu veriyor.
-    const pd=p?t('process')+' '+pname(p[2])+(p[0]?' · '+p[0]:'')
-             +(pscript(p[2])?' · '+pscript(p[2]):'')+' '+fmtKbps(p[1]):'';
+    const pek=p?[p[0],pscript(p[2])].filter(Boolean):[];
+    const pd=p?t('process')+' '+pname(p[2])+(pek.length?' ('+pek.join(', ')+')':'')
+             +' '+fmtKbps(p[1]):'';
     const parts=(p&&(!a||p[1]>=a[1]))?[pd,ad]:[ad,pd];
-    const s=parts.filter(Boolean).join(' · ');
+    const s=parts.filter(Boolean).join(', ');
     if(s){topIo=suffix(s);topIoTxt=s;}
   }
   // Yuk uyarisina I/O faili de iliştirilir (PHP tarafiyla ayni karar): yuk
   // islemciden de diskten de gelebilir. topIo'nun kendi ' — ust: ... (anlik Xsn)'
   // eki tekrar olurdu, o yuzden metin yeniden kuruluyor. RAM kasten yok.
-  const loadIo=(snapFresh&&topIoTxt)?' · I/O: '+topIoTxt:'';
+  const loadIo=(snapFresh&&topIoTxt)?' — I/O: '+topIoTxt:'';
+  // Yuk satirinin CPU bolumu — PHP $cpuFail ikizi. SUREC ve HESAP birlikte,
+  // ETIKETLI ve SABIT SIRADA: iki sayi karsilastirilabilir degil (ps surecin
+  // kendi omrunun ortalamasi, LVE bir dakikalik pencere), bu yuzden I/O'daki
+  // "buyugu one" kurali BURADA UYGULANMAZ.
+  // Hesap tarafi cpuAcct'in tepesi (azalan sirali, tek cekirdek yuzdesi) ve
+  // TAM SAYIYA yuvarlanir -- gecmis sutunu da oyle yaziliyor (TOPCPUA), yani
+  // sayfa acilisi ile canli tik ayni sayiyi gosterir.
+  let loadCpu='';
+  {
+    const p=(data.procCpu&&data.procCpu.length)?data.procCpu[0]:null;
+    const a=(data.cpuAcct&&data.cpuAcct.length&&data.cpuAcct[0][1]>=0.5)?data.cpuAcct[0]:null;
+    const pd=p?t('process')+' '+rowTop(p,p[2]+'%'):'';
+    const ad=a?t('account')+' '+a[0]+' '+Math.round(a[1])+'%':'';
+    const s=[pd,ad].filter(Boolean).join(', ');
+    if(snapFresh&&s)loadCpu=' — CPU: '+s;
+  }
   let topSql='';
   if(data.procSql&&data.procSql.length){const q=data.procSql[0];
-    topSql=suffix(q[1]+(q[2]?' · '+q[2]:'')+' '+q[3]+'s');}
+    // Veritabani adi da PARANTEZ ICINDE (ayni kural): 'root (wp_db) 12s'.
+    topSql=suffix(q[1]+(q[2]?' ('+q[2]+')':'')+' '+q[3]+'s');}
   // Disk alarminda en dolu hesap: diskAcct = [hesap, GB], azalan sirali (saatlik
   // kota verisi; yas etiketi anlamsiz, o yuzden suffix() degil dogrudan).
   let topDisk='';
   if(snapFresh&&data.diskAcct&&data.diskAcct.length) topDisk=' — '+t('top:')+' '+data.diskAcct[0][0]+' '+data.diskAcct[0][1]+' GB';
   transLog('load',data.load1/cores,TH.load_crit,TH.load_warn,
-    tf('High load: %s (1m)%s',data.load1.toFixed(2),top+loadIo),
-    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),top+loadIo),
+    tf('High load: %s (1m)%s',data.load1.toFixed(2),loadCpu+loadIo),
+    tf('Load elevated: %s (1m)%s',data.load1.toFixed(2),loadCpu+loadIo),
     tf('Load back to normal: %s',data.load1.toFixed(2)),now);
   transLog('cpu',data.cpu,TH.cpu_crit,TH.cpu_warn,
     tf('CPU critical: %s%%%s',data.cpu,top),tf('CPU high: %s%%%s',data.cpu,top),tf('CPU back to normal: %s%%',data.cpu),now);

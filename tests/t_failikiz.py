@@ -35,7 +35,7 @@ pe = src.index(NL + "        };", _p1) + len(NL + "        };")
 php_fn = src[pb:pe]
 
 jb = src.index("  const ptok=c=>")
-JM = "    return n+u+(sc?' · '+sc:'')+' '+val;};"
+JM = "    return n+(ek.length?' ('+ek.join(', ')+')':'')+' '+val;};"
 je = src.index(JM, jb) + len(JM)
 js_blok = src[jb:je]
 
@@ -114,7 +114,13 @@ for (alan, _), ph, jsx in zip(ORNEK, p, j):
 # ── Betik yolu GERCEKTEN yaziliyor mu (asil regresyon) ─────────
 ck("lsphp satirinda betik yolu var", "public_html/index.php" in p[0], True)
 ck("hesap adi yolun icinde tekrarlanmiyor", "/home/acmeco" in p[0], False)
-ck("betigi olmayan surecte fazladan ayirac yok", p[1].strip(), "— top: mariadbd · mysql 8192%")
+ck("betigi olmayan surecte fazladan ayirac yok", p[1].strip(), "— top: mariadbd (mysql) 8192%")
+# AYIRAC KURALI: '( )' sahip/betik, ',' bolum ici, '—' bolum. Olay satirinda
+# ' · ' ARTIK HIC GECMEZ -- ayni isaret hem "sunun sahibi" hem "sıradaki bolum"
+# demek oldugu icin okuyan bolum sinirini bulamiyordu.
+ck("fail metninde ' · ' kalmadi", any(" · " in s for s in p), False)
+ck("sahip ve betik parantez icinde, aralari virgul",
+   p[0].strip(), "— top: lsphp (acmeco, public_html/index.php) 26%")
 
 # ── Eski bicim (1.5.67 ve oncesi) hala okunuyor ────────────────
 # Guncellemeden sonra gecmis dosyasinda ~35 dakika eski satir kaliyor.
@@ -122,7 +128,7 @@ eski = subprocess.run(["php", "-r", NL.join([
     "function t($s){return $s;}", php_fn.strip(),
     "echo $topSfx('lsphp:26:acmeco', function($v){return $v.'%';});"])],
     capture_output=True, text=True, encoding="utf-8", cwd=BURASI)
-ck("eski sira da okunur (ad:deger:hesap)", eski.stdout.strip(), "— top: lsphp · acmeco 26%")
+ck("eski sira da okunur (ad:deger:hesap)", eski.stdout.strip(), "— top: lsphp (acmeco) 26%")
 
 # ── I/O kolonu: "deger::hesap" (ortadaki alan kasten bos) ──────
 io_t = subprocess.run(["php", "-r", NL.join([
@@ -210,6 +216,99 @@ ck("surec buyukse once surec", pi[0].startswith("process crond"), True)
 ck("hesap buyukse once hesap", pi[1].startswith("account agir"), True)
 ck("etiketler var (sirali okunmasin)", "process" in pi[0] and "account" in pi[0], True)
 ck("16. kolon yoksa yalniz hesap", pi[2], "account ayzeta 5 KB/s")
+# Bolum ici ayirac VIRGUL, sahip PARANTEZ: iki olcu tek satirda ama ayri okunur.
+ck("I/O bolumu icinde virgul, sahip parantezde", pi[0],
+   "process crond (root) 163 KB/s, account hotel 1 KB/s")
+ck("I/O metninde ' · ' kalmadi", any(" · " in s for s in pi), False)
+
+# ── CPU FAILI: PHP $cpuFail ile canli loadCpu AYNI METNI vermeli ──────────
+# Yuk olayinin CPU bolumu 1.5.79'a kadar YALNIZ SURECI yaziyordu. Uretimde o
+# listenin tepesinde surekli root/mysql/imunify/rustbolit duruyor -- bunlar
+# cPanel hesabi degil, yani satir hangi MUSTERININ yuku bastigini hic
+# soylemiyordu. Artik I/O ile ayni dizilis: iki olcu, ikisi de etiketli.
+# SIRA SABIT: ps'in CPU%'si surecin KENDI omrunun ortalamasi, LVE ise bir
+# dakikalik pencere -- iki sayi karsilastirilamaz, "buyugu one" kurali yok.
+cb = src.index("        $cpuFail = function ($i) use ($histSeed, $topAyir) {")
+ce = src.index(NL + "        };", cb) + len(NL + "        };")
+cpu_fn = src[cb:ce]
+
+CPU_ORNEK = [
+    # (13. kolon = surec, 17. kolon = hesap) -> canli karsiligi (procCpu, cpuAcct)
+    ("26:acmeco:lsphp:public_html/index.php", "48::riverside",
+     [1234, "acmeco", 26, 0.1, "05:05", "lsphp:/home/acmeco/public_html/index.php"],
+     ["riverside", 48.0, 12]),
+    # 17. kolon YOK (guncellemeden onceki satir) -> yalniz surec, onceki davranis.
+    ("36:root:rustbolit:", "", [9, "root", 36, 0.1, "02:10", "/usr/bin/rustbolit"], None),
+    # Surec tarafi bos -> yalniz hesap.
+    ("", "19::oakhost", None, ["oakhost", 18.6, 3]),
+    # YUVARLAMA IKIZLIGI: toplayici int(18.6+0.5)=19 yaziyor, canli tik
+    # Math.round(18.6)=19. Ayrisirsa sayfa acilisi ile ilk tik farkli sayi
+    # gosterirdi.
+    ("5:mysql:mariadbd:", "19::oakhost",
+     [2295514, "mysql", 5, 6.1, "1-00:00:00", "/usr/sbin/mariadbd"], ["oakhost", 18.6, 3]),
+    ("", "", None, None),
+]
+php_cpu = NL.join([
+    "<?php",
+    "function t($s) { return $s; }",
+    "$histSeed = json_decode(file_get_contents('t_fail_cpu.json'), true);",
+    php_fn.strip(),
+    cpu_fn.strip(),
+    "$o = []; foreach (array_keys($histSeed['top']) as $i) { $o[] = $cpuFail($i); }",
+    "echo json_encode($o, JSON_UNESCAPED_UNICODE);",
+])
+io.open(os.path.join(BURASI, "t_fail_cpu.json"), "w", encoding="utf-8").write(json.dumps(
+    {"top": [a for a, _, _, _ in CPU_ORNEK], "topcpua": [b for _, b, _, _ in CPU_ORNEK]}))
+io.open(os.path.join(BURASI, "t_failcpu.php"), "w", encoding="utf-8", newline=NL).write(php_cpu)
+
+_cb = src.index("  let loadCpu='';")
+_CM = "    if(snapFresh&&s)loadCpu=' — CPU: '+s;" + NL + "  }"
+_ce = src.index(_CM, _cb) + len(_CM)
+js_cpu_blok = src[_cb:_ce]
+js_cpu = NL.join([
+    "function t(s){return s;}",
+    "function tf(s){var a=[].slice.call(arguments,1),i=0;"
+    "return s.replace(/%s/g,function(){return a[i++];});}",
+    "const TH={snap_stale:90};",
+    "const giris=require('./t_fail_cpu_rows.json');",
+    "const out=giris.map(g=>{const data={procAge:0,procCpu:g[0]?[g[0]]:[],cpuAcct:g[1]?[g[1]]:[]};",
+    "  const snapFresh=true;",
+    js_blok.replace("  const ptok", "const ptok").replace("const snapFresh=", "const snapFreshYok="),
+    js_cpu_blok,
+    # PHP tarafi ' — CPU: ' onegini tasimiyor (onu $sfxLd koyuyor), JS tasiyor.
+    "  return loadCpu.replace(' — CPU: ','');});",
+    "console.log(JSON.stringify(out));",
+])
+io.open(os.path.join(BURASI, "t_fail_cpu_rows.json"), "w", encoding="utf-8").write(
+    json.dumps([[c, d] for _, _, c, d in CPU_ORNEK]))
+io.open(os.path.join(BURASI, "t_failcpu.js"), "w", encoding="utf-8", newline=NL).write(js_cpu)
+
+rpc = subprocess.run(["php", "t_failcpu.php"], capture_output=True, text=True,
+                     encoding="utf-8", cwd=BURASI)
+rjc = subprocess.run(["node", "t_failcpu.js"], capture_output=True, text=True,
+                     encoding="utf-8", cwd=BURASI)
+if rpc.returncode or rjc.returncode:
+    sys.exit((rpc.stderr or "") + (rjc.stderr or ""))
+pc = json.loads(rpc.stdout)
+jc = json.loads(rjc.stdout)
+for (a, b, _, _), ph, jsx in zip(CPU_ORNEK, pc, jc):
+    ck("CPU ikiz: " + (a or "-") + " | " + (b or "-"), ph, jsx)
+ck("surec ve hesap birlikte, ikisi de etiketli", pc[0],
+   "process lsphp (acmeco, public_html/index.php) 26%, account riverside 48%")
+ck("17. kolon yoksa yalniz surec (eski davranis)", pc[1], "process rustbolit (root) 36%")
+ck("surec yoksa yalniz hesap", pc[2], "account oakhost 19%")
+# SIRA SABIT: hesap %19 > surec %5 ama yine de SUREC ONDE. Iki sayi ayni seyi
+# olcmuyor, buyugune gore siralamak karsilastirilamaz iki sayiyi karsilastirmak
+# olurdu (I/O'da ikisi de KB/s oldugu icin orada "buyugu one" kurali var).
+ck("sira sabit: hesap buyuk olsa da surec onde", pc[3],
+   "process mariadbd (mysql) 5%, account oakhost 19%")
+ck("iki taraf da bos -> ek bos", pc[4], "")
+ck("CPU metninde ' · ' kalmadi", any(" · " in s for s in pc), False)
+
+for f in ("t_fail_cpu.json", "t_fail_cpu_rows.json", "t_failcpu.php", "t_failcpu.js"):
+    y = os.path.join(BURASI, f)
+    if os.path.exists(y):
+        os.remove(y)
 
 for f in ("t_fail_io.json", "t_fail_io_rows.json", "t_failio.php", "t_failio.js"):
     y = os.path.join(BURASI, f)

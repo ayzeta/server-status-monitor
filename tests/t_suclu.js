@@ -37,18 +37,18 @@ function ck(ad, gelen, beklenen) {
 // Gercek olay: hesap kucuk, surec buyuk -> surec onde, hesap da yazilir
 ck('surec buyuk: once surec, sonra hesap',
    fn({ ioAcct: [['xxhesap', 15]], ioProc: [['mysql', 40960, '/usr/sbin/mariadbd']] }, kb, ek, t),
-   ' — process mariadbd · mysql 40 MB/s · account xxhesap 15 KB/s');
+   ' — process mariadbd (mysql) 40 MB/s, account xxhesap 15 KB/s');
 
 // Hesap buyukse once hesap
 ck('hesap buyuk: once hesap',
    fn({ ioAcct: [['agirhesap', 50000]], ioProc: [['root', 200, '/usr/bin/x']] }, kb, ek, t),
-   ' — account agirhesap 48.8 MB/s · process x · root 200 KB/s');
+   ' — account agirhesap 48.8 MB/s, process x (root) 200 KB/s');
 
 // Yalniz biri varsa yalniz o
 ck('surec yok: yalniz hesap',
    fn({ ioAcct: [['h', 300]], ioProc: [] }, kb, ek, t), ' — account h 300 KB/s');
 ck('hesap yok: yalniz surec',
-   fn({ ioAcct: [], ioProc: [['root', 700, '/sbin/jbd2']] }, kb, ek, t), ' — process jbd2 · root 700 KB/s');
+   fn({ ioAcct: [], ioProc: [['root', 700, '/sbin/jbd2']] }, kb, ek, t), ' — process jbd2 (root) 700 KB/s');
 
 // Hicbiri yoksa bos (cagiran taraf top-CPU suclusuna duser)
 ck('ikisi de yok -> bos', fn({ ioAcct: [], ioProc: [] }, kb, ek, t), '');
@@ -58,14 +58,14 @@ ck('sifir degerler sayilmaz',
 // Komut yolu kisaltilir (tam yol satiri sisirirdi)
 ck('komut yalniz son parca',
    fn({ ioAcct: [], ioProc: [['root', 1024, '/opt/cpanel/ea-php82/root/usr/bin/php']] }, kb, ek, t),
-   ' — process php · root 1 MB/s');
+   ' — process php (root) 1 MB/s');
 
 // Komut ARGUMANLARIYLA geliyor: ad ilk belirtec. Uretimde boyle ('/usr/sbin/
 // crond -n', '/usr/bin/imunify-resident --quiet'); kesilmezse satir
 // "crond -n · root 163 KB/s" diye okunuyordu.
 ck('komut argumanlari ada karismaz',
    fn({ ioAcct: [], ioProc: [['root', 163, '/usr/sbin/crond -n']] }, kb, ek, t),
-   ' — process crond · root 163 KB/s');
+   ' — process crond (root) 163 KB/s');
 
 // GENEL YORUMLAYICI: ad argumanlardan cozulur. Uretimde olay kaydi
 // "I/O: surec python3 · root 1.5 MB/s" diyordu, fail ise im360.run idi ve AYNI
@@ -73,12 +73,12 @@ ck('komut argumanlari ada karismaz',
 // seyi soylemeli.
 ck('genel yorumlayici adi argumandan cozulur',
    fn({ ioAcct: [], ioProc: [['root', 1536, '/opt/imunify360/venv/bin/python3 -m im360.run']] }, kb, ek, t),
-   ' — process im360.run · root 1.5 MB/s');
+   ' — process im360.run (root) 1.5 MB/s');
 
 // Esitlikte surec onde (genis kapsamli olan once okunsun)
 ck('esitlikte surec onde',
    fn({ ioAcct: [['h', 500]], ioProc: [['r', 500, '/x/y']] }, kb, ek, t),
-   ' — process y · r 500 KB/s · account h 500 KB/s');
+   ' — process y (r) 500 KB/s, account h 500 KB/s');
 
 // ── Fail ADI: JS kurali collector.sh'teki awk ile AYNI sonucu vermeli ────────
 // Iki yol var (sayfa acilisi tarihceden/awk, canli tik JS) ve ikisi ayni olayi

@@ -1745,6 +1745,17 @@ PYEOF
       gsub(/[^A-Za-z0-9_.-]/, "", b); gsub(/[^A-Za-z0-9_.\/-]/, "", y)
       u = $3; gsub(/[^A-Za-z0-9_.-]/, "", u)
       printf "%d:%s:%s:%s", int($4+0.5), u, b, y; exit }')
+  # 17. kolon: o dakikanin en cok CPU yakan HESABI "pct::hesap" (1.5.78+).
+  # 13. kolon yalnizca SUREC tarafini tasiyor ve uretimde o listenin tepesinde
+  # surekli root/mysql/imunify/rustbolit duruyor -- bunlar cPanel hesabi degil,
+  # yani yuk uyarisi hangi MUSTERININ bastigini hic soylemiyordu.
+  # TOPIO ILE AYNI DIZILIS ve ayni suzgec kurgusu: IO_OUT'un bas satiri isaret
+  # satiri, ilk eslesen lvecpu en buyugu (liste zaten azalan sirali).
+  # TAM SAYIYA YUVARLANIR: panodaki ayristirici ilk alani ctype_digit ile
+  # sinayip yeni/eski bicimi ayirt ediyor, "18.6" yazilsaydi ESKI bicim
+  # saniliyordu ("ad:deger:hesap") ve satir sessizce bozulurdu.
+  # ESIK 0.5: altinda kalan "%0" diye yazilirdi, olculen seyi yanlis anlatir.
+  TOPCPUA=$(printf '%s\n' "$IO_OUT" | awk '$1=="lvecpu" && $3+0 >= 0.5 {printf "%d::%s", int($3+0.5), $2; exit}')
   echo
   prof "surec I/O (/proc io)"
   echo "--- MySQL queries ---"
@@ -1870,7 +1881,7 @@ TOPR=$(sort -k7,7 -rn "$PS_SNAP" | head -1 | awk "$TOP_AD"'{printf "%d:%s:%s:%s"
 # kisaliyor ve grafik o dakikayi iki nokta ciziyor. Yeni satir eskisinin yerine
 # gecer -- ayni dakikanin EN GUNCEL olcumu kazanir. Pencere 35 satir oldugu icin
 # ayni "SS:DD" damgasinin bir gun onceden kalmis olmasi mumkun degil.
-HSATIR="$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--} ${TOPIOP:--}"
+HSATIR="$(date +%H:%M) $L1 $L5 $L15 ${CPU:-0} $RAM $DSK ${IOW:-0} $WRK $RXK $TXK $MQ ${TOPP:--} ${TOPR:--} ${TOPIO:--} ${TOPIOP:--} ${TOPCPUA:--}"
 { [ -f "$HIST" ] && grep -v "^${HSATIR%% *} " "$HIST"
   printf '%s\n' "$HSATIR"; } | tail -35 > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 chown "$WEB_USER:$WEB_USER" "$HIST"; chmod 640 "$HIST"

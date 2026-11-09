@@ -181,19 +181,34 @@ ck("bitis olcutu SON yanita (politika) bagli",
 # Capa birebir IFADE degil, ILISKI: yuk eki CPU failinin uzerine I/O metnini
 # ekliyor mu. Eskiden "$sfxLd = $sfx . $topSfx(" araniyordu ve 1.5.70'te o satir
 # $ioFail ile yeniden kurulunca test URUN DOGRUYKEN kirildi.
-ck("PHP: yuk uyarisi I/O ekini tasiyor",
-   bool(re.search(r"\$sfxLd\s*=\s*\$sfx\s*\.\s*\(\$ioTxt", src)), True)
+ck("PHP: yuk uyarisi CPU VE I/O ekini tasiyor",
+   bool(re.search(r"\$sfxLd\s*=\s*\(\$cpuTxt.*\$ioTxt", src, re.S)), True)
 ck("PHP: I/O faili surec VE hesap tarafina bakiyor",
    "$p = $topAyir($histSeed['topiop']" in src
    and "$a = $topAyir($histSeed['topio']" in src, True)
+# CPU tarafi 1.5.79'a kadar YALNIZ SURECI yaziyordu: o listenin tepesinde
+# uretimde surekli root/mysql/imunify duruyor ve bunlar cPanel hesabi degil,
+# yani yuk uyarisi hangi MUSTERININ bastigini hic soylemiyordu.
+ck("PHP: CPU faili de surec VE hesap tarafina bakiyor",
+   "$p = $topAyir($histSeed['top']" in src
+   and "$a = $topAyir($histSeed['topcpua']" in src, True)
 ck("PHP: iki olcu ETIKETLI (sirali okunmasin)",
    "t('process')" in src and "t('account')" in src, True)
 ck("PHP: yuk metni $sfxLd kullaniyor",
    "tf('High load: %s (1m)%s', number_format($l1v, 2), $sfxLd)" in src, True)
 ck("PHP: yuk uyarisinda RAM eki yok", "number_format($l1v, 2), $sfxR" in src, False)
-ck("JS: yuk uyarisi I/O ekini tasiyor", "data.load1.toFixed(2),top+loadIo" in src, True)
+ck("JS: yuk uyarisi CPU VE I/O ekini tasiyor",
+   "data.load1.toFixed(2),loadCpu+loadIo" in src, True)
+# Ekler yeniden kuruluyor: topIo/top kendi ' — ust: ... (anlik Xsn)' onegini
+# tasir, yuk satirina oldugu gibi eklenseydi onek iki kez yazilirdi.
 ck("JS: I/O eki yeniden kuruluyor (cift 'ust:' olmasin)",
-   "' · I/O: '+topIoTxt" in src, True)
+   "' — I/O: '+topIoTxt" in src, True)
+ck("JS: CPU eki de yeniden kuruluyor", "loadCpu=' — CPU: '+s" in src, True)
+# AYIRAC KURALI (1.5.79): '—' bolum, '( )' sahip/betik, ',' bolum ici.
+# Yuk satirinda bolumler ' · ' ile ayrilsaydi ayni isaret hem sahip hem bolum
+# demek olurdu -- okunamaz hale getiren tam buydu.
+ck("yuk satirinda ' · ' bolum ayiraci olarak kullanilmiyor",
+   ("' · I/O: '" in src, "' · CPU: '" in src), (False, False))
 
 # ── Fail adi: genel yorumlayici gizlenmesin ────────────────────
 # Uretimde olculdu (2026-11-02): uyari "ust: python3 · root" diyordu, fail
