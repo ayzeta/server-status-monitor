@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.81';
+const APP_VERSION = '1.5.82';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -2996,7 +2996,7 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     // Sağdaki ipucu baştaki noktayı TAŞIMAZ: seçici düğmesi olan kartlarda nokta
     // yok, olmayanlarda vardı — aynı konumdaki aynı şey iki türlü yazılıyordu.
     $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . '<span class="proc-age">' . t('active+idle') . '</span></div>'
-          . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
+          . '<table class="proc-table acct3"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
     $phpMax = 1;
     foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
     foreach ($procPhp as $p) {
@@ -3086,7 +3086,7 @@ function renderDiskCard($diskAcct, $h) {
          . '<span class="proc-age dk-tabs">' . $tabs . '</span></div>'
          // Sağ sütunun başlığı görünümle değişir: boyut GB, artış kendi birimini
          // (MB/GB) hücrede yazdığı için orada yalnız "ARTIŞ" yazar.
-         . '<table class="proc-table"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+         . '<table class="proc-table acct3"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
          . '<th class="num"><span class="dkh-s">GB</span><span class="dkh-g">' . upper(t('growth')) . '</span></th></tr></thead>'
          . '<tbody id="pt-disk">' . "\n";
     if (!$diskAcct) {
@@ -3198,7 +3198,7 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
          // kaymasın diye) buraya konuyor. Doğrudan tabloya konunca satırlar
          // esneyip araları açılıyordu — tablo kendi boyunda kalmalı.
          . '<div class="io-wrap">'
-         . '<table class="proc-table"><thead><tr>' . "\n"
+         . '<table class="proc-table acct3"><thead><tr>' . "\n"
          . '<th><span class="ioh-a">' . upper(t('Account')) . '</span><span class="ioh-p">' . upper(t('User')) . '</span></th>'
          . '<th><span class="ioh-p">' . upper(t('Command')) . '</span></th>'
          . '<th class="num">I/O</th></tr></thead><tbody id="pt-io">' . "\n";
@@ -3515,9 +3515,14 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 /* Hesap listesinin ozeti: tablonun bir satiri DEGIL, altindaki not. Satir gibi
    gorunmesin diye cizgisiz ve sonuk; bos oldugunda (toplayici bildirmediyse)
    hic yer kaplamasin diye padding de bos hucrede dusuyor. */
-.lve-ozet{border-top:1px solid var(--line);color:var(--hint);font-size:11px;
-  padding-top:6px;}
-.lve-ozet:empty{border:none;padding:0;}
+/* ÖZGÜLLÜK: seçici '.proc-table td' ile yarışıyor (0,0,1,1); düz '.lve-ozet'
+   (0,0,1,0) kaybediyordu ve padding ile renk hiç uygulanmıyordu. Üstelik
+   '--line' diye bir değişken YOK — tanımsız var() bildirimi geçersiz kılıyor,
+   yani ayırıcı çizgi 1.5.77'den beri hiç çizilmiyordu. Canlıda ölçüldü
+   2026-11-09: 'border-top: 0px none', 'padding-top: 3.5px'. */
+.proc-table td.lve-ozet{border-top:1px solid var(--border);color:var(--hint);
+  font-size:11px;padding-top:6px;}
+.proc-table td.lve-ozet:empty{border:none;padding:0;}
 /* SUREC sutunu: deger sutunuyla yarismasin diye sonuk ve dar. */
 .lve-np{color:var(--hint);white-space:nowrap;}
 /* IKI HESAP TABLOSU AYNI GEOMETRIDE. Varsayilan 'auto' duzende her tablo
@@ -3528,11 +3533,20 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    gelince kayiklik gorunuyor. Sabit duzende sutun genislikleri ilk satirdan
    (th) gelir, yani asagidaki uc genislik ikisini de ayni yapiyor.
    Ad sutunu kalani alir; tasan uzun hesap adi uc noktayla kirpilir. */
-.cpa,.rma{table-layout:fixed;}
+.cpa,.rma,.acct3{table-layout:fixed;}
 .cpa th:nth-child(2),.rma th:nth-child(2){width:46px;}
 .cpa th:nth-child(3),.rma th:nth-child(3){width:38%;}
 .cpa th:nth-child(4),.rma th:nth-child(4){width:62px;}
-.cpa .proc-user,.rma .proc-user{overflow:hidden;text-overflow:ellipsis;}
+/* UC SUTUNLU HESAP TABLOLARI (PHP, Disk, I/O) ayni cubuk/deger genisligini
+   kullanir, boylece BES KART BIRDEN hizalanir: SUREC sutunu AD sutunundan yer
+   yiyor, cubuk ve deger sutunlari sagdan olculdugu icin konumlari degismiyor.
+   Olculdu 2026-11-09 (canli, telefon): dort sutunlularda cubuk kart solundan
+   328,8px ve 230,4px genisken, uc sutunlularda 243,5 / 238,8 ve yalnizca 56px
+   idi -- hem birbirinden kayik hem dortte bir genislikte. Asagi inildikce
+   saga kayma hissinin sebebi buydu. */
+.acct3 th:nth-child(2){width:38%;}
+.acct3 th:nth-child(3){width:62px;}
+.cpa .proc-user,.rma .proc-user,.acct3 .proc-user{overflow:hidden;text-overflow:ellipsis;}
 <?php if ($lveOk): ?>
 .ptp{display:none;}
 .cpa,.rma{display:table;}
