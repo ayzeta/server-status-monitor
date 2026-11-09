@@ -74,6 +74,12 @@ silently — the denominator is then omitted rather than guessed.
 
 ## Review log
 
+**2026-11-09** — Nothing new to read, so nothing to decide. The cPanel 138
+change log still ends at 138.0.21 (page last modified 2026 November 5), and the
+change log index still lists 138 as the newest series — there is no 140 log. The
+CSF change log still ends at 16.34-1 (page last modified 2026 November 2). Both
+pages were opened and read directly rather than taken on trust.
+
 **2026-11-08** — cPanel 138.0.20 and 138.0.21; CSF 16.34-1. Nothing that
 required a change. 138 is still the current series — there is no 140 change log
 yet. One entry was close enough to check in the code rather than wave off: three

@@ -64,11 +64,30 @@ HT = NL.join([
 ])
 io.open(WEB + "/.htaccess", "w", newline=NL).write(HT)
 
-# crontab yerine sahte: PATH'in basina konur
+# crontab yerine sahte: PATH'in basina konur.
+#
+# VEKIL GERCEK crontab GIBI DAVRANMAK ZORUNDA: okudugu dosyayi KIRPMAZ.
+# uninstall.sh:66 su boru hattini kuruyor --
+#     crontab -l | grep -vF "$DATA_DIR/collector.sh" | crontab -
+# -- ve bir boru hattinin iki yani AYNI ANDA kosar. Eski vekil yazma yolunda
+# dumduz 'cat > crontab.txt' yapiyordu: kabuk yoneltmeyi kurarken dosyayi
+# ANINDA kirpiyor, okuyan yan ('crontab -l' = 'cat crontab.txt') henuz
+# okumadiysa BOS okuyor ve KORUNMASI GEREKEN satirlar (ornek: upcp) ucuyordu.
+# Test bu yuzden arada bir "baska cron satiri KORUNDU" iddiasinda duserdi.
+#
+# URUN KUSURU DEGIL, VEKILIN KUSURU: gercek crontab stdin'i gecici dosyaya
+# alir ve spool'u SONRA degistirir, okunani kirpmaz. Yani vekil gercek araçtan
+# TEHLIKELI tarafa sapmisti ve test uretimde olamayacak bir sey icin kirmizi
+# yaniyordu -- en kotu hata turu, cunku kirmiziya guveni kiriyor.
+#
+# OLCULDU 2026-11-09 (ayni boru hatti, 120'lik turlar): eski vekille 6 kayip
+# (~%5); gecici dosya + mv ile 240 turda 0 kayip.
 io.open(TMP + "/bin/crontab", "w", newline=NL).write(NL.join([
     "#!/bin/sh",
     'if [ "$1" = "-l" ]; then cat "%s/crontab.txt" 2>/dev/null; exit 0; fi' % TMP,
-    'cat > "%s/crontab.txt"' % TMP, ""]))
+    'yeni="%s/crontab.yeni.$$"' % TMP,
+    'cat > "$yeni"',
+    'mv -f "$yeni" "%s/crontab.txt"' % TMP, ""]))
 os.chmod(TMP + "/bin/crontab", 0o755)
 io.open(TMP + "/crontab.txt", "w", newline=NL).write(NL.join([
     "0 3 * * * /usr/local/cpanel/scripts/upcp",
