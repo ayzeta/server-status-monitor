@@ -29,6 +29,7 @@ lvecpu_tot 205.4 338
 lvecpu makinem 118.4 24
 lvecpu bluewave 62.0 11
 lvecpu riverside 18.6 7
+lveram_tot 39526.0 338
 lveram bluewave 2841.0 11
 lveram makinem 1960.5 24
 lveram zencache 486.0 4

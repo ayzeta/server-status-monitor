@@ -248,6 +248,7 @@ ck("CPU kumulatif: ilk turda satir yok",
              satir_tam(1002, 1000, 10, C0 + 55800000000, 486 * SAYFA_MB, 7)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 137.0 2",
             "lvecpu pixelcart 118.4 42", "lvecpu ayzeta 18.6 7",
+            "lveram_tot 3327.0 2",
             "lveram pixelcart 2841.0 42", "lveram ayzeta 486.0 7"]))
 
 # CPU ve RAM AYRI siralanir: ayzeta CPU'da ikinci, RAM'de birinci olmali.
@@ -256,6 +257,7 @@ ck("iki liste bagimsiz siralanir",
              satir_tam(1002, 1000, 10, C0 + 111600000000, 9000 * SAYFA_MB, 7)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 137.0 2",
             "lvecpu pixelcart 118.4 42", "lvecpu ayzeta 18.6 7",
+            "lveram_tot 9500.0 2",
             "lveram ayzeta 9000.0 7", "lveram pixelcart 500.0 42"]))
 
 # ── TOPLAM, ILK 15 KESMESINDEN ETKILENMEZ ──────────────────────────────
@@ -276,6 +278,15 @@ ck("toplam = 20 x %10 = %200 (tek cekirdek yuzdesi)",
    abs(float(tot[0].split()[1]) - 200.0) <= 200.0 * 0.02, True)
 ck("toplam satiri listeden ONCE gelir",
    yirmi.index(tot[0]) < min(i for i, s in enumerate(yirmi) if s.startswith("lvecpu ")), True)
+# RAM TOPLAMI DA AYNI KURALA TABI: her hesap 100 MB tutuyor, liste 15'te kesilir
+# ama toplam 20 hesabi ve 2000 MB'i gostermek zorunda.
+rtot = [s for s in yirmi if s.startswith("lveram_tot ")]
+ck("RAM listesi de 15'te kesilir",
+   len([s for s in yirmi if s.startswith("lveram ")]), 15)
+ck("RAM toplami BUTUN hesaplari sayar", (len(rtot), rtot[0].split()[2]), (1, "20"))
+ck("RAM toplami = 20 x 100 MB", rtot[0].split()[1], "2000.0")
+ck("RAM toplami RAM listesinden ONCE gelir",
+   yirmi.index(rtot[0]) < min(i for i, s in enumerate(yirmi) if s.startswith("lveram ")), True)
 
 # ── BOS ALAN: I/O OLCUMU KAYBOLMAMALI ──────────────────────────────────
 # Bu dosyada bos alanlar var (tab duruyor, deger yok). CPU/MEMPHY ayni try
@@ -289,7 +300,7 @@ ck("CPU alani bos olan hesabin I/O'su yine okunur",
              satir_tam(1002, 1000, 10, C0 + 55800000000, 486 * SAYFA_MB, 7)], yas=300),
    NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0", "lve_ok 1m",
             "lvecpu_tot 18.6 1", "lvecpu ayzeta 18.6 7",
-            "lveram ayzeta 486.0 7"]))
+            "lveram_tot 486.0 1", "lveram ayzeta 486.0 7"]))
 
 # ── CPU sayaci geri gitti (LVE yeniden kuruldu) ─────────────────────────
 if os.path.exists(STATE): os.remove(STATE)
@@ -304,6 +315,10 @@ ck("CPU sayaci sifirlanan hesabin CPU'su dusurulur, RAM'i kalir",
    # onu sayiyor, yani ikisi tutarli (1 hesap, %18,6).
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 18.6 1",
             "lvecpu ayzeta 18.6 7",
+            # RAM TOPLAMI IKI HESABI DA SAYAR: CPU sayacinin sifirlanmasi
+            # MEMPHY'yi dusurmez (anlik deger), yani RAM listesi de toplami da
+            # iki satirli kalir -- CPU tarafiyla ayni kumede OLMAMASI olagan.
+            "lveram_tot 3327.0 2",
             "lveram pixelcart 2841.0 42", "lveram ayzeta 486.0 7"]))
 
 # ── ESKI DURUM DOSYASI (3 alan, CPU'suz) ───────────────────────────────
@@ -318,7 +333,7 @@ io.open(STATE, "w", encoding="utf-8", newline=NL).write(
 ck("eski durum dosyasi: CPU satiri yok, I/O ve RAM calisir",
    calistir([satir_tam(1089, 1900, 10, C0 + 355200000000, 2841 * SAYFA_MB, 42)], yas=300),
    NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0", "lve_ok 1m",
-            "lveram pixelcart 2841.0 42"]))
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"]))
 
 # ── URETIMDEN ALINMIS GERCEK SATIR ─────────────────────────────────────
 # Asagidaki satir lin'den (2026-11-08) alinan bir hesap satirinin AYNISI;
@@ -348,15 +363,19 @@ if os.path.exists(STATE): os.remove(STATE)
 calistir([satir_gercek(1089, C0, 0)])
 ck("gercek satir: NPROC bos olsa da CPU yazilir (MEMPHY 0 -> RAM satiri yok)",
    calistir([satir_gercek(1089, C0 + 355200000000, 0)], yas=300),
+   # MEMPHY 0 -> hesap RAM LISTESINDE yok (0 gosterilmez) ama TOPLAMDA sayilir:
+   # "olctuk, 0 cikti" ile "olcemedik" ayri seyler. Alan BOS gelirse (uretimdeki
+   # hal) hesap ikisine de girmez -- asagidaki gercek satir testi bunu gosteriyor.
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 0"]))
+            "lvecpu pixelcart 118.4 0", "lveram_tot 0.0 1"]))
 
 if os.path.exists(STATE): os.remove(STATE)
 calistir([satir_gercek(1089, C0, 2841 * SAYFA_MB)])
 ck("ayni satir MEMPHY dolu olunca RAM de yazilir",
    calistir([satir_gercek(1089, C0 + 355200000000, 2841 * SAYFA_MB)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 0", "lveram pixelcart 2841.0 0"]))
+            "lvecpu pixelcart 118.4 0",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 0"]))
 
 # ── BOLUMLERE AYIRMA (kabuk tarafi) ────────────────────────────────────
 # Tek python turunun ciktisi IKI bolume bolunuyor: I/O satirlari "Top IO
@@ -366,7 +385,8 @@ ck("ayni satir MEMPHY dolu olunca RAM de yazilir",
 _io_suzgec = src[src.index('printf \'%s\\n\' "$IO_OUT" | grep -v'):].split(NL, 1)[0]
 _lve_suzgec = src[src.index('printf \'%s\\n\' "$IO_OUT" | grep \''):].split(NL, 1)[0]
 _ornek = NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1", "lve_ok 1m",
-                  "lvecpu pixelcart 118.4 42", "lveram pixelcart 2841.0 42"])
+                  "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42",
+                  "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"])
 
 
 def suz(satir_kodu):
@@ -378,8 +398,13 @@ def suz(satir_kodu):
 
 ck("I/O bolumune CPU/RAM satiri karismaz", suz(_io_suzgec),
    NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1"]))
+# TOPLAM SATIRLARI DA BU SUZGECTEN GECMEK ZORUNDA: '^lve' onlari da aliyor, yani
+# yeni bir toplam eklemek kabuk tarafinda degisiklik GEREKTIRMIYOR -- ama bunu
+# varsaymak yerine burada sinaniyor, cunku suzgec daralirsa ozet satiri sessizce
+# kaybolur ve panoda yalnizca satir hic cizilmez (hata vermez).
 ck("LVE bolumune yalniz CPU/RAM satirlari gider", suz(_lve_suzgec),
-   NL.join(["lve_ok 1m", "lvecpu pixelcart 118.4 42", "lveram pixelcart 2841.0 42"]))
+   NL.join(["lve_ok 1m", "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"]))
 
 for f in (LISTE, STATE, MOD):
     if os.path.exists(f): os.remove(f)

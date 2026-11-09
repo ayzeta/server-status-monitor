@@ -283,7 +283,7 @@
       cpuAcct:cpuAcct(), ramAcct:ramAcct(), lveOk:true, lveWin:'1m',
       // Hesaplarin CPU toplami (tek cekirdek yuzdesi). 12 cekirdek -> ~%17
       // sunucu payi; kalani sistem (root, mysql, taramalar).
-      cpuAcctTot:205.4, threads:12,
+      cpuAcctTot:205.4, ramAcctTot:39526, threads:12,
       // Artis gorunumu: pencere basina liste. Gercek panoda collector'in gunluk
       // kaydindan gelir; demoda sabit ornek.
       // Degerler GB; sutun birimini kendi yaziyor (1 GB alti MB).

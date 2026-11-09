@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.77';
+const APP_VERSION = '1.5.78';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -153,6 +153,12 @@ $TR = [
     'no account RAM reported' => 'hesap başına RAM bildirilmedi',
     '%s%% accounts' => 'hesaplar %%%s', '%s%% system' => 'sistem %%%s',
     '%s%% server' => 'sunucu %%%s',
+    '%s GB accounts' => 'hesaplar %s GB', '%s GB system' => 'sistem %s GB',
+    '%s GB server' => 'sunucu %s GB',
+    'Processes the account has right now, idle ones included. Source: the LVE NPROC counter, which arrives with the same row as CPU and RAM. Empty means LVE did not report it for that account.'
+        => 'Hesabın şu anki süreç sayısı, boşta bekleyenler dahil. Kaynak: LVE’nin NPROC sayacı, CPU ve RAM ile AYNI satırda geliyor. Boşsa LVE o hesap için bildirmemiş demektir.',
+    'Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.'
+        => 'Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil). Sistem, kullanılan belleğin geri kalanı: root, MySQL, LiteSpeed, Redis, Imunify ve çekirdek — hiçbir hesaba yazılamayan bellek. İkisi de aynı andaki fiziksel bellek, ortalama değil.',
     'Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'
         => 'Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil), çekirdek sayısına bölünerek tek çekirdek yüzdesinden sunucu yüzdesine çevrildi. Sistem geri kalanı: root, mysql, LiteSpeed, Imunify ve diğer taramalar — hiçbir hesaba yazılamayan yük. Pencere hesap listesiyle aynı.',
     'Disk · account' => 'Disk · hesap', 'I/O · account' => 'I/O · hesap', 'I/O data pending' => 'I/O verisi bekleniyor', 'read+write' => 'okuma+yazma',
@@ -296,6 +302,9 @@ $cpuAcct = []; $ramAcct = []; $lveOk = false; $lveWin = '';
 // Hesaplarin CPU toplami (tek cekirdek yuzdesi) ve kac hesabin sayilabildigi.
 // null = toplayici bildirmedi (eski surum) -> satir hic cizilmez, uydurulmaz.
 $cpuAcctTot = null; $cpuAcctN = 0;
+// Hesaplarin RAM toplami (MB) ve sayilabilen hesap sayisi. Ayni kural: null ise
+// satir hic cizilmez.
+$ramAcctTot = null; $ramAcctN = 0;
 
 $procMtime = null;
 if (is_readable($procSnapFile)) {
@@ -436,6 +445,13 @@ if (is_readable($procSnapFile)) {
                 elseif ($p[0] === 'lvecpu_tot' && count($p) === 3
                         && is_numeric($p[1]) && ctype_digit($p[2])) {
                     $cpuAcctTot = (float)$p[1]; $cpuAcctN = (int)$p[2];
+                }
+                // RAM toplami, MB. Burada birim cevrimi YOK: hem bu hem sunucu
+                // tarafi mutlak bellek (MB/GB), CPU'daki cekirdek bolmesi gibi
+                // bir cevrim gerekmiyor.
+                elseif ($p[0] === 'lveram_tot' && count($p) === 3
+                        && is_numeric($p[1]) && ctype_digit($p[2])) {
+                    $ramAcctTot = (float)$p[1]; $ramAcctN = (int)$p[2];
                 }
                 elseif (count($p) === 4 && is_numeric($p[2]) && ctype_digit($p[3])) {
                     if ($p[0] === 'lvecpu')      $cpuAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
@@ -2467,7 +2483,7 @@ if (isset($_GET['json'])) {
         'procPhp'           => $procPhp, 'procSql' => $procSql, 'procAge' => $procAge, 'snapMtime' => $procMtime, 'diskAcct' => $diskAcct, 'ioAcct' => $ioAcct, 'ioProc' => $ioProc, 'ioSrc' => $ioSrc, 'ioWin' => $ioWin, 'ioProcOk' => $ioProcOk,
         'cpuAcct' => $cpuAcct, 'ramAcct' => $ramAcct, 'lveOk' => $lveOk, 'lveWin' => $lveWin,
         // Ozet tikte de tazelensin. null = toplayici bildirmedi (eski surum).
-        'cpuAcctTot' => $cpuAcctTot,
+        'cpuAcctTot' => $cpuAcctTot, 'ramAcctTot' => $ramAcctTot,
         'acctGrowSet' => $acctGrowSet,
         'web'   => ['status' => $webStatus,   'checks' => $webChecks,   'ok' => $webOk,   'total' => $webTotal],
         'mail'  => ['status' => $mailStatus,  'checks' => $mailChecks,  'ok' => $mailOk,  'total' => $mailTotal],
@@ -2688,11 +2704,30 @@ function lveOzetMetni($tot, $cores, $srv) {
     }
     return $s;
 }
+// RAM'in ozet satiri: CPU'daki lveOzetMetni()'nin esi, AMA BIRIM CEVRIMI YOK --
+// MEMPHY mutlak bellek (sayfa -> MB), sunucu tarafi da mutlak (GB). CPU'da
+// cekirdek sayisina bolmek gerekiyordu, burada gerekmiyor.
+// IKISI DE AYNI AN: MEMPHY anlik, memUsedGB de ayni turda /proc/meminfo'dan.
+function lveRamOzetMetni($totMB, $usedGB) {
+    if ($totMB === null || $usedGB === null || $usedGB <= 0) return '';
+    $pay = $totMB / 1024;
+    $s = tf('%s GB accounts', number_format($pay, 1, '.', ''));
+    // OLCMEDIGIMIZ SEY IDDIA EDILMEZ (CPU ozetiyle ayni kural): hesaplarin
+    // toplami kullanilan bellegi asiyorsa girdilerden biri guvenilmez -- MEMPHY
+    // paylasilan sayfalari her hesaba ayri sayabilir. O durumda "sistem 0 GB"
+    // yazmak uydurma olurdu; yalniz hesap payi yazilir.
+    if ($usedGB >= $pay) {
+        $sis = $usedGB - $pay;
+        $s .= ' · ' . tf('%s GB system', number_format($sis, 1, '.', ''))
+            . ' · ' . tf('%s GB server', number_format($usedGB, 1, '.', ''));
+    }
+    return $s;
+}
 function lveAcctRows($rows, $h, $tur) {
     if (!$rows) {
         $msg = $tur === 'cpu' ? t('no account is burning CPU right now')
                               : t('no account RAM reported');
-        return '<tr><td colspan="3" style="color:var(--hint)">' . $msg . '</td></tr>';
+        return '<tr><td colspan="4" style="color:var(--hint)">' . $msg . '</td></tr>';
     }
     $mx = 0.1;
     foreach ($rows as $r) if ($r[1] > $mx) $mx = $r[1];
@@ -2703,15 +2738,22 @@ function lveAcctRows($rows, $h, $tur) {
         // CPU% HER ZAMAN tek ondalik: surec gorunumu de oyle (ps 1 ondalik
         // veriyor), ayni sutunda "62" ile "118.4" yan yana durmasin.
         $txt = $tur === 'cpu' ? number_format($v, 1, '.', '') : fmtMB($v);
+        // SUREC SAYISI AYRI SUTUN (eskiden deger hucresinin ipucunda sakliydi):
+        // iki sutunlu tablo genis kartta seyrek duruyordu ve sayi zaten elimizde
+        // (LVE NPROC, ayni satirla gelir -- YENI TARAMA YOK).
+        // SIFIR/BOS ise hucre BOS kalir, "0" YAZILMAZ: LVE bu alani satir satir
+        // bos dondurebiliyor (uretimde olculdu) ve orada 0 gostermek "hic sureci
+        // yok" demek olurdu -- ayakta olan hesap icin yanlis.
         $out .= '<tr><td class="proc-user">' . $h($u) . '</td>'
+              . '<td class="num lve-np">' . ($np > 0 ? (int)$np : '') . '</td>'
               . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
-              . '<td class="num ' . $cls . '"' . ($np > 0 ? ' title="' . tf('%s processes', (int)$np) . '"' : '')
-              . '>' . $h($txt) . '</td></tr>' . "\n";
+              . '<td class="num ' . $cls . '">' . $h($txt) . '</td></tr>' . "\n";
     }
     return $out;
 }
 function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct = [], $ioSrc = '') {
-    global $cpuAcct, $ramAcct, $lveOk, $lveWin, $cpuAcctTot, $coreCount, $cpuUsage;
+    global $cpuAcct, $ramAcct, $lveOk, $lveWin, $cpuAcctTot, $coreCount, $cpuUsage,
+           $ramAcctTot, $memUsedGB;
     $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
     // SUREC ve HESAP ayni kartta, sekmeleri CSS ceviriyor (I/O kartiyla ayni
@@ -2732,6 +2774,8 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     $sekme = $lveOk;
     $ozet = lveOzetMetni($cpuAcctTot, $coreCount, $cpuUsage);
     $oTip = htmlspecialchars(t('Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'), ENT_QUOTES, 'UTF-8');
+    // SUREC sutununun basligi: sayinin NEREDEN geldigi ve nicin bos kalabildigi.
+    $npTip = htmlspecialchars(t('Processes the account has right now, idle ones included. Source: the LVE NPROC counter, which arrives with the same row as CPU and RAM. Empty means LVE did not report it for that account.'), ENT_QUOTES, 'UTF-8');
     $lveLbl = ' · LVE' . (preg_match('/^(\d+)m$/', (string)$lveWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '');
     $out = '<div class="proc-card" id="cpu-card">'
          . ($sekme
@@ -2757,7 +2801,8 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     }
     $out .= '</tbody></table>'
           . ($sekme
-             ? '<table class="proc-table cpa"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+             ? '<table class="proc-table cpa"><thead><tr><th>' . upper(t('Account')) . '</th>'
+               . '<th class="num" title="' . $npTip . '">' . upper(t('Procs')) . '</th><th></th>'
                . '<th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">' . "\n"
                . lveAcctRows($cpuAcct, $h, 'cpu') . '</tbody>'
                // Ozet TEK hucrede ve tfoot'ta: CPU% sutununa yazilsaydi tek
@@ -2765,13 +2810,15 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
                // Ipucu AYRI satirda: TR metni uzun ve tek satira basilinca CSF
                // mail ekinin 900 baytlik satir siniri asiliyor (t_satir yakaladi).
                . '<tfoot><tr>' . "\n"
-               . '<td colspan="3" class="lve-ozet" id="pt-cpusum" title="' . $oTip . '">' . "\n"
+               . '<td colspan="4" class="lve-ozet" id="pt-cpusum" title="' . $oTip . '">' . "\n"
                . $h($ozet) . '</td></tr></tfoot>'
                . '</table>'
              : '')
           . '</div>';
 
     $rTip = htmlspecialchars(t('Per-account physical RAM at snapshot time (not an average). Source: the CloudLinux LVE MEMPHY counter, in pages. Color: red ≥5%, orange ≥2.5% of physical RAM'), ENT_QUOTES, 'UTF-8');
+    $rOzet  = lveRamOzetMetni($ramAcctTot, $memUsedGB);
+    $rOzTip = htmlspecialchars(t('Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.'), ENT_QUOTES, 'UTF-8');
     $out .= '<div class="proc-card" id="ram-card">'
           . ($sekme
              ? '<input type="radio" name="rmv" id="rmv-a" class="vw-radio" checked>'
@@ -2795,9 +2842,16 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     }
     $out .= '</tbody></table>'
           . ($sekme
-             ? '<table class="proc-table rma"><thead><tr><th>' . upper(t('Account')) . '</th><th></th>'
+             ? '<table class="proc-table rma"><thead><tr><th>' . upper(t('Account')) . '</th>'
+               . '<th class="num" title="' . $npTip . '">' . upper(t('Procs')) . '</th><th></th>'
                . '<th class="num">RAM</th></tr></thead><tbody id="pt-ramacct">' . "\n"
-               . lveAcctRows($ramAcct, $h, 'ram') . '</tbody></table>'
+               . lveAcctRows($ramAcct, $h, 'ram') . '</tbody>'
+               // CPU kartiyla AYNI yer, ayni gerekce: liste "kim dolduruyor"u
+               // cevapliyor, bu satir "bu listenin toplami sunucunun neresi"yi.
+               . '<tfoot><tr>' . "\n"
+               . '<td colspan="4" class="lve-ozet" id="pt-ramsum" title="' . $rOzTip . '">' . "\n"
+               . $h($rOzet) . '</td></tr></tfoot>'
+               . '</table>'
              : '')
           . '</div>';
 
@@ -3326,6 +3380,8 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .lve-ozet{border-top:1px solid var(--line);color:var(--hint);font-size:11px;
   padding-top:6px;}
 .lve-ozet:empty{border:none;padding:0;}
+/* SUREC sutunu: deger sutunuyla yarismasin diye sonuk ve dar. */
+.lve-np{color:var(--hint);width:1%;white-space:nowrap;}
 <?php if ($lveOk): ?>
 .ptp{display:none;}
 .cpa,.rma{display:table;}
@@ -4864,7 +4920,7 @@ function renderProcs(data){
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
   const lveGovde=(rows,tur,totalGB)=>{
-    if(!rows||!rows.length)return `<tr><td colspan="3" style="color:var(--hint)">${
+    if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
     const mx=Math.max(0.1,...rows.map(r=>r[1]));
     return rows.map(r=>{
@@ -4872,8 +4928,9 @@ function renderProcs(data){
       const cls=(tur==='cpu')?cpuAcctCls(r[1]):ramAcctCls(r[1],totalGB);
       const txt=(tur==='cpu')?fmtPct1(r[1]):fmtMB(r[1]);
       return `<tr><td class="proc-user">${esc(r[0])}</td>`+
+        `<td class="num lve-np">${r[2]>0?r[2]:''}</td>`+
         `<td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td>`+
-        `<td class="num ${cls}"${r[2]>0?' title="'+esc(tf('%s processes',r[2]))+'"':''}>${esc(txt)}</td></tr>`;
+        `<td class="num ${cls}">${esc(txt)}</td></tr>`;
     }).join('');
   };
   // PHP'deki lveOzetMetni()'nin ikizi.
@@ -4888,8 +4945,22 @@ function renderProcs(data){
     }
     return s;
   };
+  // PHP'deki lveRamOzetMetni()'nin ikizi.
+  const lveRamOzet=(totMB,usedGB)=>{
+    if(totMB===null||totMB===undefined||usedGB===null||usedGB===undefined||!(usedGB>0))return '';
+    const pay=totMB/1024;
+    const n=v=>v.toFixed(1);
+    let s=tf('%s GB accounts',n(pay));
+    if(usedGB>=pay){
+      const sis=usedGB-pay;
+      s+=' · '+tf('%s GB system',n(sis))+' · '+tf('%s GB server',n(usedGB));
+    }
+    return s;
+  };
   if(data.cpuAcctTot!==undefined){const e=document.getElementById('pt-cpusum');
     if(e)e.textContent=lveOzet(data.cpuAcctTot,data.threads,data.cpu);}
+  if(data.ramAcctTot!==undefined){const e=document.getElementById('pt-ramsum');
+    if(e)e.textContent=lveRamOzet(data.ramAcctTot,data.memUsedGB);}
   if(data.cpuAcct!==undefined){const b=document.getElementById('pt-cpuacct');
     if(b)b.innerHTML=lveGovde(data.cpuAcct,'cpu',data.memTotalGB);}
   if(data.ramAcct!==undefined){const b=document.getElementById('pt-ramacct');

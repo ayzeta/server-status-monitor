@@ -1521,6 +1521,10 @@ if lvc or lvr:
     for name, pct, np in sorted(lvc, key=lambda r: -r[1])[:15]:
         if pct <= 0: continue
         print("lvecpu %s %.1f %d" % (name, pct, np))
+    # RAM'in ayni ozeti, MB. BIRIM CEVRIMI YOK: pano bunu GB'ye bolup
+    # /proc/meminfo'dan gelen "kullanilan" ile karsilastiriyor.
+    if lvr:
+        print("lveram_tot %.1f %d" % (sum(r[1] for r in lvr), len(lvr)))
     for name, mb, np in sorted(lvr, key=lambda r: -r[1])[:15]:
         if mb <= 0: continue
         print("lveram %s %.1f %d" % (name, mb, np))
