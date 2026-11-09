@@ -718,6 +718,44 @@ PYEOF
   # ipucunda gosteriyordu ("16dk once"): bu, SUNUCU hakkinda hicbir sey
   # soylemeyen kendi defterimizin yasiydi. Panoda yeri yok.
   [ -s "$URC" ] && cat "$URC"
+  # OPCACHE: her PHP havuzu kendi paylasimli bellek segmentini AYIRIR ('rw-s'
+  # + '/dev/zero' eslemesi, memory_consumption kadar). Bu alan shmem'in icinde
+  # sayilir ve geri kazanilamaz, yani "kullanilan" RAM'i dogrudan sisirir --
+  # 2026-08'de lin'de shmem'i 31-32 GB'a cikaran sey buydu ve panoda hicbir
+  # yerde gorunmuyordu, nereden geldigi ancak CloudLinux destegiyle bulundu.
+  #
+  # INODE ILE TEKILLESTIRILIR: bir havuzun BUTUN surecleri ayni segmenti
+  # haritalar, tekillestirilmezse rakam isci sayisi kadar siser.
+  #
+  # OLCU ADRES ARALIGI (ayrilan alan), 'Rss'/'Pss' DEGIL. Olculdu 2026-11-09:
+  # 35,8 GB'lik alanin Pss toplami yalnizca 2,0 GB cikti, cunku Pss sayfanin
+  # CANLI bir surecin sayfa tablosunda olmasini sart kosuyor -- onbellege yazan
+  # lsphp oldugunde sayfalar shmem'de kalir ama kimsenin tablosunda olmaz.
+  # Panonun gosterdigi "tutulan" rakami bu yuzden shmem'den tmpfs dusulerek
+  # bulunuyor (asagidaki satir), Pss ile degil.
+  #
+  # 8 MB ESIGI: ayni kalipta bircok kucuk eslesme var (uretimde 659 adet,
+  # toplami 100 MB'in altinda: cpanel_php_fpm, litespeed, imunify360).
+  # OPcache segmenti memory_consumption kadardir ve pratikte 8 MB'in cok
+  # ustunde. Uretimde olculen dagilim: 128 MB x 286, 1 MB x 4, 0 MB x 659.
+  #
+  # 'cat' ILE BESLENIR, awk'a dosya listesi VERILMEZ: tarama sirasinda bir
+  # lsphp olunce dosya kaybolur ve gawk okuma hatasini OLUMCUL sayip END
+  # blogunu hic calistirmaz -- ayni hata smaps denemesinde goruldu, komut
+  # 4,8 saniye kosup hicbir sey basmadi.
+  echo "opcache $(cat /proc/[0-9]*/maps 2>/dev/null | awk '
+      $2 ~ /rw-s/ && $6 ~ /zero/ {
+        split($1, a, "-")
+        mb = (strtonum("0x" a[2]) - strtonum("0x" a[1])) / 1048576
+        if (mb >= 8 && !($5 in g)) { g[$5] = 1; n++; t += mb }
+      }
+      END { printf "%d %d", n + 0, t + 0 }')"
+  # TMPFS TOPLAMI: shmem'in OPcache DISINDAKI kismi (/dev/shm, /run, /tmp...).
+  # Cekirdek shmem'i kaynagina gore ayirmaz; kirilim ancak bu cikarmayla
+  # kuruluyor. Uretimde olculdu 2026-11-09: shmem 19,9 GB, tmpfs 0,47 GB,
+  # yani kalan 19,4 GB ve o da pratikte tamamen OPcache (olculen diger
+  # paylasimli anonim kullanicilarin toplami ~80 MB).
+  echo "shmem_tmpfs $(df -BM --output=used,fstype 2>/dev/null | awk '$2=="tmpfs"{t+=$1+0} END{printf "%d", t+0}')"
   echo "websrv $(pgrep -x litespeed >/dev/null 2>&1 && echo litespeed || echo apache)"
   # Inode kullanimi (%): disk ALANI bos olsa da inode tukenince sunucu coker
   # (dosya olusturulamaz). Milyonlarca kucuk dosya (LiteSpeed cache vb) tuketir.

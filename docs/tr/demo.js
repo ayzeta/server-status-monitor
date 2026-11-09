@@ -34,8 +34,9 @@
     if(s>=86400) return Math.floor(s/86400)+u[0]+' '+Math.floor((s%86400)/3600)+u[1];
     if(s>=3600)  return Math.floor(s/3600)+u[1]+' '+Math.floor((s%3600)/60)+u[2];
     return Math.max(1,Math.floor(s/60))+u[2]; }
-  function ck(label, note, ver, sn, noteT){ var c={ok:true,label:label,note:note};
-    if(ver)c.ver=ver; if(sn){c.upS=ageShort(sn);c.up=yasUzun(sn);} if(noteT)c.noteT=noteT; return c; }
+  function ck(label, note, ver, sn, noteT, fill){ var c={ok:true,label:label,note:note};
+    if(ver)c.ver=ver; if(sn){c.upS=ageShort(sn);c.up=yasUzun(sn);} if(noteT)c.noteT=noteT;
+    if(fill!=null)c.fill=fill; return c; }
   var SERVICES = {
     web:  {status:'operational',ok:5,total:5,checks:[
       ck('LiteSpeed','running','6.3.6',36000), ck('HTTPS (443)','responding · listening'),
@@ -66,11 +67,16 @@
     // "kurulu olmayani gizle" davranisi demoda da gorunur oluyor.
     // Gri satir: ok YOK, unknown + note 'not in use' -> urun onu sayacta
     // "1 not in use" diye yaziyor. Metinler urunun kendi cevirileriyle kurulur.
-    cache:{status:'operational',ok:1,total:1,checks:[
+    // Doluluk cubuklari: Redis 1,1/11,3 GB = %10, OPcache 19,4/35,8 GB = %54.
+    // Ikisi de AYNI kurala uyuyor -- paydasi olculmus satirda cubuk var.
+    cache:{status:'operational',ok:2,total:2,checks:[
       {unknown:true,label:'Redis (6379)',note:'not in use'},
       ck(t('Redis · user'), tf('%s/%s up',180,180)+' · '+tf('%s in use',150), 0, 15000,
          tf('%s accounts in use, %s non-empty databases',150,170)+' · '+
-         tf('%s of %s ceiling','1.1 GB','11.3 GB'))]},
+         tf('%s of %s ceiling','1.1 GB','11.3 GB'), 10),
+      ck('OPcache', '19.4 / 35.8 GB', 0, 0,
+         tf('%s pools',286)+' · '+t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.'),
+         54)]},
     ftp:  {status:'operational',ok:2,total:2,checks:[
       ck('FTP service','running · listening','1.0.52',259200), ck('Kernel state','port bound')]}
   };

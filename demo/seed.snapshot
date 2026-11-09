@@ -47,3 +47,5 @@ userredis_mem 1126
 userredis_age 15000
 userredis_use 150 170
 userredis_cap 11520 0 0
+opcache 286 36608
+shmem_tmpfs 473

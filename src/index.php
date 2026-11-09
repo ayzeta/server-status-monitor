@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.79';
+const APP_VERSION = '1.5.80';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -153,6 +153,13 @@ $TR = [
     'no account RAM reported' => 'hesap başına RAM bildirilmedi',
     '%s%% accounts' => 'hesaplar %%%s', '%s%% system' => 'sistem %%%s',
     '%s%% server' => 'sunucu %%%s',
+    '%s GB reserved' => '%s GB ayrılmış', '%s pools' => '%s havuz',
+    'PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.'
+        => 'PHP’nin derlenmiş kod önbelleği. Her havuz kendi paylaşımlı bellek segmentini ayırır. Ayrılan toplam, havuzlar açılıp kapandıkça değişir. Tutulan ise gerçekten RAM’de olan kısım: shmem eksi tmpfs — çekirdek shmem’i kaynağına göre ayırmadığı için başka yolu yok.',
+    'Shared memory: OPcache segments, tmpfs and /dev/shm. It cannot be reclaimed and counts as used RAM — freeing it needs the processes to restart.'
+        => 'Paylaşımlı bellek: OPcache segmentleri, tmpfs ve /dev/shm. Geri kazanılamaz ve “kullanılan” RAM’e dahildir — boşalması için süreçlerin yeniden başlaması gerekir.',
+    'Right now %s GB of it is tmpfs, the rest is mostly OPcache.'
+        => 'Şu an %s GB’ı tmpfs, kalanı ağırlıkla OPcache.',
     '%s GB accounts' => 'hesaplar %s GB', '%s GB system' => 'sistem %s GB',
     '%s GB server' => 'sunucu %s GB',
     'Processes the account has right now, idle ones included. Source: the LVE NPROC counter, which arrives with the same row as CPU and RAM. Empty means LVE did not report it for that account.'
@@ -727,6 +734,20 @@ $shmemLevel      = ($shmemPct >= $TH['shmem_crit_hard'])               ? 'err'
                  : (($shmemPct >= $TH['shmem_warn_hard'])              ? 'warn'
                  : (($memTight && $shmemPct >= $TH['shmem_warn'])      ? 'warn' : 'ok')));
 $shmemCol        = $shmemLevel === 'err' ? 'var(--danger)' : ($shmemLevel === 'warn' ? 'var(--warn)' : 'var(--hint)');
+// SHMEM'IN KIRILIMI. Rakam eşiğe gelince renk değiştiriyordu ama ne olduğunu
+// hiçbir yerde SÖYLEMİYORDU — en çok unutulan sayı buydu. Çekirdek shmem'i
+// kaynağına göre ayırmaz; tmpfs tarafı toplayıcıdan ölçülüp geliyor, kalanı
+// paylaşımlı anonim (bu makinede pratikte tamamen OPcache — ölçüldü
+// 2026-11-09: shmem 19,9 GB, tmpfs 0,47 GB, diğer paylaşımlı anonim ~80 MB).
+$tmpfsGB   = isset($procSec['shmem_tmpfs']) && ctype_digit(trim($procSec['shmem_tmpfs']))
+           ? (int)trim($procSec['shmem_tmpfs']) / 1024 : null;
+$shmemTip  = t('Shared memory: OPcache segments, tmpfs and /dev/shm. It cannot be reclaimed and counts as used RAM — freeing it needs the processes to restart.');
+// Kırılım ANCAK ÖLÇÜLDÜYSE yazılır: toplayıcı bildirmediyse (eski sürüm) ya da
+// tmpfs shmem'den büyük çıkarsa cümle hiç kurulmaz, uydurma sayı gösterilmez.
+if ($tmpfsGB !== null && $shmemGB > $tmpfsGB) {
+    $shmemTip .= ' ' . tf('Right now %s GB of it is tmpfs, the rest is mostly OPcache.',
+                          number_format($tmpfsGB, 1, '.', ''));
+}
 
 // ── Disk ──────────────────────────────────────────────────────
 $diskTotal        = @disk_total_space('/');
@@ -1697,8 +1718,53 @@ if ($rootFresh && isset($procSec['userredis'])) {
                           'warn' => $urUp > 0 && ($urUp < $urTot || $urAsim || $urNoEv > 0),
                           'note' => $urNote]
                        + ($urAge  ? ['up' => fmtAge($urAge), 'upS' => fmtAgeShort($urAge)] : [])
-                       + ($urTips ? ['noteT' => implode(' · ', $urTips)] : []);
+                       + ($urTips ? ['noteT' => implode(' · ', $urTips)] : [])
+                       // DOLULUK CUBUGU: kullanilan/tavan. Sayilar ipucunda
+                       // kaliyor (satirda ikinci bir birim yer acmiyor), oran
+                       // ise bakista gorunuyor. TAVAN BILINMIYORSA CUBUK YOK:
+                       // bir ornek sinirsizsa ya da okunamadiysa $urCap 0
+                       // kalir ve uydurma bir payda cizilmez.
+                       + ($urCap > 0 && $urMem >= 0
+                          ? ['fill' => min(100, (int)round($urMem / $urCap * 100))] : []);
     }
+}
+
+// ── OPcache ──────────────────────────────────────────────────────────
+// Sunucunun EN BUYUK onbellegi ve 1.5.80'e kadar panoda hic gorunmuyordu.
+// Iki sayi birden yaziliyor, cunku ikisi ayri sey ve ikisi de lazim:
+//   ayrilan : canli havuzlarin ayirdigi toplam (havuz basina
+//             memory_consumption). Havuzlar acilip kapandikca DEGISIR --
+//             uretimde 13 dakikada 198'den 286'ya ciktigi olculdu.
+//   tutulan : bunun su an gercekten RAM'de olan kismi. shmem'den tmpfs
+//             dusulerek bulunur; cekirdek shmem'i kaynagina gore ayirmadigi
+//             icin baska yolu yok (toplayicidaki uzun nota bak).
+// ALARM YOK, BILEREK: bu bellek zaten shmem esiklerinin icinde sayiliyor ve o
+// esikler tam bu olaydan ogrenildi. Ikinci bir alarm ayni baytlari ikinci kez
+// bildirmek olurdu. OPcache'in GERCEK arizasi -- bir havuzun onbellegi dolup
+// surekli kendini sifirlamasi -- koktan OLCULEMIYOR: opcache_get_status() o
+// havuzun icinde PHP kosmayi ister. Olcemedigimiz seye alarm kurulmaz.
+$opcN = 0; $opcCapMB = 0;
+if (isset($procSec['opcache'])) {
+    $op = preg_split('/\s+/', trim($procSec['opcache']));
+    if (count($op) === 2 && ctype_digit($op[0]) && ctype_digit($op[1])) {
+        $opcN = (int)$op[0]; $opcCapMB = (int)$op[1];
+    }
+}
+if ($opcN > 0 && $opcCapMB > 0) {
+    $opcCapGB  = $opcCapMB / 1024;
+    // $tmpfsGB yukarida, shmem kiriliminda bir kez hesaplandi (tek kaynak).
+    // TUTULAN ANCAK IKI OLCUM TUTARLIYSA yazilir: tmpfs shmem'e esit ya da
+    // ondan buyukse cikarma anlamsizdir (shmem okunamamis olabilir), o zaman
+    // yalniz ayrilan yazilir. Olculmemis bir sayi gosterilmez.
+    $opcHeldGB = ($tmpfsGB !== null && $shmemGB > $tmpfsGB) ? $shmemGB - $tmpfsGB : null;
+    $opcNote   = $opcHeldGB !== null
+               ? number_format($opcHeldGB, 1, '.', '') . ' / ' . number_format($opcCapGB, 1, '.', '') . ' GB'
+               : tf('%s GB reserved', number_format($opcCapGB, 1, '.', ''));
+    $cacheChecks[] = ['label' => 'OPcache', 'type' => 'check', 'ok' => true, 'note' => $opcNote,
+                      'noteT' => tf('%s pools', $opcN) . ' · '
+                               . t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.')]
+                   + ($opcHeldGB !== null
+                      ? ['fill' => min(100, (int)round($opcHeldGB / $opcCapGB * 100))] : []);
 }
 [$cacheStatus, $cacheOk, $cacheTotal, $cacheUnknown] = svcTally($cacheChecks);
 
@@ -2584,6 +2650,13 @@ function renderChecks($checks) {
                   // noteT: notun KAYNAĞI/ÖLÇÜM ANI (ör. CageFS durumu dakikada bir
                   // değil, değiştiğinde ölçülüyor — ekran bunu söyleyebilsin).
                   . '<span class="sub-note"' . (isset($c['noteT']) ? ' title="' . htmlspecialchars($c['noteT'], ENT_QUOTES, 'UTF-8') . '"' : '') . '>' . $note . '</span>'
+                  // DOLULUK CUBUGU, YALNIZ PAYDASI OLCULMUS SATIRLARDA. Tavani
+                  // bilinmeyen bir onbellege cubuk cizmek uydurma payda demek
+                  // olurdu; alan hic gelmezse yerinde bos span durur ki oteki
+                  // satirlarin notu ayni hizada bitsin.
+                  . '<span class="sub-bar">'
+                  . (isset($c['fill']) ? '<i style="width:' . (int)$c['fill'] . '%"></i>' : '')
+                  . '</span>'
                   . $age
                   . '</div>' . "\n";
         }
@@ -3422,7 +3495,20 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   padding-top:6px;}
 .lve-ozet:empty{border:none;padding:0;}
 /* SUREC sutunu: deger sutunuyla yarismasin diye sonuk ve dar. */
-.lve-np{color:var(--hint);width:1%;white-space:nowrap;}
+.lve-np{color:var(--hint);white-space:nowrap;}
+/* IKI HESAP TABLOSU AYNI GEOMETRIDE. Varsayilan 'auto' duzende her tablo
+   sutunlarini KENDI icerigine gore olculendiriyordu: CPU kartinin deger
+   sutununda "16.7", RAM kartinda "337 MB" var; genis olan sagdan yer kapinca
+   SUREC sutunu ve cubugun baslangici iki kartta farkli yere dusuyordu.
+   Masaustunde kartlar yan yana oldugu icin belli olmuyor, telefonda alt alta
+   gelince kayiklik gorunuyor. Sabit duzende sutun genislikleri ilk satirdan
+   (th) gelir, yani asagidaki uc genislik ikisini de ayni yapiyor.
+   Ad sutunu kalani alir; tasan uzun hesap adi uc noktayla kirpilir. */
+.cpa,.rma{table-layout:fixed;}
+.cpa th:nth-child(2),.rma th:nth-child(2){width:46px;}
+.cpa th:nth-child(3),.rma th:nth-child(3){width:38%;}
+.cpa th:nth-child(4),.rma th:nth-child(4){width:62px;}
+.cpa .proc-user,.rma .proc-user{overflow:hidden;text-overflow:ellipsis;}
 <?php if ($lveOk): ?>
 .ptp{display:none;}
 .cpa,.rma{display:table;}
@@ -3544,6 +3630,17 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-lbl{font-size:11px;color:var(--muted);flex:0 1 auto;display:flex;align-items:center;gap:4px;min-width:62px;white-space:nowrap;overflow:hidden;}
 .sub-note{font-size:10px;color:var(--hint);white-space:nowrap;flex:1 1 auto;min-width:0;
   overflow:hidden;text-overflow:ellipsis;text-align:right;}
+/* Doluluk çubuğu: rakamlar ipucunda kalır, satıra ikinci bir birim sokmadan
+   oranı göstermek bu çubuğun bütün işi.
+   BOŞKEN GENİŞLİĞİ SIFIR. Önce her satırda sabit 34px ayrılmıştı (çubuğu olan
+   satırın notu ötekilerle aynı yerde bitsin diye); ekran görüntüsünde bedeli
+   ölçüldü: çubuğu OLMAYAN bütün satırlar 34px not genişliği kaybediyor ve
+   Güvenlik/FTP kartlarında sürüm ve durum metinleri kırpılıyordu. İki satır
+   için on satırı kırpmak yanlış takas. */
+.sub-bar{width:34px;flex-shrink:0;height:4px;border-radius:2px;margin-left:6px;
+  background:var(--line);overflow:hidden;align-self:center;}
+.sub-bar:empty{width:0;margin-left:0;background:none;}
+.sub-bar i{display:block;height:100%;background:var(--accent);opacity:.65;}
 /* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
@@ -3927,7 +4024,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><?=svgSpark($ssr['ram'], 260, 88, $ramCardCol, 'ssr-ram', [0, 100])?><canvas class="res-spark" id="sp-ram"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-ram"><?=$memUsedGB?> / <?=$memTotalGB?> GB<?=$shmemGB >= 1 ? ' · <span style="color:' . $shmemCol . '">shmem ' . $shmemGB . ' GB</span>' : ''?><?=$swapTotalGB ? ' · swap ' . $swapUsedGB . '/' . $swapTotalGB . ' GB' : ''?></div>
+    <div class="res-meta" id="rm-ram"><?=$memUsedGB?> / <?=$memTotalGB?> GB<?=$shmemGB >= 1 ? ' · <span style="color:' . $shmemCol . '" title="' . htmlspecialchars($shmemTip, ENT_QUOTES, 'UTF-8') . '">shmem ' . $shmemGB . ' GB</span>' : ''?><?=$swapTotalGB ? ' · swap ' . $swapUsedGB . '/' . $swapTotalGB . ' GB' : ''?></div>
   </div>
   <div class="res-card" id="rc-disk" style="--c:<?=$diskCardCol?>;--fill:<?=$diskUsagePercent?>%<?=cardBorderCss($diskCardCol)?>">
     <div class="res-top">
@@ -4792,7 +4889,11 @@ function renderSvc(key,data){
       // koymuyordu: sunucu render'ında duran title ilk tick'te siliniyor, ipucu
       // "hiç konmamış" gibi kayboluyordu (kullanıcı başına Redis'in GB notu).
       const not='<span class="sub-note"'+(ch.noteT?' title="'+esc(ch.noteT)+'"':'')+'>'+tnote(ch.note||'')+'</span>';
-      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span>${not}${age}</div>`;
+      // Doluluk çubuğu — PHP'deki dalın ikizi. Payda ölçülmemişse çubuk BOŞ
+      // kalır (uydurma payda yok), ama span yine basılır ki satırlar hizada
+      // kalsın: sabit genişlikte bir sütun bu.
+      const cub='<span class="sub-bar">'+(ch.fill!=null?'<i style="width:'+Math.min(100,Math.round(ch.fill))+'%"></i>':'')+'</span>';
+      return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span>${not}${cub}${age}</div>`;
     }).join('');
   }
 }

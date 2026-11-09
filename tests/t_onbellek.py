@@ -230,12 +230,26 @@ else:
                       r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>([^<]*)<', kart)
         return (m.group(1), m.group(2)) if m else ("YOK", "YOK")
 
+    # DOLULUK ÇUBUĞU not ile yaş arasında, SABİT genişlikte bir sütun (1.5.80).
+    # Yalnız paydası ölçülmüş satırlarda dolu; ötekilerde boş span duruyor ki
+    # notlar aynı hizada bitsin. Aşağıdaki iki yardımcı onu atlayarak okuyor.
+    CUB = r'<span class="sub-bar">(?:<i[^>]*></i>)?</span>'
+
     def sag(kart, etiket):
         """Sağdaki dar sütun — UPTIME sütunu (başka birim oraya girmez)."""
         m = re.search(r'<span class="sub-lbl">' + re.escape(etiket) +
                       r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>[^<]*</span>'
-                      r'<span class="sub-age"[^>]*>([^<]*)<', kart)
+                      + CUB + r'<span class="sub-age"[^>]*>([^<]*)<', kart)
         return m.group(1) if m else "YOK"
+
+    def cubuk(kart, etiket):
+        """O satırın doluluk çubuğu: dolu ise yüzde, boşsa None, satır yoksa 'YOK'."""
+        m = re.search(r'<span class="sub-lbl">' + re.escape(etiket) +
+                      r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>[^<]*</span>'
+                      r'<span class="sub-bar">(<i style="width:(\d+)%"></i>)?</span>', kart)
+        if not m:
+            return "YOK"
+        return int(m.group(2)) if m.group(1) else None
 
     def ipucu(kart, etiket):
         """Notun title'ı — kısaltılan listenin tamamı orada durmalı."""
@@ -345,6 +359,13 @@ else:
        "150 accounts in use, 170 non-empty databases · 1.1 GB of 11.3 GB ceiling")
     ck("ipucunda önbellek yaşı YOK", "ago" in (ipucu(kart, "Redis · user") or ""), False)
     ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
+    # DOLULUK ÇUBUĞU (1.5.80): kullanılan/tavan oranı. Rakamlar ipucunda kalır
+    # — satıra ikinci bir birim sokmadan oranı göstermek çubuğun bütün işi.
+    # 1126 / 11520 = %9,8 -> 10.
+    ck("tavan biliniyorsa çubuk dolu", cubuk(kart, "Redis · user"), 10)
+    # Tavanı olmayan satırda çubuk BOŞ: uydurma payda yok. Sistem Redis'i
+    # "kullanılmıyor" satırı bunun örneği.
+    ck("tavansız satırda çubuk boş", cubuk(kart, "Redis (6379)"), None)
 
     # 9) TAVAN ANCAK TAM ÖLÇÜLDÜYSE YAZILIR. maxmemory 0 olan (sınırsız) ya da
     #    okunamayan örnek varsa toplam gerçek tavandan küçük kalır; eksik bir
@@ -359,6 +380,9 @@ else:
                                         "userredis_use 150 170", "userredis_cap 11520 0 2"])
     ck("okunamayan varsa tavan da sınırsız da yazılmaz", ipucu(kart, "Redis · user"),
        "150 accounts in use, 170 non-empty databases · 1.1 GB")
+    # ÇUBUK DA SUSAR: tavan yazılmayan satırda payda ölçülmemiştir. Ölçülmemiş
+    # bir paydayla çubuk çizmek, bu depoda yasak olan şeyin ta kendisi.
+    ck("tavan yazılmıyorsa çubuk da çizilmez", cubuk(kart, "Redis · user"), None)
 
     # 9b) TAVAN TOPLAMI FİZİKSEL RAM'İ AŞIYOR MU (aşırı taahhüt).
     #     maxmemory bir SINIR, ayrılmış bellek değil: örnekler aynı anda
