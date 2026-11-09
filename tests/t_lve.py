@@ -366,16 +366,21 @@ ck("gercek satir: NPROC bos olsa da CPU yazilir (MEMPHY 0 -> RAM satiri yok)",
    # MEMPHY 0 -> hesap RAM LISTESINDE yok (0 gosterilmez) ama TOPLAMDA sayilir:
    # "olctuk, 0 cikti" ile "olcemedik" ayri seyler. Alan BOS gelirse (uretimdeki
    # hal) hesap ikisine de girmez -- asagidaki gercek satir testi bunu gosteriyor.
+   # NPROC ALANI BOS -> '-1', yani "LVE BILDIRMEDI". Sifirla ayni sey DEGIL:
+   # olculdu 2026-11-09 (lin, 399 satir) NPROC hic bos gelmemis ama 121 hesap
+   # gercekten 0 demis. Ikisi 0'a indirilirse pano gercek bir olcumu (surec
+   # yok) "bildirilmedi" diye gizliyor. Bu fikstur alanin BOS da gelebildigini
+   # gosteren uretim ornegi (2026-11-08).
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 0", "lveram_tot 0.0 1"]))
+            "lvecpu pixelcart 118.4 -1", "lveram_tot 0.0 1"]))
 
 if os.path.exists(STATE): os.remove(STATE)
 calistir([satir_gercek(1089, C0, 2841 * SAYFA_MB)])
 ck("ayni satir MEMPHY dolu olunca RAM de yazilir",
    calistir([satir_gercek(1089, C0 + 355200000000, 2841 * SAYFA_MB)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 0",
-            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 0"]))
+            "lvecpu pixelcart 118.4 -1",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 -1"]))
 
 # ── TARIHCE 17. KOLONU (TOPCPUA): "pct::hesap" ─────────────────────────
 # TOPIO'nun birebir esi ve ayni yontemle sinaniyor: kural KAYNAKTAN cikariliyor

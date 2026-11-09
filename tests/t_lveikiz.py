@@ -92,9 +92,10 @@ ORNEK = [
              ["d", 10240.0, 1], ["e", 0.4, 1]]],
     # Kacis: hesap adi uretimde suzuluyor ama govde kendi basina da kacirmali.
     ["cpu", [["<script>&'\"", 12.3, 1]]],
-    # Surec sayisi 0/bos ise hucre BOS kalir, "0" YAZILMAZ: LVE bu alani satir
-    # satir bos dondurebiliyor ve 0 gostermek "sureci yok" demek olurdu.
-    ["ram", [["a", 512.0, 0], ["b", 256.0, 7]]],
+    # 0 YAZILIR, -1 (LVE bildirmedi) BOS BIRAKILIR. Olculdu 2026-11-09:
+    # NPROC hic bos gelmiyor ama 121 hesap gercekten 0 diyor, yani 0 bir
+    # olcumdur ve gizlenmemeli.
+    ["ram", [["a", 512.0, 0], ["b", 256.0, 7], ["c", 128.0, -1]]],
 ]
 
 php = NL.join([
@@ -233,9 +234,10 @@ ck("hesap adi kaciriliyor", "&lt;script&gt;" in norm(p[6]), True)
 # ise baska bir sey. Ikinci satir (7 surec) ayni tabloda dolu -- yani bos kalan
 # sutun degil, yalnizca o hucre.
 n0 = norm(p[7])
-ck("surec sayisi 0 -> hucre BOS", 'class="num lve-np"></td>' in n0, True)
+ck("surec sayisi 0 -> '0' YAZILIR (olculmus deger)", 'class="num lve-np">0<' in n0, True)
 ck("ayni tabloda olculen satir dolu", 'class="num lve-np">7<' in n0, True)
-ck("0 hicbir yerde yazilmadi", 'lve-np">0<' in n0, False)
+ck("-1 (LVE bildirmedi) -> hucre BOS", 'class="num lve-np"></td>' in n0, True)
+ck("-1 ekranda hic gorunmez", '-1' in n0, False)
 
 # BOS LISTE = "olctuk, kimse yok". "Olculemedi" dali YOK: LVE olcumu gelmezse
 # tablo hic basilmiyor (bkz. t_sekme), yani kullaniciya "CloudLinux kur"

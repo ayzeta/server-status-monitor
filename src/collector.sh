@@ -1530,7 +1530,17 @@ for uid, (io, iops, cpu, mem, np) in cur.items():
     # cekirdegin %13,1'i; mikrosaniye olsaydi %13133 (131 cekirdek) cikardi.
     # Bu yuzden CPU'da FARK alinir (I/O ile ayni pencere), MEMPHY'de alinmaz.
     # IKI LISTE AYRI: biri bos gelse oteki yine yazilir (yukaridaki not).
-    nn = np if np is not None else 0
+    # "LVE BILDIRMEDI" ile "LVE SIFIR DEDI" AYRI SEYLER, -1 ilkini isaretler.
+    # Ikisi de 0'a indirilince pano ikisini de bos hucre ciziyordu ve ipucu
+    # "bos = bildirilmemis" diyordu -- olculmemis bir iddia.
+    # OLCULDU 2026-11-09 (lin, 399 satir): NPROC bos = 0, NPROC=0 yazili = 121,
+    # NPROC>0 = 278. Yani 0 GERCEK bir olcum: okuma aninda surec yok. CPU ise
+    # bir dakikalik FARK oldugu icin "CPU var, surec 0" tutarli -- surecler o
+    # dakika icinde kosup kapanmis.
+    # BOS DA GERCEKTEN OLUYOR: 2026-11-08'de uretimden alinan ve
+    # tests/t_lve.py'deki GERCEK fiksturunde duran satirda fMEMPHY, NPROC ve
+    # fNPROC alanlarinin ucu de bos geliyordu. Bu yuzden ayrim korunuyor.
+    nn = np if np is not None else -1
     if pcpu is not None and cpu is not None and cpu >= pcpu:
         lvc.append((name, (cpu - pcpu) / dt / 1e7, nn))
     if mem is not None:

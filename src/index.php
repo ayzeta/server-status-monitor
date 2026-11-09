@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.82';
+const APP_VERSION = '1.5.83';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -162,8 +162,8 @@ $TR = [
         => 'Şu an %s GB’ı tmpfs, kalanı ağırlıkla OPcache.',
     '%s GB accounts' => 'hesaplar %s GB', '%s GB system' => 'sistem %s GB',
     '%s GB server' => 'sunucu %s GB',
-    'Processes the account has right now, idle ones included. Source: the LVE NPROC counter, which arrives with the same row as CPU and RAM. Empty means LVE did not report it for that account.'
-        => 'Hesabın şu anki süreç sayısı, boşta bekleyenler dahil. Kaynak: LVE’nin NPROC sayacı, CPU ve RAM ile AYNI satırda geliyor. Boşsa LVE o hesap için bildirmemiş demektir.',
+    'Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.'
+        => 'Hesabın şu anki süreç sayısı, boşta bekleyenler dahil (LVE NPROC). 0 = okuma anında süreç yok; yanında CPU varsa o süreçler dakika içinde koşup kapanmış demektir — CPU bir dakikalık FARK, bu sayı ANLIK. Hücre boşsa LVE alanı hiç bildirmemiş.',
     'Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.'
         => 'Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil). Sistem, kullanılan belleğin geri kalanı: root, MySQL, LiteSpeed, Redis, Imunify ve çekirdek — hiçbir hesaba yazılamayan bellek. İkisi de aynı andaki fiziksel bellek, ortalama değil.',
     'Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'
@@ -460,7 +460,9 @@ if (is_readable($procSnapFile)) {
                         && is_numeric($p[1]) && ctype_digit($p[2])) {
                     $ramAcctTot = (float)$p[1]; $ramAcctN = (int)$p[2];
                 }
-                elseif (count($p) === 4 && is_numeric($p[2]) && ctype_digit($p[3])) {
+                // Dorduncu alan NPROC: -1 "LVE bildirmedi" isareti (1.5.83+),
+                // 0 ise gercek bir olcum. Bu yuzden ctype_digit yetmiyor.
+                elseif (count($p) === 4 && is_numeric($p[2]) && preg_match('/^-?\d+$/', $p[3])) {
                     if ($p[0] === 'lvecpu')      $cpuAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
                     elseif ($p[0] === 'lveram')  $ramAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
                 }
@@ -2879,11 +2881,13 @@ function lveAcctRows($rows, $h, $tur) {
         // SUREC SAYISI AYRI SUTUN (eskiden deger hucresinin ipucunda sakliydi):
         // iki sutunlu tablo genis kartta seyrek duruyordu ve sayi zaten elimizde
         // (LVE NPROC, ayni satirla gelir -- YENI TARAMA YOK).
-        // SIFIR/BOS ise hucre BOS kalir, "0" YAZILMAZ: LVE bu alani satir satir
-        // bos dondurebiliyor (uretimde olculdu) ve orada 0 gostermek "hic sureci
-        // yok" demek olurdu -- ayakta olan hesap icin yanlis.
+        // SIFIR YAZILIR, -1 (bildirilmedi) BOS BIRAKILIR. Once ikisi de bos
+        // cizilliyordu ve 0 gizleniyordu; OLCULDU 2026-11-09 (lin, 399 satir):
+        // NPROC hic bos gelmemis, ama 121 hesap gercekten 0 demis. Yani 0 bir
+        // olcumdu ve pano onu sakliyordu. "CPU var ama surec 0" tutarli: CPU
+        // bir dakikalik FARK, NPROC ise okuma anindaki sayim.
         $out .= '<tr><td class="proc-user">' . $h($u) . '</td>'
-              . '<td class="num lve-np">' . ($np > 0 ? (int)$np : '') . '</td>'
+              . '<td class="num lve-np">' . ($np >= 0 ? (int)$np : '') . '</td>'
               . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
               . '<td class="num ' . $cls . '">' . $h($txt) . '</td></tr>' . "\n";
     }
@@ -5113,7 +5117,7 @@ function renderProcs(data){
       const cls=(tur==='cpu')?cpuAcctCls(r[1]):ramAcctCls(r[1],totalGB);
       const txt=(tur==='cpu')?fmtPct1(r[1]):fmtMB(r[1]);
       return `<tr><td class="proc-user">${esc(r[0])}</td>`+
-        `<td class="num lve-np">${r[2]>0?r[2]:''}</td>`+
+        `<td class="num lve-np">${r[2]>=0?r[2]:''}</td>`+
         `<td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td>`+
         `<td class="num ${cls}">${esc(txt)}</td></tr>`;
     }).join('');
