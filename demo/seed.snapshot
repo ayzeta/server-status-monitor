@@ -20,19 +20,19 @@ diskacct zencache 10.8
 
 --- Top IO accounts ---
 io_src lve 1m
-ioacct makinem 45.0 12
-ioacct riverside 35.0 9
+ioacct makinem 45.0 12 32768
+ioacct riverside 35.0 9 0
 
 --- LVE per account ---
 lve_ok 1m
 lvecpu_tot 205.4 338
-lvecpu makinem 118.4 24
-lvecpu bluewave 62.0 11
-lvecpu riverside 18.6 7
+lvecpu makinem 118.4 24 100
+lvecpu bluewave 62.0 11 100
+lvecpu riverside 18.6 7 0
 lveram_tot 39526.0 338
-lveram bluewave 2841.0 11
-lveram makinem 1960.5 24
-lveram zencache 486.0 4
+lveram bluewave 2841.0 11 4096
+lveram makinem 1960.5 24 2048
+lveram zencache 486.0 4 -1
 
 --- Top IO processes ---
 ioproc_ok 1m

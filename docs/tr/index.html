@@ -453,6 +453,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .proc-table tbody tr:hover td{background:var(--card2);}
 .php-bar-cell{width:56px;}
 .php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
+/* TAVANA DAYANMIS hesap: cubuk dolu VE rengi degisiyor. Renk tek basina
+   tasimiyor (dolu cubuk zaten %100), ama "yogun" ile "kisilmis" ayrimi
+   kartin icinde goz atarken ayirt edilebilsin diye. Tavani olmayan hesapta
+   hucre bos kalir, cubuk hic cizilmez. */
+.php-bar.cap{background:var(--danger);opacity:.7;}
 .proc-row-sql{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px;}
 
 .log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:14px 16px;transition:background .3s,border-color .3s;}
@@ -714,7 +719,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">11:06:18</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">18:20:18</span></div></div>
   </div>
 </div>
 
@@ -802,11 +807,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>90</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>9</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -907,7 +912,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="sec" style="margin-top:12px"><span>S&#220;RE&#199;LER</span><i class="sec-hair"></i>
-  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 19 sn &#246;nce</span>
+  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 18 sn &#246;nce</span>
   <span id="act-chips"></span>
 </div>
 <div class="proc-row" id="proc-row"><div class="proc-card" id="cpu-card"><input type="radio" name="cpv" id="cpv-a" class="vw-radio" checked><input type="radio" name="cpv" id="cpv-p" class="vw-radio"><div class="proc-title">&#304;&#351;lemci<span class="proc-age cp-tabs">
@@ -917,9 +922,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <tr><td>3199312</td><td class="proc-user">ikonikyapilar</td><td class="num hot">76.6</td><td class="num ">0.1</td><td>00:10</td><td class="td-fill"><span class="proc-cmd" title="lsphp">lsphp</span></td></tr>
 <tr><td>3198842</td><td class="proc-user">serviskl</td><td class="num hot">59.3</td><td class="num ">0.1</td><td>00:23</td><td class="td-fill"><span class="proc-cmd" title="lsphp:/home/serviskl/public_html/index.php">lsphp:/home/serviskl/public_html/index.php</span></td></tr>
 </tbody></table><table class="proc-table cpa"><thead><tr><th>HESAP</th><th class="num" title="Hesab&#305;n &#351;u anki s&#252;re&#231; say&#305;s&#305;, bo&#351;ta bekleyenler dahil (LVE NPROC). 0 = okuma an&#305;nda s&#252;re&#231; yok; yan&#305;nda CPU varsa o s&#252;re&#231;ler dakika i&#231;inde ko&#351;up kapanm&#305;&#351; demektir &#8212; CPU bir dakikal&#305;k FARK, bu say&#305; ANLIK. H&#252;cre bo&#351;sa LVE alan&#305; hi&#231; bildirmemi&#351;.">S&#220;RE&#199;</th><th></th><th class="num">CPU%</th></tr></thead><tbody id="pt-cpuacct">
-<tr><td class="proc-user">makinem</td><td class="num lve-np">24</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num hot">118.4</td></tr>
-<tr><td class="proc-user">bluewave</td><td class="num lve-np">11</td><td class="php-bar-cell"><span class="php-bar" style="width:52%"></span></td><td class="num warm">62.0</td></tr>
-<tr><td class="proc-user">riverside</td><td class="num lve-np">7</td><td class="php-bar-cell"><span class="php-bar" style="width:16%"></span></td><td class="num ">18.6</td></tr>
+<tr><td class="proc-user">makinem</td><td class="num lve-np">24</td><td class="php-bar-cell" title="LVE tavan&#305;nda (100%) &#8212; &#231;ekirdek bu hesab&#305; frenliyor, istekleri yava&#351;l&#305;yor"><span class="php-bar cap" style="width:100%"></span></td><td class="num hot">118.4</td></tr>
+<tr><td class="proc-user">bluewave</td><td class="num lve-np">11</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %62 kadar&#305; (tavan 100%)"><span class="php-bar" style="width:62%"></span></td><td class="num warm">62.0</td></tr>
+<tr><td class="proc-user">riverside</td><td class="num lve-np">7</td><td class="php-bar-cell"></td><td class="num ">18.6</td></tr>
 </tbody><tfoot><tr>
 <td colspan="4" class="lve-ozet" id="pt-cpusum" title="Hesaplar: bu turda &#246;l&#231;&#252;lebilen B&#220;T&#220;N hesaplar&#305;n toplam&#305; (yaln&#305;z listelenen 15&#8217;i de&#287;il), &#231;ekirdek say&#305;s&#305;na b&#246;l&#252;nerek tek &#231;ekirdek y&#252;zdesinden sunucu y&#252;zdesine &#231;evrildi. Sistem geri kalan&#305;: root, mysql, LiteSpeed, Imunify ve di&#287;er taramalar &#8212; hi&#231;bir hesaba yaz&#305;lamayan y&#252;k. Pencere hesap listesiyle ayn&#305;.">
 hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card"><input type="radio" name="rmv" id="rmv-a" class="vw-radio" checked><input type="radio" name="rmv" id="rmv-p" class="vw-radio"><div class="proc-title">Bellek<span class="proc-age rm-tabs">
@@ -928,9 +933,9 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 <tr><td>2338317</td><td class="proc-user">mysql</td><td class="num warm">11.1</td><td class="num warm">10.4 GB</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td></tr>
 <tr><td>2337128</td><td class="proc-user">root</td><td class="num ">0.2</td><td class="num ">354 MB</td><td class="td-fill"><span class="proc-cmd" title="/usr/bin/imunify360-php-daemon">/usr/bin/imunify360-php-daemon</span></td></tr>
 </tbody></table><table class="proc-table rma"><thead><tr><th>HESAP</th><th class="num" title="Hesab&#305;n &#351;u anki s&#252;re&#231; say&#305;s&#305;, bo&#351;ta bekleyenler dahil (LVE NPROC). 0 = okuma an&#305;nda s&#252;re&#231; yok; yan&#305;nda CPU varsa o s&#252;re&#231;ler dakika i&#231;inde ko&#351;up kapanm&#305;&#351; demektir &#8212; CPU bir dakikal&#305;k FARK, bu say&#305; ANLIK. H&#252;cre bo&#351;sa LVE alan&#305; hi&#231; bildirmemi&#351;.">S&#220;RE&#199;</th><th></th><th class="num">RAM</th></tr></thead><tbody id="pt-ramacct">
-<tr><td class="proc-user">bluewave</td><td class="num lve-np">11</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num ">2.8 GB</td></tr>
-<tr><td class="proc-user">makinem</td><td class="num lve-np">24</td><td class="php-bar-cell"><span class="php-bar" style="width:69%"></span></td><td class="num ">1.9 GB</td></tr>
-<tr><td class="proc-user">zencache</td><td class="num lve-np">4</td><td class="php-bar-cell"><span class="php-bar" style="width:17%"></span></td><td class="num ">486 MB</td></tr>
+<tr><td class="proc-user">bluewave</td><td class="num lve-np">11</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %69 kadar&#305; (tavan 4 GB)"><span class="php-bar" style="width:69%"></span></td><td class="num ">2.8 GB</td></tr>
+<tr><td class="proc-user">makinem</td><td class="num lve-np">24</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %96 kadar&#305; (tavan 2 GB)"><span class="php-bar" style="width:96%"></span></td><td class="num ">1.9 GB</td></tr>
+<tr><td class="proc-user">zencache</td><td class="num lve-np">4</td><td class="php-bar-cell"></td><td class="num ">486 MB</td></tr>
 </tbody><tfoot><tr>
 <td colspan="4" class="lve-ozet" id="pt-ramsum" title="Hesaplar: bu turda &#246;l&#231;&#252;lebilen B&#220;T&#220;N hesaplar&#305;n toplam&#305; (yaln&#305;z listelenen 15&#8217;i de&#287;il). Sistem, kullan&#305;lan belle&#287;in geri kalan&#305;: root, MySQL, LiteSpeed, Redis, Imunify ve &#231;ekirdek &#8212; hi&#231;bir hesaba yaz&#305;lamayan bellek. &#304;kisi de ayn&#305; andaki fiziksel bellek, ortalama de&#287;il.">
 </td></tr></tfoot></table></div><div class="proc-card"><div class="proc-title">PHP &#183; hesap<span class="proc-age">aktif+bo&#351;ta</span></div><table class="proc-table acct3"><thead><tr><th>HESAP</th><th></th><th class="num" title="Hesab&#305;n t&#252;m lsphp s&#252;re&#231;leri, bo&#351;taki havuz dahil &#8212; PHP &#304;&#351;&#231;ileri kart&#305; yaln&#305;z aktif (R/D) olanlar&#305; sayar">S&#220;RE&#199;</th></tr></thead><tbody id="pt-php">
@@ -940,8 +945,8 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 <label for="iov-a" class="io-tab io-t-acct" title="Hesap ba&#351;&#305;na disk I/O (okuma+yazma), son 60 saniyenin ortalamas&#305;. Kaynak: CloudLinux LVE &#231;ekirdek saya&#231;lar&#305;n&#305;n iki tur aras&#305;ndaki fark&#305; &#8212; k&#305;sa &#246;m&#252;rl&#252; s&#252;re&#231;ler dahil hesab&#305;n t&#252;m s&#252;re&#231;lerini sayar. S&#252;re&#231; g&#246;r&#252;n&#252;m&#252;yle ayn&#305; pencere. Renk: listelenen toplam&#305;n &#8805;%60 k&#305;rm&#305;z&#305;, &#8805;%30 turuncu">hesap &#183; LVE 1dk</label>
 <label for="iov-p" class="io-tab io-t-proc" title="S&#252;re&#231; ba&#351;&#305;na disk I/O (okuma+yazma), son 60 saniyenin ortalamas&#305; &#8212; hesap g&#246;r&#252;n&#252;m&#252;yle ayn&#305; pencere. Kaynak: /proc/&lt;pid&gt;/io farklar&#305;: iki &#246;l&#231;&#252;m aras&#305;nda do&#287;up &#246;len s&#252;re&#231; say&#305;lmaz, ayr&#305;ca root s&#252;re&#231;leri burada g&#246;r&#252;n&#252;r ama hesap listesinde asla g&#246;r&#252;nmez; bu y&#252;zden ikisinin toplam&#305; tutmaz.">s&#252;re&#231;</label></span></div><div class="io-wrap"><table class="proc-table acct3"><thead><tr>
 <th><span class="ioh-a">HESAP</span><span class="ioh-p">KULLANICI</span></th><th><span class="ioh-p">KOMUT</span></th><th class="num">I/O</th></tr></thead><tbody id="pt-io">
-<tr><td class="proc-user">makinem</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num " title="12 IOPS">45 KB/s</td></tr>
-<tr><td class="proc-user">riverside</td><td class="php-bar-cell"><span class="php-bar" style="width:78%"></span></td><td class="num " title="9 IOPS">35 KB/s</td></tr>
+<tr><td class="proc-user">makinem</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %0 kadar&#305; (tavan 32 MB/s)"><span class="php-bar" style="width:0%"></span></td><td class="num " title="12 IOPS">45 KB/s</td></tr>
+<tr><td class="proc-user">riverside</td><td class="php-bar-cell"></td><td class="num " title="9 IOPS">35 KB/s</td></tr>
 </tbody><tbody class="iop" id="pt-ioproc">
 <tr><td class="proc-user">mysql</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td><td class="num hot">2 MB/s</td></tr>
 <tr><td class="proc-user">root</td><td class="td-fill"><span class="proc-cmd" title="/usr/local/cpanel/bin/backup -x">/usr/local/cpanel/bin/backup -x</span></td><td class="num ">512 KB/s</td></tr>
@@ -966,17 +971,17 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">18:20</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">18:20</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">18:20</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">18:20</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Web sunucusu sorunlu &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">Web sunucusu sorunlu &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">18:20</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">11:06</span></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">18:20</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -984,7 +989,7 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.84">v1.5.84</span> &middot; 2026-11-09 11:06:18</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.85">v1.5.85</span> &middot; 2026-11-09 18:20:18</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1063,7 +1068,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.84"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.85"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1176,6 +1181,8 @@ const TR={
     "%s GB accounts": "hesaplar %s GB",
     "%s GB system": "sistem %s GB",
     "%s GB server": "sunucu %s GB",
+    "%s%% of its LVE ceiling (%s)": "LVE tavanının %%%s kadarı (tavan %s)",
+    "At its LVE ceiling (%s) — the kernel is throttling this account": "LVE tavanında (%s) — çekirdek bu hesabı frenliyor, istekleri yavaşlıyor",
     "Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.": "Hesabın şu anki süreç sayısı, boşta bekleyenler dahil (LVE NPROC). 0 = okuma anında süreç yok; yanında CPU varsa o süreçler dakika içinde koşup kapanmış demektir — CPU bir dakikalık FARK, bu sayı ANLIK. Hücre boşsa LVE alanı hiç bildirmemiş.",
     "Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.": "Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil). Sistem, kullanılan belleğin geri kalanı: root, MySQL, LiteSpeed, Redis, Imunify ve çekirdek — hiçbir hesaba yazılamayan bellek. İkisi de aynı andaki fiziksel bellek, ortalama değil.",
     "Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.": "Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil), çekirdek sayısına bölünerek tek çekirdek yüzdesinden sunucu yüzdesine çevrildi. Sistem geri kalanı: root, mysql, LiteSpeed, Imunify ve diğer taramalar — hiçbir hesaba yazılamayan yük. Pencere hesap listesiyle aynı.",
@@ -1400,7 +1407,7 @@ const seed={
     "mq": [],
     "topcpua": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'11:06:18'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'18:20:18'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1427,43 +1434,43 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     },
     {
         "type": "warn",
         "msg": "G\u00fcvenlik sorunlu \u00b7 Imunify360, LFD",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     },
     {
         "type": "warn",
         "msg": "Web sunucusu sorunlu \u00b7 HTTPS (443), WHM (2087) +1",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "11:06",
-        "t": 1794222378
+        "ts": "18:20",
+        "t": 1794248418
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1794222378,TZOFF=0;
+let srvNow=1794248418,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -2059,7 +2066,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1794222342; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1794248383; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -2222,17 +2229,26 @@ function renderProcs(data){
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
+  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
+  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
+  const lveBarCell=(v,lim,fmt)=>{
+    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
+    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
+    const tip=dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
+                  :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim));
+    return `<td class="php-bar-cell" title="${esc(tip)}">`+
+      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
+  };
   const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
-    const mx=Math.max(0.1,...rows.map(r=>r[1]));
+    const fmt=(tur==='cpu')?(x=>Math.round(x)+'%'):(x=>fmtMB(x));
     return rows.map(r=>{
-      const w=Math.round(r[1]/mx*100);
       const cls=(tur==='cpu')?cpuAcctCls(r[1]):ramAcctCls(r[1],totalGB);
       const txt=(tur==='cpu')?fmtPct1(r[1]):fmtMB(r[1]);
       return `<tr><td class="proc-user">${esc(r[0])}</td>`+
         `<td class="num lve-np">${r[2]>=0?r[2]:''}</td>`+
-        `<td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td>`+
+        lveBarCell(r[1],r[3],fmt)+
         `<td class="num ${cls}">${esc(txt)}</td></tr>`;
     }).join('');
   };
@@ -2281,11 +2297,11 @@ function renderProcs(data){
   if(io&&data.ioAcct!==undefined&&!(data.ioAcct||[]).length){
     io.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioSrc?'no account is doing I/O right now':'I/O data pending')}</td></tr>`;
   }else if(io&&data.ioAcct&&data.ioAcct.length){
-    const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
+    const sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
     io.innerHTML=data.ioAcct.map(p=>{
-      const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
+      const sh=sum>0?p[1]/sum:0;
       const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+lveBarCell(p[1],p[3],x=>fmtKbps(x))+`<td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
   }
   // Pencere etiketi tikte de tazelenir: LVE 1 dakikalık kovayı veremezse
   // collector 5'e düşüyor; etiket bunu söylemek zorunda (ölçmediğimizi yazmayız).
@@ -2582,7 +2598,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.84 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.85 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

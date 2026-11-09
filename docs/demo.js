@@ -222,7 +222,9 @@
   // surec I/O'su /proc'tan (root dahil her sey, ama tur arasinda olenler haric).
   // Ikisi ayri kapsam oldugu icin toplamlari birbirini tutmaz — demo da oyle.
   function ioAcct(){ var kb=[45,35,34,32,29,20,13,8,3,2,1,1,1,1,0], r=[];
-    for(var i=0;i<kb.length;i++)r.push([pick(i+4),kb[i]*(0.6+S.iow/14),Math.round(kb[i]/3)]);
+    // Dorduncu alan: I/O TAVANI (KB/s, LVE lIO). Ilk hesapta tavan var, ikincisi
+    // sinirsiz (0) -- panoda biri cubuk cizer, oteki hucreyi bos birakir.
+    for(var i=0;i<kb.length;i++)r.push([pick(i+4),kb[i]*(0.6+S.iow/14),Math.round(kb[i]/3),i===1?0:32768]);
     return r; }
   // [kullanici, kbps, komut, pid] — PID urunde collector'dan gelir.
   function ioProc(){ var base=[['mysql',2048,'/usr/sbin/mariadbd',2295514],
@@ -236,11 +238,16 @@
   // Hesap basina CPU (bir cekirdegin yuzdesi) ve anlik fiziksel RAM (MB) — ikisi
   // de /proc/lve/list'ten gelir. CPU sunucu yuku ile birlikte oynar, RAM oynamaz
   // (anlik deger, ortalama degil). Ucuncu alan surec sayisi.
+  // DORDUNCU ALAN: hesabin KENDI LVE tavani (CPU'da tek cekirdegin yuzdesi,
+  // RAM'de MB). Sunucu genelinde tek bir sayi DEGIL -- limit WHM paketine ve
+  // hesaba gore degisir, demo da oyle gosteriyor. Ilk hesap tavana yapisik
+  // (cubuk dolu + kirmizi), ucuncusu sinirsiz (0), sonuncusu bildirilmemis (-1):
+  // ucunun de panoda gorunusu farkli.
   function cpuAcct(){ var p=[118,62,41,33,24,19,14,9,6,4,3,2,1,1], r=[];
-    for(var i=0;i<p.length;i++)r.push([pick(i+2),p[i]*(0.5+S.cpu/60),Math.max(1,Math.round(p[i]/5))]);
+    for(var i=0;i<p.length;i++)r.push([pick(i+2),p[i]*(0.5+S.cpu/60),Math.max(1,Math.round(p[i]/5)),i===2?0:100]);
     return r; }
   function ramAcct(){ var mb=[2841,1960,1204,980,845,712,604,523,486,402,355,290,241,180], r=[];
-    for(var i=0;i<mb.length;i++)r.push([pick(i+1),mb[i],Math.max(1,Math.round(mb[i]/120))]);
+    for(var i=0;i<mb.length;i++)r.push([pick(i+1),mb[i],Math.max(1,Math.round(mb[i]/120)),i===8?-1:4096]);
     return r; }
   var SQLQ=['SELECT * FROM wp_options WHERE autoload=\'yes\'','SELECT SLEEP(6)',
     'UPDATE wp_postmeta SET meta_value=? WHERE post_id=?','SELECT COUNT(*) FROM wp_posts WHERE post_status=\'publish\'',

@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import os as _os
@@ -76,7 +77,11 @@ def calistir(satirlar, yas=None):
     io.open(LISTE, "w", encoding="utf-8", newline=NL).write(NL.join([BASLIK] + satirlar) + NL)
     if yas is not None and os.path.exists(STATE):      # onceki ornegin zamanini geri al
         st = io.open(STATE, encoding="utf-8").read().split(NL)
-        st[0] = "t %f" % (float(st[0].split()[1]) - yas)
+        # PENCERE SIMDIDEN geri alinir, onceki damgadan DEGIL. Eskiden
+        # dt = 300 + (onceki alt surecin suresi) oluyordu; yuzde kil payi
+        # asagi kayip 118.4 yerine 118.3 yaziyordu ve iddia 118.4 bekledigi
+        # icin test ARADA BIR dusuyordu. Simdi sapma yalnizca python acilisi.
+        st[0] = "t %f" % (time.time() - yas)
         io.open(STATE, "w", encoding="utf-8", newline=NL).write(NL.join(st))
     r = subprocess.run([sys.executable, "-I", MOD, STATE, LISTE],
                        capture_output=True, text=True, env=dict(os.environ, T_CP=CP))
@@ -155,7 +160,7 @@ ck("ilk tur: isaret bile yazilmaz",
 # ── Ikinci tur: 60 sn'de 136 KB -> 2.3 KB/s (uretim olcumu) ────
 ck("fark hiza cevrilir (KB -> KB/s)",
    calistir([satir(1089, 1680, 310), satir(1002, 1020, 5)], yas=300),
-   NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1", "ioacct ayzeta 1.7 0"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1 32768", "ioacct ayzeta 1.7 0 32768"]))
 
 # ── Degisim yok: satir yok ama OLCUM ISARETI var ───────────────
 ck("hareket yoksa yalniz isaret",
@@ -164,13 +169,13 @@ ck("hareket yoksa yalniz isaret",
 # ── Sayac geri gitti (LVE yeniden kuruldu): o hesap atlanir ────
 ck("sayac sifirlanmis hesap atlanir",
    calistir([satir(1089, 5, 1), satir(1002, 4020, 5)], yas=300),
-   NL.join(["io_src lve 1m", "ioacct ayzeta 10.0 0"]))
+   NL.join(["io_src lve 1m", "ioacct ayzeta 10.0 0 32768"]))
 
 # ── cPanel hesabi olmayanlar elenir (root, sistem kullanicisi) ─
 calistir([satir(0, 0, 0), satir(1500, 0, 0), satir(1089, 100, 0)])
 ck("cpanel disi uid elenir",
    calistir([satir(0, 600000, 0), satir(1500, 600000, 0), satir(1089, 400, 0)], yas=300),
-   NL.join(["io_src lve 1m", "ioacct pixelcart 1.0 0"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 1.0 0 32768"]))
 
 # ── Bosluga gore ayirsaydik ne olurdu (regresyon korumasi) ─────
 bos_ayrim = BASLIK.replace(TAB, " ")
@@ -247,18 +252,18 @@ ck("CPU kumulatif: ilk turda satir yok",
    calistir([satir_tam(1089, 1000, 10, C0 + 355200000000, 2841 * SAYFA_MB, 42),
              satir_tam(1002, 1000, 10, C0 + 55800000000, 486 * SAYFA_MB, 7)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 137.0 2",
-            "lvecpu pixelcart 118.4 42", "lvecpu ayzeta 18.6 7",
+            "lvecpu pixelcart 118.4 42 100", "lvecpu ayzeta 18.6 7 100",
             "lveram_tot 3327.0 2",
-            "lveram pixelcart 2841.0 42", "lveram ayzeta 486.0 7"]))
+            "lveram pixelcart 2841.0 42 -1", "lveram ayzeta 486.0 7 -1"]))
 
 # CPU ve RAM AYRI siralanir: ayzeta CPU'da ikinci, RAM'de birinci olmali.
 ck("iki liste bagimsiz siralanir",
    calistir([satir_tam(1089, 1000, 10, C0 + 710400000000, 500 * SAYFA_MB, 42),
              satir_tam(1002, 1000, 10, C0 + 111600000000, 9000 * SAYFA_MB, 7)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 137.0 2",
-            "lvecpu pixelcart 118.4 42", "lvecpu ayzeta 18.6 7",
+            "lvecpu pixelcart 118.4 42 100", "lvecpu ayzeta 18.6 7 100",
             "lveram_tot 9500.0 2",
-            "lveram ayzeta 9000.0 7", "lveram pixelcart 500.0 42"]))
+            "lveram ayzeta 9000.0 7 -1", "lveram pixelcart 500.0 42 -1"]))
 
 # ── TOPLAM, ILK 15 KESMESINDEN ETKILENMEZ ──────────────────────────────
 # Panodaki "hesaplar %X" satirinin BUTUN anlami bu: listede 15 hesap gorunse
@@ -298,9 +303,9 @@ calistir([satir(1089, 1000, 10), satir_tam(1002, 1000, 10, C0, 486 * SAYFA_MB, 7
 ck("CPU alani bos olan hesabin I/O'su yine okunur",
    calistir([satir(1089, 1900, 10),
              satir_tam(1002, 1000, 10, C0 + 55800000000, 486 * SAYFA_MB, 7)], yas=300),
-   NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0", "lve_ok 1m",
-            "lvecpu_tot 18.6 1", "lvecpu ayzeta 18.6 7",
-            "lveram_tot 486.0 1", "lveram ayzeta 486.0 7"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0 32768", "lve_ok 1m",
+            "lvecpu_tot 18.6 1", "lvecpu ayzeta 18.6 7 100",
+            "lveram_tot 486.0 1", "lveram ayzeta 486.0 7 -1"]))
 
 # ── CPU sayaci geri gitti (LVE yeniden kuruldu) ─────────────────────────
 if os.path.exists(STATE): os.remove(STATE)
@@ -314,12 +319,12 @@ ck("CPU sayaci sifirlanan hesabin CPU'su dusurulur, RAM'i kalir",
    # TOPLAM da sifirlanan hesabi SAYMAZ: liste neyi gosteriyorsa toplam da
    # onu sayiyor, yani ikisi tutarli (1 hesap, %18,6).
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 18.6 1",
-            "lvecpu ayzeta 18.6 7",
+            "lvecpu ayzeta 18.6 7 100",
             # RAM TOPLAMI IKI HESABI DA SAYAR: CPU sayacinin sifirlanmasi
             # MEMPHY'yi dusurmez (anlik deger), yani RAM listesi de toplami da
             # iki satirli kalir -- CPU tarafiyla ayni kumede OLMAMASI olagan.
             "lveram_tot 3327.0 2",
-            "lveram pixelcart 2841.0 42", "lveram ayzeta 486.0 7"]))
+            "lveram pixelcart 2841.0 42 -1", "lveram ayzeta 486.0 7 -1"]))
 
 # ── ESKI DURUM DOSYASI (3 alan, CPU'suz) ───────────────────────────────
 # Guncellemeden sonraki ILK turda diskteki .lve_state onceki toplayicinin
@@ -332,8 +337,8 @@ io.open(STATE, "w", encoding="utf-8", newline=NL).write(
     NL.join([_st[0]] + [" ".join(l.split()[:3]) for l in _st[1:] if l.strip()]) + NL)
 ck("eski durum dosyasi: CPU satiri yok, I/O ve RAM calisir",
    calistir([satir_tam(1089, 1900, 10, C0 + 355200000000, 2841 * SAYFA_MB, 42)], yas=300),
-   NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0", "lve_ok 1m",
-            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 3.0 0 32768", "lve_ok 1m",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42 -1"]))
 
 # ── URETIMDEN ALINMIS GERCEK SATIR ─────────────────────────────────────
 # Asagidaki satir lin'den (2026-11-08) alinan bir hesap satirinin AYNISI;
@@ -372,15 +377,67 @@ ck("gercek satir: NPROC bos olsa da CPU yazilir (MEMPHY 0 -> RAM satiri yok)",
    # yok) "bildirilmedi" diye gizliyor. Bu fikstur alanin BOS da gelebildigini
    # gosteren uretim ornegi (2026-11-08).
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 -1", "lveram_tot 0.0 1"]))
+            "lvecpu pixelcart 118.4 -1 100", "lveram_tot 0.0 1"]))
 
 if os.path.exists(STATE): os.remove(STATE)
 calistir([satir_gercek(1089, C0, 2841 * SAYFA_MB)])
 ck("ayni satir MEMPHY dolu olunca RAM de yazilir",
    calistir([satir_gercek(1089, C0 + 355200000000, 2841 * SAYFA_MB)], yas=300),
    NL.join(["io_src lve 1m", "lve_ok 1m", "lvecpu_tot 118.4 1",
-            "lvecpu pixelcart 118.4 -1",
-            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 -1"]))
+            "lvecpu pixelcart 118.4 -1 100",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 -1 1024"]))
+
+# ── TAVANLAR: HAM SAYI DEGIL, OLCULMUS BIRIM ───────────────────────────
+# Tavanlar hesabin KENDI satirinda geliyor (2=lCPU 6=lNPROC 8=lMEMPHY 9=lIO)
+# ve pano onlari doluluk cubugu icin kullaniyor. Sunucu varsayilani YOK:
+# limit WHM paketine ve hesaba gore degisir.
+#
+# BIRIMLER URETIMDE OLCULDU 2026-11-09 (lin, uid 1254), her biri IKINCI bir
+# programla dogrulandi:
+#   lCPU=10000      <-> "lvectl list" SPEED=100   => yuzde = lCPU / 100
+#   lMEMPHY=262144  <-> lvectl PMEM 1024M         => 4 KB sayfa
+#   lIO=32768       <-> lveinfo "32.0 MB/s"       => KB/s (cevrim yok)
+#
+# lCPU'yu HAM haliyle yuzde sanmak sessiz bir yalan olurdu: o hesap o sirada
+# tavana YAPISMISTI (lve-read-snapshot: cpu_fault>0) ve pano 99/10000, yani
+# "%1 dolu" derdi. Hicbir yerde hata vermez, sadece yanlis olurdu.
+if os.path.exists(STATE): os.remove(STATE)
+calistir([satir_gercek(1089, C0, 2841 * SAYFA_MB)])
+_tav = calistir([satir_gercek(1089, C0 + 355200000000, 2841 * SAYFA_MB)], yas=300)
+
+
+def _son(cikti, bas):
+    for l in cikti.split(NL):
+        if l.startswith(bas):
+            return l.split()[-1]
+    return "(satir yok)"
+
+
+ck("CPU tavani ham 10000 degil, yuzde 100", _son(_tav, "lvecpu "), "100")
+ck("RAM tavani sayfa degil MB (262144 x 4K)", _son(_tav, "lveram "), "1024")
+
+
+def satir_tavanli(uid, cpu_ns, memphy, lcpu, lmemphy):
+    """GERCEK satirin aynisi, yalnizca TAVAN alanlari degistirilmis."""
+    f = list(GERCEK)
+    f[0] = f[0] % uid; f[13] = f[13] % cpu_ns; f[18] = f[18] % memphy
+    f[1] = lcpu; f[7] = lmemphy
+    return TAB.join(f)
+
+
+# "SINIRSIZ" (0) ile "BILDIRILMEDI" (bos) AYRI SEY: NPROC'ta ogrenilen dersin
+# aynisi. Ikisinde de cubuk cizilmez ama ipucu ayni seyi soyleyemez.
+if os.path.exists(STATE): os.remove(STATE)
+calistir([satir_tavanli(1089, C0, 2841 * SAYFA_MB, "", "")])
+_bos = calistir([satir_tavanli(1089, C0 + 355200000000, 2841 * SAYFA_MB, "", "")], yas=300)
+ck("tavan alani BOS -> -1 (LVE bildirmedi)",
+   (_son(_bos, "lvecpu "), _son(_bos, "lveram ")), ("-1", "-1"))
+
+if os.path.exists(STATE): os.remove(STATE)
+calistir([satir_tavanli(1089, C0, 2841 * SAYFA_MB, "0", "0")])
+_sif = calistir([satir_tavanli(1089, C0 + 355200000000, 2841 * SAYFA_MB, "0", "0")], yas=300)
+ck("tavan 0 -> 0 (sinirsiz), -1'e cevrilmez",
+   (_son(_sif, "lvecpu "), _son(_sif, "lveram ")), ("0", "0"))
 
 # ── TARIHCE 17. KOLONU (TOPCPUA): "pct::hesap" ─────────────────────────
 # TOPIO'nun birebir esi ve ayni yontemle sinaniyor: kural KAYNAKTAN cikariliyor
@@ -425,9 +482,9 @@ ck("0,5 ve ustu yazilir (yuvarlanarak)",
 # LVE bolumunu bos birakir. Suzgecler KAYNAKTAN cikariliyor.
 _io_suzgec = src[src.index('printf \'%s\\n\' "$IO_OUT" | grep -v'):].split(NL, 1)[0]
 _lve_suzgec = src[src.index('printf \'%s\\n\' "$IO_OUT" | grep \''):].split(NL, 1)[0]
-_ornek = NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1", "lve_ok 1m",
-                  "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42",
-                  "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"])
+_ornek = NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1 32768", "lve_ok 1m",
+                  "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42 100",
+                  "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42 -1"])
 
 
 def suz(satir_kodu):
@@ -438,14 +495,14 @@ def suz(satir_kodu):
 
 
 ck("I/O bolumune CPU/RAM satiri karismaz", suz(_io_suzgec),
-   NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1"]))
+   NL.join(["io_src lve 1m", "ioacct pixelcart 2.3 1 32768"]))
 # TOPLAM SATIRLARI DA BU SUZGECTEN GECMEK ZORUNDA: '^lve' onlari da aliyor, yani
 # yeni bir toplam eklemek kabuk tarafinda degisiklik GEREKTIRMIYOR -- ama bunu
 # varsaymak yerine burada sinaniyor, cunku suzgec daralirsa ozet satiri sessizce
 # kaybolur ve panoda yalnizca satir hic cizilmez (hata vermez).
 ck("LVE bolumune yalniz CPU/RAM satirlari gider", suz(_lve_suzgec),
-   NL.join(["lve_ok 1m", "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42",
-            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42"]))
+   NL.join(["lve_ok 1m", "lvecpu_tot 118.4 1", "lvecpu pixelcart 118.4 42 100",
+            "lveram_tot 2841.0 1", "lveram pixelcart 2841.0 42 -1"]))
 
 for f in (LISTE, STATE, MOD):
     if os.path.exists(f): os.remove(f)

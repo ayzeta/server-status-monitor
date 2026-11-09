@@ -36,6 +36,12 @@ for ad in ("function cpuAcctCls(", "function ramAcctCls(", "function fmtMB(",
 jb = src.index("function fmtMB(mb){")
 je = src.index("return p>=5?'hot':p>=2.5?'warm':'';}", jb) + len("return p>=5?'hot':p>=2.5?'warm':'';}")
 js_fmt = src[jb:je]
+# Cubuk hucresi AYRI bir yardimci: lveGovde onu cagiriyor, yani ikizi
+# kosturmak icin o da KAYNAKTAN cikarilmali. Cikarilmazsa test
+# "lveBarCell is not defined" ile duser -- sessizce gecmez.
+bb = src.index("  const lveBarCell=(v,lim,fmt)=>{")
+be = src.index(NL + "  };", bb) + len(NL + "  };")
+js_bar = src[bb:be]
 gb = src.index("  const lveGovde=(rows,tur,totalGB)=>{")
 ge = src.index(NL + "  };", gb) + len(NL + "  };")
 js_govde = src[gb:ge]
@@ -96,6 +102,21 @@ ORNEK = [
     # NPROC hic bos gelmiyor ama 121 hesap gercekten 0 diyor, yani 0 bir
     # olcumdur ve gizlenmemeli.
     ["ram", [["a", 512.0, 0], ["b", 256.0, 7], ["c", 128.0, -1]]],
+    # ── DOLULUK CUBUGU (1.5.85+) ──────────────────────────────────────
+    # Tavan HESABIN KENDI satirindan gelir, sunucu varsayilanindan DEGIL:
+    # CloudLinux limiti WHM paketine ve hesaba gore degisir. Bes durum bir
+    # arada, cunku ucu de "cubuk yok" ama sebepleri AYRI:
+    #   tavana yapismis (>=%100)  -> cubuk dolu + .cap (kirmizi)
+    #   normal                    -> cubuk oranli
+    #   0  = SINIRSIZ             -> cubuk yok
+    #   -1 = LVE BILDIRMEDI       -> cubuk yok
+    #   alan HIC YOK (eski toplayici, guncelleme penceresi) -> cubuk yok
+    ["cpu", [["makinem", 99.2, 6, 100.0], ["bluewave", 150.0, 4, 100.0],
+             ["riverside", 40.0, 2, 200.0], ["zencache", 12.0, 1, 0.0],
+             ["oakhost", 9.0, 1, -1.0], ["acmeco", 3.0, 1]]],
+    # RAM tarafinda tavan MB: 1024/1024 TAM %100 -> sinirda da .cap olmali.
+    ["ram", [["makinem", 1024.0, 6, 1024.0], ["bluewave", 512.0, 3, 1024.0],
+             ["riverside", 256.0, 1, 0.0], ["oakhost", 128.0, 1, -1.0]]],
 ]
 
 php = NL.join([
@@ -137,6 +158,7 @@ js = NL.join([
     ".replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#039;');}",
     js_fmt,
     "function govde(tur,rows){",
+    js_bar,
     js_govde,
     "  return lveGovde(rows,tur,%d);" % RAM_GB,
     "}",
@@ -287,6 +309,37 @@ ck("sunucu tarafi yok -> satir BOS", ro[4], "")
 ck("/proc/meminfo okunamadi (0 GB) -> satir BOS", ro[5], "")
 # CPU ozeti yuzde, RAM ozeti GB: ikisi karismasin.
 ck("RAM ozetinde yuzde isareti yok", any("%" in s for s in ro), False)
+
+# ── DOLULUK CUBUGU: ikizlik yetmez, cubugun KENDISI dogru mu ───────────
+# Iki taraf AYNI YANLISI yaparsa parite testi gecer. Bu yuzden icerik ayrica
+# sinaniyor: oran TAVANA gore mi, tavani olmayan satir gercekten BOS mu.
+tav = norm(p[len(ORNEK) - 2])          # CPU + tavan fiksturu
+ck("tavana yapismis hesap: cubuk dolu ve .cap",
+   '<span class="php-bar cap" style="width:100%">' in tav, True)
+ck("tavanin altinda .cap YOK ve oran TAVANA gore (99.2/100)",
+   '<span class="php-bar" style="width:99%">' in tav, True)
+ck("oran en buyuk SATIRA degil tavana gore (40/200 = %20)",
+   '<span class="php-bar" style="width:20%">' in tav, True)
+ck("tavan asilinca cubuk %100'de kirpilir (150/100)", "width:150%" in tav, False)
+ck("tavansiz uc satirda cubuk YOK (0 sinirsiz, -1 bildirilmedi, alan hic yok)",
+   (tav.count('<span class="php-bar'), tav.count('<td class="php-bar-cell"></td>')),
+   (3, 3))
+ck("cubuklu hucrelerin hepsinde tavan ipucu var",
+   tav.count('class="php-bar-cell" title="'), 3)
+ck("ipucu tavani soyluyor", "of its LVE ceiling" in tav, True)
+ck("tavandaki hesabin ipucu FARKLI konusuyor", "At its LVE ceiling" in tav, True)
+
+tavr = norm(p[len(ORNEK) - 1])         # RAM + tavan
+ck("RAM'de TAM %100 de tavan sayilir (1024/1024)",
+   '<span class="php-bar cap" style="width:100%">' in tavr, True)
+# Tavan metni deger sutunuyla AYNI bicimlendiriciden gecer (fmtMB): 1024 MB
+# "1 GB" olur, gereksiz sifir atilir. Iddia once "1.0 GB" diyordu -- urun
+# dogruydu, iddia yanlisti.
+ck("RAM tavani deger sutunuyla ayni bicimde (1024 MB -> '1 GB')",
+   "1 GB" in tavr, True)
+ck("RAM tarafinda iki cubuk, iki bos hucre",
+   (tavr.count('<span class="php-bar'), tavr.count('<td class="php-bar-cell"></td>')),
+   (2, 2))
 
 for f in ("t_lve_in.json", "t_lve_rozet.json", "t_lveikiz.php", "t_lveikiz.js"):
     try: os.remove(os.path.join(BURASI, f))

@@ -1489,7 +1489,23 @@ for ln in satirlar:
     def _alan(i):
         try: return int(f[i])
         except (ValueError, IndexError): return None
-    cur[uid] = (io, iops, _alan(13), _alan(18), _alan(20))
+    # TAVANLAR AYNI SATIRDA, YENI TARAMA YOK: 2=lCPU 6=lNPROC 8=lMEMPHY 9=lIO
+    # (1'den sayarak; asagida 0'dan).
+    #
+    # BIRIMLER OLCULDU 2026-11-09 (lin, uid 1254), her biri IKINCI bir programla:
+    #   lCPU=10000  <-> "lvectl list" ayni hesaba SPEED=100 diyor
+    #                   => lCPU YUZDENIN 100 KATI, yuzde = lCPU/100.
+    #   lMEMPHY=262144 x 4 KB = 1024 MB  <-> lvectl PMEM 1024M
+    #   lIO=32768  <-> lveinfo "32.0 MB/s"  => birim KB/s
+    #   lNPROC=100 <-> lvectl NPROC 100
+    # lCPU'yu ham haliyle yuzde sanmak sessiz bir yalan olurdu: pano tavana
+    # YAPISMIS (cpu_fault>0, olculdu) bir hesaba 99/10000 = "%1 dolu" derdi.
+    # Hicbir yerde hata vermezdi, sadece yanlis olurdu.
+    #
+    # 0 = SINIRSIZ (lMEM=0 <-> lvectl VMEM 0K), None = LVE bildirmedi. Ikisi
+    # ayri seydir ve asagida -1 ile ayirt edilir (NPROC'ta ogrenilen ders).
+    cur[uid] = (io, iops, _alan(13), _alan(18), _alan(20),
+                _alan(1), _alan(7), _alan(8))
 prev = {}; pt = None
 try:
     with open(state) as fh:
@@ -1506,7 +1522,7 @@ except Exception:
 try:
     with open(state + '.tmp', 'w') as fh:
         fh.write('t %f\n' % now)
-        for u, (io, iops, cpu, mem, np) in cur.items():
+        for u, (io, iops, cpu, mem, np, lcpu, lmem, lio) in cur.items():
             if cpu is None: fh.write('%d %d %d\n' % (u, io, iops))
             else: fh.write('%d %d %d %d\n' % (u, io, iops, cpu))
     os.chmod(state + '.tmp', 0o600); os.replace(state + '.tmp', state)
@@ -1516,7 +1532,14 @@ except Exception:
 if pt is None or now - pt < 5 or now - pt > 600: sys.exit(0)
 dt = now - pt
 out = []; lvc = []; lvr = []
-for uid, (io, iops, cpu, mem, np) in cur.items():
+def _tavan(x, carpan=1.0):
+    """LVE tavani -> panonun kullandigi birim. None (bildirilmedi) -> -1.
+    0 (sinirsiz) 0 kalir: ikisi AYRI sey, pano ikisinde de cubuk cizmez ama
+    ipucu farkli konusur."""
+    if x is None: return -1.0
+    return x * carpan
+
+for uid, (io, iops, cpu, mem, np, lcpu, lmem, lio) in cur.items():
     if uid not in prev: continue                 # ilk gorulen hesap
     try: name = pwd.getpwuid(uid).pw_name
     except KeyError: continue
@@ -1524,7 +1547,7 @@ for uid, (io, iops, cpu, mem, np) in cur.items():
     pio, piops, pcpu = prev[uid]
     d = io - pio
     if d >= 0:                                   # <0: sayac sifirlanmis (LVE yeniden kuruldu)
-        out.append((d / dt, name, max(0, iops - piops) / dt))
+        out.append((d / dt, name, max(0, iops - piops) / dt, _tavan(lio)))
     # CPU sayaci KUMULATIF NANOSANIYE, MEMPHY ise ANLIK. CPU birimi uretimde
     # olculdu (lin, 2026-11-08): f[13] 60 saniyede 7879976103 artti -> bir
     # cekirdegin %13,1'i; mikrosaniye olsaydi %13133 (131 cekirdek) cikardi.
@@ -1542,15 +1565,17 @@ for uid, (io, iops, cpu, mem, np) in cur.items():
     # fNPROC alanlarinin ucu de bos geliyordu. Bu yuzden ayrim korunuyor.
     nn = np if np is not None else -1
     if pcpu is not None and cpu is not None and cpu >= pcpu:
-        lvc.append((name, (cpu - pcpu) / dt / 1e7, nn))
+        lvc.append((name, (cpu - pcpu) / dt / 1e7, nn, _tavan(lcpu, 0.01)))
     if mem is not None:
-        lvr.append((name, mem * SAYFA / 1048576.0, nn))
+        lvr.append((name, mem * SAYFA / 1048576.0, nn,
+                    _tavan(lmem, SAYFA / 1048576.0)))
 # Olcum yapildi isareti: satir cikmasa bile yazilir ("yapan yok" != "olculemedi").
 print("io_src lve 1m")
 out.sort(reverse=True)
-for kb, name, iops in out[:15]:
+for kb, name, iops, ltav in out[:15]:
     if kb <= 0: continue                         # sifir satiri yazilmaz
-    print("ioacct %s %.1f %d" % (name, kb, round(iops)))
+    # Besinci alan: I/O TAVANI (KB/s, lIO). -1 = LVE bildirmedi, 0 = sinirsiz.
+    print("ioacct %s %.1f %d %.0f" % (name, kb, round(iops), ltav))
 # CPU ve RAM AYRI AYRI siralanir: iki kart iki listeyi okuyor, panonun sunucu
 # verisini yeniden siralamasi gerekmesin. Satirlar '--- LVE per account ---'
 # bolumune gidiyor (asagida suzuluyor), isaret satiri burada da ayni amacla.
@@ -1566,16 +1591,19 @@ if lvc or lvr:
     # geliyor, yani toplam listeyle TUTARLI.
     if lvc:
         print("lvecpu_tot %.1f %d" % (sum(r[1] for r in lvc), len(lvc)))
-    for name, pct, np in sorted(lvc, key=lambda r: -r[1])[:15]:
+    # Dorduncu alan NPROC, besinci CPU TAVANI (tek cekirdegin yuzdesi, lCPU/100).
+    for name, pct, np, ltav in sorted(lvc, key=lambda r: -r[1])[:15]:
         if pct <= 0: continue
-        print("lvecpu %s %.1f %d" % (name, pct, np))
+        print("lvecpu %s %.1f %d %.0f" % (name, pct, np, ltav))
     # RAM'in ayni ozeti, MB. BIRIM CEVRIMI YOK: pano bunu GB'ye bolup
     # /proc/meminfo'dan gelen "kullanilan" ile karsilastiriyor.
     if lvr:
         print("lveram_tot %.1f %d" % (sum(r[1] for r in lvr), len(lvr)))
-    for name, mb, np in sorted(lvr, key=lambda r: -r[1])[:15]:
+    # Besinci alan RAM TAVANI, MB (lMEMPHY x sayfa boyutu) -- satirla AYNI birim,
+    # panoda cevrim yok.
+    for name, mb, np, ltav in sorted(lvr, key=lambda r: -r[1])[:15]:
         if mb <= 0: continue
-        print("lveram %s %.1f %d" % (name, mb, np))
+        print("lveram %s %.1f %d %.0f" % (name, mb, np, ltav))
 PYEOF
 )
   fi

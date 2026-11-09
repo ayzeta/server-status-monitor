@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.84';
+const APP_VERSION = '1.5.85';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -162,6 +162,10 @@ $TR = [
         => 'Şu an %s GB’ı tmpfs, kalanı ağırlıkla OPcache.',
     '%s GB accounts' => 'hesaplar %s GB', '%s GB system' => 'sistem %s GB',
     '%s GB server' => 'sunucu %s GB',
+    // Doluluk cubugu: hesabin KENDI LVE tavanina gore (sunucu varsayilani DEGIL).
+    '%s%% of its LVE ceiling (%s)' => 'LVE tavanının %%%s kadarı (tavan %s)',
+    'At its LVE ceiling (%s) — the kernel is throttling this account'
+        => 'LVE tavanında (%s) — çekirdek bu hesabı frenliyor, istekleri yavaşlıyor',
     'Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.'
         => 'Hesabın şu anki süreç sayısı, boşta bekleyenler dahil (LVE NPROC). 0 = okuma anında süreç yok; yanında CPU varsa o süreçler dakika içinde koşup kapanmış demektir — CPU bir dakikalık FARK, bu sayı ANLIK. Hücre boşsa LVE alanı hiç bildirmemiş.',
     'Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.'
@@ -409,7 +413,9 @@ if (is_readable($procSnapFile)) {
                 // vermezse 5 dakikalığa düşüyor ve kart bunu artık varsaymıyor.
                 $p = preg_split('/\s+/', trim($ln));
                 if ($p[0] === 'io_src' && count($p) >= 2) { $ioSrc = $p[1]; $ioWin = $p[2] ?? ''; }
-                elseif (count($p) === 4 && $p[0] === 'ioacct' && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null];
+                // Besinci alan I/O TAVANI (KB/s, lIO) — 1.5.85+. Eski toplayici ve
+                // LVE'siz kaynak ('proc') 4 alan yazar: tavan null, cubuk yok.
+                elseif ($p[0] === 'ioacct' && (count($p) === 4 || count($p) === 5) && is_numeric($p[2])) $ioAcct[] = [$p[1], (float)$p[2], is_numeric($p[3]) ? (int)$p[3] : null, (count($p) === 5 && is_numeric($p[4])) ? (float)$p[4] : null];
             }
         } elseif (stripos($title, 'Top IO processes') !== false) {
             // "ioproc PID kullanıcı kbps komut" — süreç başına I/O. Komutta boşluk
@@ -462,9 +468,17 @@ if (is_readable($procSnapFile)) {
                 }
                 // Dorduncu alan NPROC: -1 "LVE bildirmedi" isareti (1.5.83+),
                 // 0 ise gercek bir olcum. Bu yuzden ctype_digit yetmiyor.
-                elseif (count($p) === 4 && is_numeric($p[2]) && preg_match('/^-?\d+$/', $p[3])) {
-                    if ($p[0] === 'lvecpu')      $cpuAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
-                    elseif ($p[0] === 'lveram')  $ramAcct[] = [$p[1], (float)$p[2], (int)$p[3]];
+                // BESINCI alan TAVAN (1.5.85+): hesabin KENDI LVE limiti, satirin
+                // KENDI biriminde (CPU'da tek cekirdegin yuzdesi, RAM'de MB) --
+                // panoda cevrim yok. 0 = sinirsiz, -1 = LVE bildirmedi.
+                // ESKI TOPLAYICI 4 alan yazar (guncellemeden sonraki ilk tur):
+                // o zaman tavan null kalir ve cubuk hic cizilmez, uydurulmaz.
+                elseif ((count($p) === 4 || count($p) === 5) && is_numeric($p[2])
+                        && preg_match('/^-?\d+$/', $p[3])
+                        && (count($p) === 4 || is_numeric($p[4]))) {
+                    $lim = count($p) === 5 ? (float)$p[4] : null;
+                    if ($p[0] === 'lvecpu')      $cpuAcct[] = [$p[1], (float)$p[2], (int)$p[3], $lim];
+                    elseif ($p[0] === 'lveram')  $ramAcct[] = [$p[1], (float)$p[2], (int)$p[3], $lim];
                 }
             }
         }
@@ -2863,17 +2877,45 @@ function lveRamOzetMetni($totMB, $usedGB) {
     }
     return $s;
 }
+// Doluluk cubugu HESABIN KENDI LVE TAVANINA gore. Eskiden cubuk satiri
+// TABLODAKI EN BUYUGE oranliyordu; tablo zaten azalan sirali oldugu icin o
+// cubuk siralamayi tekrar etmekten baska bir sey anlatmiyordu.
+//
+// NEDEN TAVAN: 2026-11-09'da bir hesap tam bir cekirdekte asili kaldi, panoda
+// "98.8" yaziyordu ve bunun hesabin TAVANI oldugu hicbir yerde gorunmuyordu.
+// "Yogun" ile "kisilmis" ayri durumlar: ikincisinde istekler bitmiyor, birikiyor
+// ve hesap kendi kuyrugunda boguluyor. (lve-read-snapshot o dakikalarda
+// cpu_fault=2..5 diyordu, yani cekirdek gercekten freniyordu.)
+//
+// TAVAN SUNUCU VARSAYILANINDAN DEGIL, SATIRIN KENDISINDEN gelir: CloudLinux'ta
+// limit WHM paketine ve hesaba gore degisir, "default ile ayni" bir hesapta
+// gordugumuz sayi otekiler icin gecerli degildir.
+//
+// CUBUK YOKSA SEBEBI UC TURLU ve ucunde de cizilecek bir oran yok:
+// null (eski toplayici, 4 alan), -1 (LVE bildirmedi), 0 (sinirsiz).
+function lveBarCell($v, $lim, $fmt) {
+    if ($lim === null || $lim <= 0) return '<td class="php-bar-cell"></td>';
+    $oran = $v / $lim * 100;
+    $w    = max(0, min(100, (int)round($oran)));
+    $dolu = $oran >= 100;
+    $tip  = $dolu
+          ? tf('At its LVE ceiling (%s) — the kernel is throttling this account', $fmt($lim))
+          : tf('%s%% of its LVE ceiling (%s)', (int)round($oran), $fmt($lim));
+    return '<td class="php-bar-cell" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">'
+         . '<span class="php-bar' . ($dolu ? ' cap' : '') . '" style="width:' . $w . '%"></span></td>';
+}
+
 function lveAcctRows($rows, $h, $tur) {
     if (!$rows) {
         $msg = $tur === 'cpu' ? t('no account is burning CPU right now')
                               : t('no account RAM reported');
         return '<tr><td colspan="4" style="color:var(--hint)">' . $msg . '</td></tr>';
     }
-    $mx = 0.1;
-    foreach ($rows as $r) if ($r[1] > $mx) $mx = $r[1];
     $out = '';
-    foreach ($rows as [$u, $v, $np]) {
-        $w   = round($v / $mx * 100);
+    $fmt = $tur === 'cpu' ? fn($x) => number_format($x, 0, '.', '') . '%' : fn($x) => fmtMB($x);
+    foreach ($rows as $r) {
+        [$u, $v, $np] = $r;
+        $lim = $r[3] ?? null;
         $cls = $tur === 'cpu' ? cpuAcctCls($v) : ramAcctCls($v);
         // CPU% HER ZAMAN tek ondalik: surec gorunumu de oyle (ps 1 ondalik
         // veriyor), ayni sutunda "62" ile "118.4" yan yana durmasin.
@@ -2888,7 +2930,7 @@ function lveAcctRows($rows, $h, $tur) {
         // bir dakikalik FARK, NPROC ise okuma anindaki sayim.
         $out .= '<tr><td class="proc-user">' . $h($u) . '</td>'
               . '<td class="num lve-np">' . ($np >= 0 ? (int)$np : '') . '</td>'
-              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . lveBarCell($v, $lim, $fmt)
               . '<td class="num ' . $cls . '">' . $h($txt) . '</td></tr>' . "\n";
     }
     return $out;
@@ -3219,9 +3261,8 @@ function renderIoCard($ioAcct, $ioSrc, $h) {
     $mx = 0.1; $sum = 0;
     foreach ($ioAcct as $p) { if ($p[1] > $mx) $mx = $p[1]; $sum += $p[1]; }
     foreach ($ioAcct as $p) {
-        $w = round($p[1] / $mx * 100);
         $out .= '<tr><td class="proc-user">' . $h($p[0]) . '</td>'
-              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . lveBarCell($p[1], $p[3] ?? null, fn($x) => fmtKbps($x))
               . '<td class="num ' . ioAcctCls($p[1], $sum) . '"' . ($p[2] !== null ? ' title="' . $h($p[2]) . ' IOPS"' : '') . '>' . $h(fmtKbps($p[1])) . '</td></tr>' . "\n";
     }
     $out .= '</tbody><tbody class="iop" id="pt-ioproc">' . "\n" . ioProcRows($ioProc, $h, $ioProcOk);
@@ -3748,6 +3789,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .proc-table tbody tr:hover td{background:var(--card2);}
 .php-bar-cell{width:56px;}
 .php-bar{display:inline-block;height:5px;border-radius:999px;background:var(--accent);opacity:.55;min-width:3px;vertical-align:middle;}
+/* TAVANA DAYANMIS hesap: cubuk dolu VE rengi degisiyor. Renk tek basina
+   tasimiyor (dolu cubuk zaten %100), ama "yogun" ile "kisilmis" ayrimi
+   kartin icinde goz atarken ayirt edilebilsin diye. Tavani olmayan hesapta
+   hucre bos kalir, cubuk hic cizilmez. */
+.php-bar.cap{background:var(--danger);opacity:.7;}
 .proc-row-sql{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px;}
 
 .log-card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--elev);padding:14px 16px;transition:background .3s,border-color .3s;}
@@ -5112,17 +5158,26 @@ function renderProcs(data){
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
+  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
+  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
+  const lveBarCell=(v,lim,fmt)=>{
+    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
+    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
+    const tip=dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
+                  :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim));
+    return `<td class="php-bar-cell" title="${esc(tip)}">`+
+      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
+  };
   const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
-    const mx=Math.max(0.1,...rows.map(r=>r[1]));
+    const fmt=(tur==='cpu')?(x=>Math.round(x)+'%'):(x=>fmtMB(x));
     return rows.map(r=>{
-      const w=Math.round(r[1]/mx*100);
       const cls=(tur==='cpu')?cpuAcctCls(r[1]):ramAcctCls(r[1],totalGB);
       const txt=(tur==='cpu')?fmtPct1(r[1]):fmtMB(r[1]);
       return `<tr><td class="proc-user">${esc(r[0])}</td>`+
         `<td class="num lve-np">${r[2]>=0?r[2]:''}</td>`+
-        `<td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td>`+
+        lveBarCell(r[1],r[3],fmt)+
         `<td class="num ${cls}">${esc(txt)}</td></tr>`;
     }).join('');
   };
@@ -5171,11 +5226,11 @@ function renderProcs(data){
   if(io&&data.ioAcct!==undefined&&!(data.ioAcct||[]).length){
     io.innerHTML=`<tr><td colspan="3" style="color:var(--hint)">${t(data.ioSrc?'no account is doing I/O right now':'I/O data pending')}</td></tr>`;
   }else if(io&&data.ioAcct&&data.ioAcct.length){
-    const mx=Math.max(0.1,...data.ioAcct.map(p=>p[1])),sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
+    const sum=data.ioAcct.reduce((a,p)=>a+p[1],0);
     io.innerHTML=data.ioAcct.map(p=>{
-      const w=Math.round(p[1]/mx*100),sh=sum>0?p[1]/sum:0;
+      const sh=sum>0?p[1]/sum:0;
       const cls=(sh>=0.6&&p[1]>=1024)?'hot':(sh>=0.3&&p[1]>=512)?'warm':''; // PHP ioAcctCls ile ayni
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+lveBarCell(p[1],p[3],x=>fmtKbps(x))+`<td class="num ${cls}"${p[2]!=null?' title="'+esc(p[2])+' IOPS"':''}>${esc(fmtKbps(p[1]))}</td></tr>`;}).join('');
   }
   // Pencere etiketi tikte de tazelenir: LVE 1 dakikalık kovayı veremezse
   // collector 5'e düşüyor; etiket bunu söylemek zorunda (ölçmediğimizi yazmayız).

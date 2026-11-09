@@ -42,7 +42,12 @@ for b in dict.fromkeys(yazilan):
 ornek = NL.join([
     "--- Top IO accounts ---",
     "io_src lve 1m",          # pencere alani: kart hangi araligi gosterdigini bilir
+    # ESKI BICIM (4 alan, tavansiz): guncellemeden sonraki ilk turda disk
+    # uzerindeki anlik goruntu onceki toplayicinin yazdigi hal olur. Tavan
+    # UYDURULMAZ -> null, pano cubugu hic cizmez.
     "ioacct makinem 45.0 12",
+    # YENI BICIM (5 alan): besincisi I/O tavani, KB/s (LVE lIO).
+    "ioacct riverside 35.0 9 32768",
     "",
     "--- Top IO processes ---",
     "ioproc_ok 1m",           # "olctuk, yapan yok" ile "olculemedi" ayrimi
@@ -94,7 +99,10 @@ def ck(ad, gelen, beklenen):
 ck("io kaynagi", o["ioSrc"], "lve")
 ck("io penceresi", o["ioWin"], "1m")
 ck("surec olcum isareti", o["ioProcOk"], True)
-ck("hesap satiri", o["acct"], [["makinem", 45.0, 12]])
+# Dorduncu alan TAVAN (1.5.85+): eski satirda null kalir, yenisinde okunur.
+# Ikisi ayni tabloda: "tavani bilmiyoruz" ile "tavan su kadar" karismasin.
+ck("hesap satiri", o["acct"],
+   [["makinem", 45.0, 12, None], ["riverside", 35.0, 9, 32768.0]])
 ck("surec satiri sayisi", len(o["proc"]), 2)
 # PID satirda tasiniyor ama EKRANDA YOK: ayristirici onu atar, iki bicim de
 # ayni uc alana dusurulur (yeni collector 5 alan, eskisi 4 alan yaziyor).
