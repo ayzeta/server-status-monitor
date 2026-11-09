@@ -300,7 +300,7 @@ else:
                                         "unit memcached notfound inactive",
                                         "userredis 180 180", "userredis_mem 1126",
                                         "userredis_age 15000"])
-    ck("180/180 -> yeşil", chip(kart, "Redis · user"), ("ok", "180/180 up"))
+    ck("180/180 -> yeşil", chip(kart, "Redis · user"), ("ok", "180/180"))
     ck("sağ sütunda uptime", sag(kart, "Redis · user"), "4h")
     ck("bellek ipucunda", ipucu(kart, "Redis · user"), "1.1 GB")
     ck("grup: ölçülen tek şey sağlam -> Operational", rozet, "Operational")
@@ -348,9 +348,16 @@ else:
                                         "userredis 180 180", "userredis_mem 1126",
                                         "userredis_use 150 170", "userredis_cap 11520 0 0"])
     # KULLANIM SATIRDA: ipucuna konunca üretimde kimse görmedi. db ayrıntısı
-    # ipucunda kalır — satırda herkeste anlamı aynı olan sayı durur.
-    ck("satırda kullanımdaki örnek sayısı", chip(kart, "Redis · user"),
-       ("ok", "180/180 up · 150 in use"))
+    # NOT DİLBİLGİSİ (1.5.81): "<sayım> · <kullanılan>/<tavan>". Önbellek
+    # kartındaki her satır aynı sırayı kullanıyor, böylece yanındaki çubuk HEP
+    # ikinci sayının oranı oluyor. Eskiden not hesap sayısı sayarken çubuk
+    # belleği gösteriyordu; göz ikisini bağdaştıramıyordu. "kullanımda" ipucuna
+    # indi, zaten orada duruyordu.
+    ck("notta sayım ve kullanılan/tavan", chip(kart, "Redis · user"),
+       ("ok", "180/180 · 1.1/11.3 GB"))
+    # İKİSİ DE TAVANIN BİRİMİNDE: "900 MB/11.3 GB" yazılsaydı oran gözle
+    # okunamazdı.
+    ck("iki sayı da aynı birimde", chip(kart, "Redis · user")[1].count(" GB"), 1)
     # ÖLÇÜMÜN YAŞI YAZILMAZ: o yaş bizim önbellek dosyamızın yaşıydı, sunucu
     # hakkında hiçbir şey söylemiyordu ("16dk ne alaka" diye soruldu).
     # "kurulum" DEĞİL: ölçülen şey INFO keyspace'teki boş olmayan db sayısı.

@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.80';
+const APP_VERSION = '1.5.81';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -1613,7 +1613,13 @@ if ($rootFresh && isset($procSec['userredis'])) {
         // "371 olması gerekiyordu" kanıtı gerekir; o kanıt yokken pay ile
         // bölen aynı listeden gelir ve oran hiçbir şey anlatmaz — eski
         // sürümün hatası buydu, hesapların yarısında kapalıyken de doluydu.
-        $urNote = $urTot > 0 ? tf('%s/%s up', $urUp, $urTot) : tf('%s up', $urUp);
+        // NOT DILBILGISI (1.5.81): "<sayim> · <kullanilan>/<tavan>". Onbellek
+        // kartindaki her satir ayni sirayi kullaniyor, boylece yanindaki cubuk
+        // HEP ikinci sayinin orani oluyor. Eskiden Redis'in notu hesap sayisi
+        // sayarken cubugu bellegi gosteriyordu; goz ikisini baglayamiyordu.
+        // 'ayakta' kelimesi dustu: oran zaten nokta ile birlikte okunuyor ve
+        // satir masaustunde kirpilmaz oldu (31 -> 21 karakter).
+        $urNote = $urTot > 0 ? $urUp . '/' . $urTot : tf('%s up', $urUp);
         $urTips = [];
         $urMem  = isset($procSec['userredis_mem']) && ctype_digit(trim($procSec['userredis_mem']))
                 ? (int)trim($procSec['userredis_mem']) : 0;
@@ -1655,7 +1661,9 @@ if ($rootFresh && isset($procSec['userredis'])) {
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
-                if ($urTot <= $urUp) $urNote .= ' · ' . tf('%s in use', $u[0]);
+                // KULLANIM ARTIK NOTTA DEGIL IPUCUNDA (1.5.81): notun ikinci
+                // alani kullanilan/tavan oldu ve ucu birden satira sigmiyordu.
+                // Ayni sayi zaten asagidaki ipucu satirinin icinde duruyor.
                 $urTips[] = tf('%s accounts in use, %s non-empty databases', $u[0], $u[1]);
             }
         }
@@ -1677,6 +1685,16 @@ if ($rootFresh && isset($procSec['userredis'])) {
         // oraya girerse sütunun anlamı bozulur (kart boyunca "4sa" ile
         // "2.3 GB" alt alta gelirdi). Bellek ayrıca Bellek kartında da var.
         if ($urMem) $urTips[] = $urCap > 0 ? tf('%s of %s ceiling', $urMemT, $urCapT) : $urMemT;
+        // NOTUN IKINCI ALANI: kullanilan/tavan, IKISI DE TAVANIN BIRIMINDE.
+        // Ayri birimlerde yazilsaydi ("900 MB/11.3 GB") oran gozle okunamazdi.
+        // TAVAN BILINMIYORSA HIC YAZILMAZ -- cubugun kuraliyla ayni, uydurma
+        // payda yok.
+        if ($urCap > 0) {
+            $urNote .= ' · ' . ($urCap >= 1024
+                ? number_format($urMem / 1024, 1, '.', '') . '/'
+                  . number_format($urCap / 1024, 1, '.', '') . ' GB'
+                : $urMem . '/' . $urCap . ' MB');
+        }
         if ($urCapSiz) $urTips[] = tf('%s unlimited', $urCapSiz);
         // TAVAN TOPLAMI FİZİKSEL RAM'İ AŞIYOR MU — aşırı taahhüt kontrolü.
         // maxmemory bir SINIR, ayrılmış bellek değil: örnekler aynı anda
@@ -1757,12 +1775,13 @@ if ($opcN > 0 && $opcCapMB > 0) {
     // ondan buyukse cikarma anlamsizdir (shmem okunamamis olabilir), o zaman
     // yalniz ayrilan yazilir. Olculmemis bir sayi gosterilmez.
     $opcHeldGB = ($tmpfsGB !== null && $shmemGB > $tmpfsGB) ? $shmemGB - $tmpfsGB : null;
-    $opcNote   = $opcHeldGB !== null
-               ? number_format($opcHeldGB, 1, '.', '') . ' / ' . number_format($opcCapGB, 1, '.', '') . ' GB'
-               : tf('%s GB reserved', number_format($opcCapGB, 1, '.', ''));
+    // Redis satiriyla AYNI dilbilgisi: "<sayim> · <kullanilan>/<tavan>".
+    // Havuz sayisi ipucundan satira cikti ki iki satir ayni sirayla okunsun.
+    $opcNote   = tf('%s pools', $opcN) . ' · ' . ($opcHeldGB !== null
+               ? number_format($opcHeldGB, 1, '.', '') . '/' . number_format($opcCapGB, 1, '.', '') . ' GB'
+               : tf('%s GB reserved', number_format($opcCapGB, 1, '.', '')));
     $cacheChecks[] = ['label' => 'OPcache', 'type' => 'check', 'ok' => true, 'note' => $opcNote,
-                      'noteT' => tf('%s pools', $opcN) . ' · '
-                               . t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.')]
+                      'noteT' => t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.')]
                    + ($opcHeldGB !== null
                       ? ['fill' => min(100, (int)round($opcHeldGB / $opcCapGB * 100))] : []);
 }
@@ -2566,6 +2585,11 @@ if (isset($_GET['json'])) {
         'memUsedGB'         => $memUsedGB,  'memTotalGB'  => $memTotalGB,
         'swapUsedGB'        => $swapUsedGB, 'swapTotalGB' => $swapTotalGB, 'swapPct' => $swapPct,
         'shmemGB'           => $shmemGB, 'shmemPct' => $shmemPct, 'shmemCol' => $shmemCol, 'memAvailPct' => $memAvailPct,
+        // İPUCU DA GİTMELİ: ramMeta() bu satırı her tick'te yeniden kuruyor,
+        // metin payload'da olmazsa sunucu render'ındaki title ilk tick'te
+        // siliniyor ve ipucu "hiç konmamış" gibi kayboluyor (canlıda görüldü
+        // 2026-11-09; aynı tuzak kullanıcı başına Redis notunda da yaşanmıştı).
+        'shmemTip'          => $shmemTip,
         'diskUsedGB'        => $diskUsedGB, 'diskTotalGB' => $diskTotalGB, 'diskGrow' => $diskGrow,
         'inodePct'          => $inodePct, 'inodeCol' => $inodeCol,
         'raidTxt'           => $raidTxt ?: null, 'raidCol' => $raidCol, 'raidState' => $raidState, 'raidMismatch' => $raidMismatch, 'smartTxt' => $smartTxt ?: null, 'smartMsg' => $smartMsg ?: null,
@@ -3638,9 +3662,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
    Güvenlik/FTP kartlarında sürüm ve durum metinleri kırpılıyordu. İki satır
    için on satırı kırpmak yanlış takas. */
 .sub-bar{width:34px;flex-shrink:0;height:4px;border-radius:2px;margin-left:6px;
-  background:var(--line);overflow:hidden;align-self:center;}
+  background:var(--border);overflow:hidden;align-self:center;}
 .sub-bar:empty{width:0;margin-left:0;background:none;}
-.sub-bar i{display:block;height:100%;background:var(--accent);opacity:.65;}
+/* DOLU KISMA 3px TABAN: %11 olan Redis satırında dolgu 34px'in 4px'iydi ve
+   "az dolu" ile "hiç yok" aynı görünüyordu (canlıda görüldü). Kanal da
+   --line yerine --border: boş kısım okunmazsa oran da okunmuyor. */
+.sub-bar i{display:block;height:100%;min-width:3px;background:var(--accent);opacity:.75;}
 /* Yaş sütunu: her satırda sabit genişlik → sağ kenarda dikey hizalı, taranabilir */
 .sub-age{width:24px;flex-shrink:0;text-align:right;font-size:9.5px;color:var(--hint);white-space:nowrap;}
 /* Sürüm — etiketin yanında silik; dar pencerede yalnız o kırpılır (tamamı hover'da) */
@@ -4406,7 +4433,9 @@ function rtcol(ms,w,c){if(ms==null)return'var(--accent)';if(ms>=c)return'var(--d
 // IO Wait kart metası — PHP şablonundaki $iowParts ile birebir aynı mantık
 function iowMeta(d){const p=[];if(d.ioR!=null){p.push(t('R')+' '+d.ioR,t('W')+' '+d.ioW);}if(d.dstate!=null)p.push(d.dstate+' '+t('blocked'));return p.length?p.join(' · '):t('Disk I/O pressure');}
 // RAM/CPU kart metaları — PHP şablonuyla birebir aynı mantık
-function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';s+=' · <span style="color:'+c+'">shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
+function ramMeta(d){if(d.memUsedGB==null)return d.ram+'% used';let s=d.memUsedGB+' / '+d.memTotalGB+' GB';if(d.shmemGB>=1){const c=d.shmemCol||'var(--hint)';
+  // title PHP ikiziyle AYNI: yoksa sunucu render'ındaki ipucu ilk tick'te silinir.
+  s+=' · <span style="color:'+c+'"'+(d.shmemTip?' title="'+esc(d.shmemTip)+'"':'')+'>shmem '+d.shmemGB+' GB</span>';}if(d.swapTotalGB)s+=' · swap '+d.swapUsedGB+'/'+d.swapTotalGB+' GB';return s;}
 // PHP'deki rm-cpu satirinin ikizi. Zombi SIFIRSA yazilmaz (saglikli sunucuda
 // satiri bosuna uzatmasin); ipucu sabit, durum harflerini aciklar.
 // Durum HARFLERI yazilir, kelime degil: satir mobilde sarmasin. Harfler ps'in

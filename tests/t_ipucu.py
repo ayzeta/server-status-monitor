@@ -201,6 +201,13 @@ ck("JS: yuk uyarisi CPU VE I/O ekini tasiyor",
    "data.load1.toFixed(2),loadCpu+loadIo" in src, True)
 # Ekler yeniden kuruluyor: topIo/top kendi ' — ust: ... (anlik Xsn)' onegini
 # tasir, yuk satirina oldugu gibi eklenseydi onek iki kez yazilirdi.
+# SUNUCU RENDER'INDAKI IPUCU ILK TICK'TE SILINMEMELI. ramMeta() Bellek
+# kartinin alt satirini HER tick'te yeniden kuruyor; metin payload'da yoksa
+# PHP'nin bastigi title kayboluyor ve ipucu "hic konmamis" gibi oluyor.
+# CANLIDA GORULDU 2026-11-09: shmem ipucu sunucu ciktisinda vardi, tarayicida
+# yoktu. Ayni tuzak daha once kullanici basina Redis'in notunda da yasandi.
+ck("shmem ipucu payload'da tasiniyor", "'shmemTip'" in src, True)
+ck("JS ramMeta de title basiyor", "d.shmemTip?' title=\"'+esc(d.shmemTip)" in src, True)
 ck("JS: I/O eki yeniden kuruluyor (cift 'ust:' olmasin)",
    "' — I/O: '+topIoTxt" in src, True)
 ck("JS: CPU eki de yeniden kuruluyor", "loadCpu=' — CPU: '+s" in src, True)
