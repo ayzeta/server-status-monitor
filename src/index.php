@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.83';
+const APP_VERSION = '1.5.84';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -2916,8 +2916,12 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     $sekme = $lveOk;
     $ozet = lveOzetMetni($cpuAcctTot, $coreCount, $cpuUsage);
     $oTip = htmlspecialchars(t('Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.'), ENT_QUOTES, 'UTF-8');
-    // SUREC sutununun basligi: sayinin NEREDEN geldigi ve nicin bos kalabildigi.
-    $npTip = htmlspecialchars(t('Processes the account has right now, idle ones included. Source: the LVE NPROC counter, which arrives with the same row as CPU and RAM. Empty means LVE did not report it for that account.'), ENT_QUOTES, 'UTF-8');
+    // SUREC sutununun basligi. TUZAK: buradaki dizge $TR'de ANAHTAR olmak
+    // zorunda, yoksa t() sessizce Ingilizceye duser. 1.5.83'te tam bu oldu --
+    // sozluge yeni metin eklendi, cagri eski metinde kaldi, uretimde ipucu
+    // Ingilizce ve ESKI iddiayla gorundu. Artik t_ceviri.py butun t()/tf()
+    // cagrilarinin sozlukte karsiligi var mi diye soruyor.
+    $npTip = htmlspecialchars(t('Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.'), ENT_QUOTES, 'UTF-8');
     $lveLbl = ' · LVE' . (preg_match('/^(\d+)m$/', (string)$lveWin, $m) ? ' ' . tf('%sm', (int)$m[1]) : '');
     $out = '<div class="proc-card" id="cpu-card">'
          . ($sekme
