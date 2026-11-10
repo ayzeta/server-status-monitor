@@ -343,7 +343,7 @@ else:
     ck("ve kırmızı rozet yok", sinif, "badge-warn")
 
     # 5b) askıya alınmış hesap: oran TAM, kart SARI DEĞİL, sayı ipucunda.
-    #     Gerçek olay: 366/367 · "çalışmıyor: parkdoor" yazıp kartı Sorunlu
+    #     Gerçek olay: 366/367 · "çalışmıyor: maplebox" yazıp kartı Sorunlu
     #     yakıyordu. Askıdaki hesabın Redis'i koşmaz — ölçüm gizlenmiyor,
     #     paydanın dışına alınıp ipucunda yazılıyor.
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",

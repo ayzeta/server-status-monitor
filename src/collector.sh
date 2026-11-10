@@ -601,8 +601,8 @@ PYEOF
     | sed 's|.*/user-redis@||; s|\.service$||' | tr '\n' ' ')
   # ASKIYA ALINMIS HESAP SAYILMAZ -- ne payda ne paydada.
   #
-  # GERCEK OLAY (uretimde goruldu 2026-11-10): askiya alinmis "parkdoor"
-  # hesabinin Redis'i cok dogal olarak kosmuyordu; birim HALA enabled (systemd
+  # GERCEK OLAY (uretimde goruldu 2026-11-10; hesap adi kurgusal): askiya
+  # alinmis bir hesabin Redis'i cok dogal olarak kosmuyordu; birim HALA enabled (systemd
   # kaydi askiya alinca silinmiyor -- olculdu: is-enabled "enabled", is-active
   # "failed"), yani paydada duruyordu. Pano 366/367 deyip Onbellek kartini
   # "Sorunlu" yakti. Oysa ortada ariza yok: calismasi BEKLENMEYEN bir sey
