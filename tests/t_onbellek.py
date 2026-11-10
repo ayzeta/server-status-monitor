@@ -81,7 +81,7 @@ os.remove(AWKF)
 # halde ~0.1 s ama yanıt vermeyen her örnek 0.3 s eklediği için en kötü hal
 # 111 saniyeydi — dakikalık cron için kabul edilemez. Şimdi tanımlı sayısı
 # dizinden, ayakta sayısı ve bellek zaten alınmış ps görüntüsünden geliyor.
-b = src.index('awk -v tanimli="$UR_UNITS" ' + chr(39))
+b = src.index('awk -v tanimli="$UR_UNITS" -v askida="$UR_SUSP" ' + chr(39))
 b = src.index(chr(39), b) + 1
 e = src.index("}" + chr(39) + ' "$PS_SNAP"', b) + 1
 URF = os.path.join(BURASI, "t_userredis.awk")
@@ -89,10 +89,10 @@ PSF = os.path.join(BURASI, "t_userredis.ps")
 io.open(URF, "w", encoding="utf-8", newline=NL).write(src[b:e])
 
 
-def ur(tanimli, satirlar):
+def ur(tanimli, satirlar, askida=""):
     io.open(PSF, "w", encoding="utf-8", newline=NL).write(NL.join(satirlar) + NL)
-    r = subprocess.run(["awk", "-v", "tanimli=" + tanimli, "-f", URF, PSF],
-                       capture_output=True, text=True)
+    r = subprocess.run(["awk", "-v", "tanimli=" + tanimli, "-v", "askida=" + askida,
+                        "-f", URF, PSF], capture_output=True, text=True)
     return r.stdout.strip()
 
 
@@ -131,6 +131,26 @@ ck("userredis: tanımlı yoksa bölen 0",
    ur("", [ORTAK, pr(1, "alfa", 6400, KUL), pr(2, "beta", 6400, KUL)]),
    NL.join(["userredis 2 0", "userredis_mem 12", "userredis_age 5000"]))
 ck("userredis: böyle bir yapı yoksa çıktı yok", ur("", [ORTAK]), "")
+# ── ASKIYA ALINMIŞ HESAP: ne payda ne paydada ──────────────────
+# Üretimde görüldü (2026-11-10): askıdaki hesabın Redis'i koşmuyordu, birim
+# hâlâ enabled olduğu için paydada duruyordu ve kart "366/367 · Sorunlu"
+# yanıyordu. Çalışması beklenmeyen bir şeyin çalışmaması arıza değil.
+ck("askıdaki hesap paydadan düşer, adı 'çalışmıyor' listesine GİRMEZ",
+   ur("alfa beta gama", [pr(1, "alfa", 6400, KUL), pr(2, "beta", 6400, KUL)],
+      askida="gama"),
+   NL.join(["userredis 2 2", "userredis_susp 1",
+            "userredis_mem 12", "userredis_age 5000"]))
+# İKİ TARAFTAN DA düşmeli: askıdaki hesabın örneği bir şekilde ayaktaysa payda
+# sayılmazsa "3/2" gibi kendi içinde tutarsız bir oran çıkardı.
+ck("askıdaki hesabın Redis'i ayaktaysa PAY da saymaz",
+   ur("alfa beta", [pr(1, "alfa", 6400, KUL), pr(2, "beta", 6400, KUL)],
+      askida="beta"),
+   NL.join(["userredis 1 1", "userredis_susp 1",
+            "userredis_mem 6", "userredis_age 5000"]))
+ck("askıda hesap yoksa satır hiç yazılmaz",
+   "userredis_susp" in ur("alfa", [pr(1, "alfa", 6400, KUL)]), False)
+# Hepsi askıdaysa oran 0/0 olur; pano zaten çizmiyor, satır da yazılmaz.
+ck("hepsi askıda -> çıktı yok", ur("alfa", [], askida="alfa"), "")
 # ── GERÇEK ps çıktısıyla ───────────────────────────────────────
 # Yukarıdakilerin hepsini BEN yazdım; ürünü yalnız kendi varsayımıma karşı
 # sınarlar. İlk sürüm argümandaki tam soket yoluna dayanıyordu, test de aynı
@@ -321,6 +341,20 @@ else:
     # Kısmi arıza = uyarı: kart düşmez, sarı olur (kırmızı/Offline DEĞİL).
     ck("tek hesap kartı düşürmez: Degraded", rozet, "Degraded")
     ck("ve kırmızı rozet yok", sinif, "badge-warn")
+
+    # 5b) askıya alınmış hesap: oran TAM, kart SARI DEĞİL, sayı ipucunda.
+    #     Gerçek olay: 366/367 · "çalışmıyor: parkdoor" yazıp kartı Sorunlu
+    #     yakıyordu. Askıdaki hesabın Redis'i koşmaz — ölçüm gizlenmiyor,
+    #     paydanın dışına alınıp ipucunda yazılıyor.
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "unit memcached notfound inactive",
+                                        "userredis 366 366", "userredis_susp 2",
+                                        "userredis_mem 1126"])
+    ck("askıdakiler düşünce oran tam -> yeşil", chip(kart, "Redis · user"),
+       ("ok", "366/366"))
+    ck("grup rozeti sarıya dönmez", rozet, "Operational")
+    ck("kaç hesabın düştüğü ipucunda", ipucu(kart, "Redis · user"),
+       "2 suspended accounts are not counted — their Redis is not meant to be running · 1.1 GB")
 
     # 6) hiçbiri ayakta değil -> kırmızı
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",

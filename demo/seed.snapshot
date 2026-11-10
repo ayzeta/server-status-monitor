@@ -10,13 +10,14 @@ PID USER CPU% MEM% RSS COMMAND
 2337128 root 0.3 0.2 362496 /usr/bin/imunify360-php-daemon
 
 --- lsphp per user ---
-3 maplebox lsphp
-2 wholesale lsphp
+36 maplebox lsphp 40
+12 wholesale lsphp 100
+2 zencache lsphp 0
 
 --- Top disk accounts ---
-diskacct bluewave 22.6
-diskacct shopfast 13.1
-diskacct zencache 10.8
+diskacct bluewave 22.6 25
+diskacct shopfast 13.1 100
+diskacct zencache 10.8 0
 
 --- Top IO accounts ---
 io_src lve 1m

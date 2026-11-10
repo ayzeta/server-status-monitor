@@ -8,6 +8,18 @@ gecen=0; kalan=0
 ck(){ if [ "$2" = "$3" ]; then gecen=$((gecen+1)); printf '  %-46s -> tamam (%s)\n' "$1" "$2"
       else kalan=$((kalan+1)); printf '  BASARISIZ %-36s beklenen=%s gelen=%s\n' "$1" "$3" "$2"; fi; }
 
+# BOSLUKLU comm ORNEGI KENDIMIZ URETILIYOR (2026-11-10). Asagidaki iddia
+# "surec tablosunda adinda bosluk olan bir surec VAR" varsayimina dayaniyordu
+# ve bu ORTAMIN kaprisi: cikplak bir WSL'de oyle bir surec hic olmayabiliyor.
+# Oyle bir gunde test, URUN DOGRUYKEN kirmizi yaniyordu (olculdu: testin kendi
+# bilgi satiri "bosluklu comm satiri sayisi = 0" diyor, sonra 1 bekliyordu).
+# comm cekirdekte CALISTIRILABILIR DOSYANIN ADIDIR, argv[0] degil -- o yuzden
+# adinda bosluk olan bir kopya cikarip onu kosuyoruz. Boylece olcum sansa
+# degil, kendi kurdugumuz duruma bagli.
+BOSEXE="/tmp/ssm test"
+cp -p "$(command -v sleep)" "$BOSEXE" 2>/dev/null && "$BOSEXE" 30 &
+BOSPID=$!
+
 ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= > "$S" 2>/dev/null
 ps axo state=,user:19=,etimes=,pcpu=,rss=,comm=  > "$C" 2>/dev/null
 
@@ -77,9 +89,11 @@ ck "rss siralamasi ps ile ayni" \
    "$(sort -k7,7 -rn "$S.rss" | head -1 | awk '{print $7}')" \
    "$(head -1 "$S.rss" | awk '{print $7}')"
 
-# Bosluklu comm gercekten var mi (varsa dosya bicimi onu tasiyabiliyor mu)
+# Bosluklu comm: dosya bicimi onu tasiyabiliyor mu. Ornegi yukarida KENDIMIZ
+# baslattik, yani bu iki iddia ortama degil kurduguumuz duruma bakiyor.
 BOS=$(awk 'NF>6' "$C" | wc -l)
 printf '  bilgi: bosluklu comm satiri sayisi = %s\n' "$BOS"
+ck "bosluklu comm ornegi gercekten kosuyor" "$([ "$BOS" -ge 1 ] && echo evet || echo hayir)" "evet"
 ck "bosluklu comm ilk alani bozulmadan okunuyor" \
    "$(awk 'NF>6{print $6; exit}' "$C" | grep -c '[a-z]')" "1"
 
@@ -87,7 +101,8 @@ ck "bosluklu comm ilk alani bozulmadan okunuyor" \
 T0=$(date +%s%3N); for i in 1 2 3; do ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= >/dev/null; done; T1=$(date +%s%3N)
 printf '  bilgi: tarama basina ~%s ms\n' "$(( (T1-T0)/3 ))"
 
-rm -f "$S" "$C" "$S.cpu" "$S.rss"
+kill "$BOSPID" 2>/dev/null; wait "$BOSPID" 2>/dev/null
+rm -f "$S" "$C" "$S.cpu" "$S.rss" "$BOSEXE"
 echo
 echo "GECEN: $gecen  KALAN: $kalan"
 [ "$kalan" -eq 0 ]

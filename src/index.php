@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.85';
+const APP_VERSION = '1.5.86';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -166,6 +166,14 @@ $TR = [
     '%s%% of its LVE ceiling (%s)' => 'LVE tavanının %%%s kadarı (tavan %s)',
     'At its LVE ceiling (%s) — the kernel is throttling this account'
         => 'LVE tavanında (%s) — çekirdek bu hesabı frenliyor, istekleri yavaşlıyor',
+    // Diskin tavani LVE'de DEGIL: kota ayri bir kaynak (repquota), o yuzden ipucu
+    // da ayri. "LVE tavani" demek yanlis yeri gosterirdi.
+    '%s%% of its disk quota (%s)' => 'disk kotasının %%%s kadarı (kota %s)',
+    'At its disk quota (%s) — the account cannot write any more'
+        => 'disk kotası dolu (%s) — hesap artık yazamaz',
+    // lsphp cubugunun saklamadigi gercek: tavan butun surecleri kapsiyor.
+    'the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher'
+        => 'tavan hesabın BÜTÜN süreçlerini kapsıyor; burada yalnız lsphp sayıldı, gerçek sayı daha yüksek olabilir',
     'Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.'
         => 'Hesabın şu anki süreç sayısı, boşta bekleyenler dahil (LVE NPROC). 0 = okuma anında süreç yok; yanında CPU varsa o süreçler dakika içinde koşup kapanmış demektir — CPU bir dakikalık FARK, bu sayı ANLIK. Hücre boşsa LVE alanı hiç bildirmemiş.',
     'Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.'
@@ -191,6 +199,10 @@ $TR = [
     'Not in use' => 'Kullanılmıyor', '%s not in use' => '%s kullanılmıyor',
     '%s unverified' => '%s doğrulanamadı', '%s no response' => '%s yanıt vermiyor',
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
+    // Askiya alinmis hesabin Redis'i kosmaz; bu ARIZA DEGIL, o yuzden oranin
+    // disinda tutuluyor ve sayisi ipucunda yaziyor.
+    '%s suspended accounts are not counted — their Redis is not meant to be running'
+        => 'askıya alınmış %s hesap sayılmadı — Redis’lerinin çalışması beklenmiyor',
     '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
     '%s not running' => '%s çalışmıyor',
     '%s in use' => '%s kullanımda',
@@ -344,8 +356,13 @@ if (is_readable($procSnapFile)) {
             }
         } elseif (stripos($title, 'lsphp') !== false) {
             foreach ($lines as $ln) {
-                $p = preg_split('/\s+/', trim($ln)); // count,user,comm
-                if (count($p) >= 2 && is_numeric($p[0])) $procPhp[] = [$p[1], (int)$p[0]];
+                // "sayi hesap lsphp [lnproc]" — dorduncusu hesabin SUREC TAVANI
+                // (LVE lNPROC, adet). Eski toplayici uc alan yaziyor: tavan o
+                // zaman null kalir, cubuk cizilmez (uydurulmaz).
+                $p = preg_split('/\s+/', trim($ln)); // count,user,comm[,lnproc]
+                if (count($p) >= 2 && is_numeric($p[0]))
+                    $procPhp[] = [$p[1], (int)$p[0],
+                                  (count($p) >= 4 && is_numeric($p[3])) ? (float)$p[3] : null];
             }
         } elseif (stripos($title, 'MySQL') !== false) {
             foreach ($lines as $ln) {
@@ -403,8 +420,13 @@ if (is_readable($procSnapFile)) {
             }
         } elseif (stripos($title, 'Top disk accounts') !== false) {
             foreach ($lines as $ln) {
-                $p = preg_split('/\s+/', trim($ln)); // diskacct user gb
-                if (count($p) === 3 && $p[0] === 'diskacct' && is_numeric($p[2])) $diskAcct[] = [$p[1], (float)$p[2]];
+                // "diskacct hesap gb [kota_gb]" — dorduncusu hesabin KOTASI (GB),
+                // 0 = kota yok. Eski toplayici uc alan yaziyor: tavan null kalir
+                // ve cubuk cizilmez (uydurulmaz).
+                $p = preg_split('/\s+/', trim($ln)); // diskacct user gb [quota]
+                if ((count($p) === 3 || count($p) === 4) && $p[0] === 'diskacct' && is_numeric($p[2]))
+                    $diskAcct[] = [$p[1], (float)$p[2],
+                                   (count($p) === 4 && is_numeric($p[3])) ? (float)$p[3] : null];
             }
         } elseif (stripos($title, 'Top IO accounts') !== false) {
             foreach ($lines as $ln) {
@@ -1674,6 +1696,15 @@ if ($rootFresh && isset($procSec['userredis'])) {
         // ait bir şey söyler (servis yaşı = sürecin kendi etimes'ı, ps'ten her
         // dakika taze); o 16dk ise BİZİM önbellek dosyamızın yaşıydı — kendi
         // defterimizin yaşını kullanıcıya göstermenin anlamı yok.
+        // ASKIYA ALINMIS HESAPLAR PAYDADAN DUSTU (toplayicida): oran "koşması
+        // beklenen" birimlere göre. Sayı burada YAZILIYOR — ölçüm gizlenmiyor,
+        // sınıflandırılıyor; okuyan "367 birim vardı, ikisi askıda" diyebilsin.
+        if (isset($procSec['userredis_susp'])
+            && ctype_digit(trim($procSec['userredis_susp']))
+            && (int)trim($procSec['userredis_susp']) > 0) {
+            $urTips[] = tf('%s suspended accounts are not counted — their Redis is not meant to be running',
+                           (int)trim($procSec['userredis_susp']));
+        }
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
@@ -2893,14 +2924,29 @@ function lveRamOzetMetni($totMB, $usedGB) {
 //
 // CUBUK YOKSA SEBEBI UC TURLU ve ucunde de cizilecek bir oran yok:
 // null (eski toplayici, 4 alan), -1 (LVE bildirmedi), 0 (sinirsiz).
-function lveBarCell($v, $lim, $fmt) {
+//
+// BES TABLONUN HEPSI BURADAN GECER (1.5.86): CPU, RAM, I/O, lsphp ve disk. Once
+// disk ile lsphp'de cubuk "satiri TABLODAKI EN BUYUGE" oranliyordu; tablo zaten
+// azalan sirali oldugu icin o cubuk siralamayi tekrar etmekten baska is
+// yapmiyordu ve ayni panoda iki ayri anlam tasiyordu. Artik tek anlam var:
+// cubuk = SATIRIN KENDI TAVANINA oran.
+//   $kota  — tavanin kaynagi LVE degil kota: ipucu metni de oyle yazilir.
+//   $not   — ipucuna eklenen cekince (lsphp: tavan butun surecleri kapsiyor).
+function lveBarCell($v, $lim, $fmt, $kota = false, $not = '') {
     if ($lim === null || $lim <= 0) return '<td class="php-bar-cell"></td>';
     $oran = $v / $lim * 100;
     $w    = max(0, min(100, (int)round($oran)));
     $dolu = $oran >= 100;
-    $tip  = $dolu
-          ? tf('At its LVE ceiling (%s) — the kernel is throttling this account', $fmt($lim))
-          : tf('%s%% of its LVE ceiling (%s)', (int)round($oran), $fmt($lim));
+    if ($kota) {
+        $tip = $dolu
+             ? tf('At its disk quota (%s) — the account cannot write any more', $fmt($lim))
+             : tf('%s%% of its disk quota (%s)', (int)round($oran), $fmt($lim));
+    } else {
+        $tip = $dolu
+             ? tf('At its LVE ceiling (%s) — the kernel is throttling this account', $fmt($lim))
+             : tf('%s%% of its LVE ceiling (%s)', (int)round($oran), $fmt($lim));
+    }
+    if ($not !== '') $tip .= ' — ' . $not;
     return '<td class="php-bar-cell" title="' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '">'
          . '<span class="php-bar' . ($dolu ? ' cap' : '') . '" style="width:' . $w . '%"></span></td>';
 }
@@ -3047,13 +3093,13 @@ function renderProcTables($procCpu, $procRam, $procPhp, $diskAcct = [], $ioAcct 
     // yok, olmayanlarda vardı — aynı konumdaki aynı şey iki türlü yazılıyordu.
     $out .= '<div class="proc-card"><div class="proc-title">' . t('PHP · account') . '<span class="proc-age">' . t('active+idle') . '</span></div>'
           . '<table class="proc-table acct3"><thead><tr><th>' . upper(t('Account')) . '</th><th></th><th class="num" title="' . htmlspecialchars(t('All lsphp processes for the account, idle pool included — the PHP Workers card counts only active (R/D) ones')) . '">' . upper(t('Procs')) . '</th></tr></thead><tbody id="pt-php">' . "\n";
-    $phpMax = 1;
-    foreach ($procPhp as $p) { if ($p[1] > $phpMax) $phpMax = $p[1]; }
+    // Cubuk hesabin KENDI surec tavanina (LVE lNPROC) gore. Cekince ipucunda:
+    // tavan butun surecleri kapsiyor, burada yalniz lsphp sayildi.
+    $npNot = t('the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher');
     foreach ($procPhp as $p) {
         $cls = $p[1] >= 10 ? 'hot' : ($p[1] >= 5 ? 'warm' : '');
-        $w   = round($p[1] / $phpMax * 100);
         $out .= '<tr><td class="proc-user">' . $h($p[0]) . '</td>'
-              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . lveBarCell($p[1], $p[2] ?? null, fn($x) => (string)(int)$x, false, $npNot)
               . '<td class="num ' . $cls . '">' . (int)$p[1] . '</td></tr>' . "\n";
     }
     $out .= '</tbody></table></div>';
@@ -3142,13 +3188,14 @@ function renderDiskCard($diskAcct, $h) {
     if (!$diskAcct) {
         $out .= '<tr><td colspan="3" style="color:var(--hint)">' . t('quota data pending') . '</td></tr>';
     }
-    $mx = 0.1;
-    foreach ($diskAcct as $p) if ($p[1] > $mx) $mx = $p[1];
+    // Cubuk hesabin KENDI KOTASINA gore (LVE degil, repquota). Kotasi olmayan
+    // hesapta cubuk yok: "en buyuk satira gore" eski cubuk siralamayi tekrar
+    // etmekten baska bir sey anlatmiyordu.
+    $fmtKota = fn($x) => rtrim(rtrim(number_format($x, 1, '.', ''), '0'), '.') . ' GB';
     foreach ($diskAcct as $p) {
-        $w  = round($p[1] / $mx * 100);
         $gb = rtrim(rtrim(number_format($p[1], 1), '0'), '.');
         $out .= '<tr><td class="proc-user">' . $h($p[0]) . '</td>'
-              . '<td class="php-bar-cell"><span class="php-bar" style="width:' . $w . '%"></span></td>'
+              . lveBarCell($p[1], $p[2] ?? null, $fmtKota, true)
               . '<td class="num ' . diskAcctCls($p[1], $diskTotalGB) . '">' . $gb . '</td></tr>' . "\n";
     }
     $out .= '</tbody>';
@@ -5113,23 +5160,42 @@ function renderProcs(data){
     return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
     `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
     `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
+  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
+  // BURADA, BES TABLONUN HEPSINDEN ONCE tanimli: const'un TDZ'si var, asagida
+  // tanimlansa lsphp ve disk tablolari "lveBarCell is not defined" ile duserdi.
+  const lveBarCell=(v,lim,fmt,kota,not)=>{
+    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
+    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
+    let tip=kota?(dolu?tf('At its disk quota (%s) — the account cannot write any more',fmt(lim))
+                      :tf('%s%% of its disk quota (%s)',Math.round(oran),fmt(lim)))
+                :(dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
+                      :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim)));
+    if(not)tip+=' — '+not;
+    return `<td class="php-bar-cell" title="${esc(tip)}">`+
+      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
+  };
   const php=document.getElementById('pt-php');
   if(php&&data.procPhp){
-    const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
+    // Cubuk hesabin KENDI surec tavanina (lNPROC) gore; cekince ipucunda.
+    const npNot=t('the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher');
     php.innerHTML=data.procPhp.map(p=>{
       const c=p[1]>=10?'hot':p[1]>=5?'warm':'';
-      const w=Math.round(p[1]/mx*100);
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${c}">${p[1]}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],x=>''+Math.trunc(x),false,npNot)+
+        `<td class="num ${c}">${p[1]}</td></tr>`;}).join('');
   }
   const dsk=document.getElementById('pt-disk'); // en dolu hesaplar (3. sütun, dikey tablo)
   if(dsk&&data.diskAcct&&data.diskAcct.length){
-    const mx=Math.max(0.1,...data.diskAcct.map(p=>p[1]));
     const tot=data.diskTotalGB||0;
+    // PHP $fmtKota ikizi: tek ondalik, gereksiz sifir atilir.
+    const fmtKota=x=>(''+(Math.round(x*10)/10)).replace(/\.0$/,'')+' GB';
     dsk.innerHTML=data.diskAcct.map(p=>{
-      const w=Math.round(p[1]/mx*100);
       const gb=(''+(Math.round(p[1]*10)/10)).replace(/\.0$/,'');
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],fmtKota,true)+
+        `<td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
   // Büyüme gövdesi — PHP diskGrowRows() ikizi. Gizliyken de güncellenir ki
   // sekmeye geçildiğinde bayat veri görünmesin.
@@ -5158,16 +5224,6 @@ function renderProcs(data){
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
-  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
-  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
-  const lveBarCell=(v,lim,fmt)=>{
-    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
-    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
-    const tip=dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
-                  :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim));
-    return `<td class="php-bar-cell" title="${esc(tip)}">`+
-      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
-  };
   const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;

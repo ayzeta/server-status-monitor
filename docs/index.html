@@ -709,7 +709,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Issues</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Issues detected</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; Service feed unavailable &#183; Web Degraded">Mail Offline &#183; DNS Offline &#183; FTP Offline &#183; Service feed unavailable &#183; Web Degraded</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Mail Offline &#183; DNS Offline &#183; Database Offline &#183; FTP Offline &#183; Service feed unavailable &#183; +1">Mail Offline &#183; DNS Offline &#183; Database Offline &#183; FTP Offline &#183; Service feed unavailable &#183; +1</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">HOSTNAME</div>
@@ -719,7 +719,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">UPTIME</div>
       <div class="meta-val" id="uptime">0 Days 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">SNAPSHOT</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">18:20:00</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:55:16</span></div></div>
   </div>
 </div>
 
@@ -762,15 +762,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:9%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:8%">
     <div class="res-top">
       <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><b>9</b><u>%</u></span>
+      <span class="res-val" id="rv-disk"><b>8</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">78 / 894 GB</div>
+    <div class="res-meta" id="rm-disk">75 / 894 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
@@ -807,11 +807,11 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <div class="res-meta" id="iv-mailq-sub">messages queued</div>
     </div>
   <div class="info-card" id="ic-web" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>23</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web response</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>10</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP response time</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL response</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>10</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL response</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>7</b><u class="w">ms</u></span></div>
       <div class="res-meta">TCP response time</div>
     </div>
   <div class="info-card">
@@ -881,10 +881,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></div>
-      <div class="svc-info"><div class="svc-name">Database</div><div class="svc-count" id="sk-db">1/2 checks passed</div></div>
-      <div class="badge badge-ok" id="bd-db">Operational</div>
+      <div class="svc-info"><div class="svc-name">Database</div><div class="svc-count" id="sk-db">0/2 checks passed</div></div>
+      <div class="badge badge-err" id="bd-db">Offline</div>
     </div>
-    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">responding</span><span class="sub-bar"></span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">no response</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">not found</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 </div>
   </div>
@@ -939,8 +939,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </tbody><tfoot><tr>
 <td colspan="4" class="lve-ozet" id="pt-ramsum" title="Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel &#8212; memory no account can be billed for. Both are physical RAM at the same instant, not an average.">
 </td></tr></tfoot></table></div><div class="proc-card"><div class="proc-title">PHP &#183; account<span class="proc-age">active+idle</span></div><table class="proc-table acct3"><thead><tr><th>ACCOUNT</th><th></th><th class="num" title="All lsphp processes for the account, idle pool included &#8212; the PHP Workers card counts only active (R/D) ones">PROCS</th></tr></thead><tbody id="pt-php">
-<tr><td class="proc-user">maplebox</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num ">3</td></tr>
-<tr><td class="proc-user">wholesale</td><td class="php-bar-cell"><span class="php-bar" style="width:67%"></span></td><td class="num ">2</td></tr>
+<tr><td class="proc-user">maplebox</td><td class="php-bar-cell" title="90% of its LVE ceiling (40) &#8212; the ceiling covers ALL of the account&#8217;s processes; only lsphp is counted here, so the real figure can be higher"><span class="php-bar" style="width:90%"></span></td><td class="num hot">36</td></tr>
+<tr><td class="proc-user">wholesale</td><td class="php-bar-cell" title="12% of its LVE ceiling (100) &#8212; the ceiling covers ALL of the account&#8217;s processes; only lsphp is counted here, so the real figure can be higher"><span class="php-bar" style="width:12%"></span></td><td class="num hot">12</td></tr>
+<tr><td class="proc-user">zencache</td><td class="php-bar-cell"></td><td class="num ">2</td></tr>
 </tbody></table></div><div class="proc-card" id="io-card"><input type="radio" name="iov" id="iov-a" class="vw-radio" checked><input type="radio" name="iov" id="iov-p" class="vw-radio"><div class="proc-title">I/O<span class="proc-age io-tabs">
 <label for="iov-a" class="io-tab io-t-acct" title="Per-account disk I/O (read+write), averaged over the last 60 seconds. Source: CloudLinux LVE kernel counters, differenced between two runs &#8212; counts every process of the account, short-lived ones included. Same window as the process view. Color: red &#8805;60%, orange &#8805;30% of the listed total">account &#183; LVE 1m</label>
 <label for="iov-p" class="io-tab io-t-proc" title="Per-process disk I/O (read+write), average over the last 60 seconds &#8212; the same window as the account view. Source: /proc/&lt;pid&gt;/io deltas: a process that started and ended between two samples is not counted, and root processes appear here but never in the account list, so the two do not add up.">process</label></span></div><div class="io-wrap"><table class="proc-table acct3"><thead><tr>
@@ -951,9 +952,9 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <tr><td class="proc-user">mysql</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td><td class="num hot">2 MB/s</td></tr>
 <tr><td class="proc-user">root</td><td class="td-fill"><span class="proc-cmd" title="/usr/local/cpanel/bin/backup -x">/usr/local/cpanel/bin/backup -x</span></td><td class="num ">512 KB/s</td></tr>
 </tbody></table></div></div><div class="proc-card" id="disk-card"><input type="radio" name="dkv" id="dkv-s" class="vw-radio" checked><input type="radio" name="dkv" id="dkv-1" class="vw-radio"><div class="proc-title">Disk &#183; account<span class="proc-age dk-tabs"><label for="dkv-s" class="dk-tab dk-t-size" title="cPanel account disk usage from quota (hourly). Color: red &gt;3%, orange &gt;1.5% of total disk">GB used</label><label for="dkv-1" class="dk-tab" title="Growth over the window, from the daily per-account record. Accounts that did not grow are not listed.">1d</label></span></div><table class="proc-table acct3"><thead><tr><th>ACCOUNT</th><th></th><th class="num"><span class="dkh-s">GB</span><span class="dkh-g">GROWTH</span></th></tr></thead><tbody id="pt-disk">
-<tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num warm">22.6</td></tr>
-<tr><td class="proc-user">shopfast</td><td class="php-bar-cell"><span class="php-bar" style="width:58%"></span></td><td class="num warm">13.1</td></tr>
-<tr><td class="proc-user">zencache</td><td class="php-bar-cell"><span class="php-bar" style="width:48%"></span></td><td class="num warm">10.8</td></tr>
+<tr><td class="proc-user">bluewave</td><td class="php-bar-cell" title="90% of its disk quota (25 GB)"><span class="php-bar" style="width:90%"></span></td><td class="num warm">22.6</td></tr>
+<tr><td class="proc-user">shopfast</td><td class="php-bar-cell" title="13% of its disk quota (100 GB)"><span class="php-bar" style="width:13%"></span></td><td class="num warm">13.1</td></tr>
+<tr><td class="proc-user">zencache</td><td class="php-bar-cell"></td><td class="num warm">10.8</td></tr>
 </tbody><tbody class="dkg" id="pt-dkg-1">
 <tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num">+1.33 GB</td></tr>
 <tr><td class="proc-user">zencache</td><td class="php-bar-cell"><span class="php-bar" style="width:11%"></span></td><td class="num">+145 MB</td></tr>
@@ -971,17 +972,19 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">18:20</span></div>
-    <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Security degraded &#183; Imunify360, LFD</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">FTP went offline &#183; FTP service, Kernel state</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">Database went offline &#183; MySQL (3306), MySQL socket</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">Security degraded &#183; Imunify360, LFD</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">DNS went offline &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Mail services went offline &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Web server degraded &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">Web server degraded &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">Service feed unavailable (root snapshot stale?)</span><span class="log-ts">12:55</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="Drag to resize &#183; double-click for automatic height"></div>
 </div>
@@ -989,7 +992,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Static snapshot (mail attachment)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.85">v1.5.85</span> &middot; 2026-11-09 18:20:00</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.86">v1.5.86</span> &middot; 2026-11-10 12:55:16</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1068,7 +1071,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="en";
-const PAGE_VER="1.5.85"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.86"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1097,7 +1100,7 @@ const seed={
     "mq": [],
     "topcpua": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'18:20:00'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:8,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:55:16'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1124,43 +1127,49 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP went offline \u00b7 FTP service, Kernel state",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
+    },
+    {
+        "type": "err",
+        "msg": "Database went offline \u00b7 MySQL (3306), MySQL socket",
+        "ts": "12:55",
+        "t": 1794315316
     },
     {
         "type": "warn",
         "msg": "Security degraded \u00b7 Imunify360, LFD",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
     },
     {
         "type": "err",
         "msg": "DNS went offline \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
     },
     {
         "type": "err",
         "msg": "Mail services went offline \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
     },
     {
         "type": "warn",
         "msg": "Web server degraded \u00b7 HTTPS (443), WHM (2087) +1",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
     },
     {
         "type": "warn",
         "msg": "Service feed unavailable (root snapshot stale?)",
-        "ts": "18:20",
-        "t": 1794248400
+        "ts": "12:55",
+        "t": 1794315316
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1794248400,TZOFF=0;
+let srvNow=1794315316,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1756,7 +1765,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1794248383; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1794315298; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -1874,23 +1883,42 @@ function renderProcs(data){
     return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
     `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
     `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
+  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
+  // BURADA, BES TABLONUN HEPSINDEN ONCE tanimli: const'un TDZ'si var, asagida
+  // tanimlansa lsphp ve disk tablolari "lveBarCell is not defined" ile duserdi.
+  const lveBarCell=(v,lim,fmt,kota,not)=>{
+    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
+    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
+    let tip=kota?(dolu?tf('At its disk quota (%s) — the account cannot write any more',fmt(lim))
+                      :tf('%s%% of its disk quota (%s)',Math.round(oran),fmt(lim)))
+                :(dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
+                      :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim)));
+    if(not)tip+=' — '+not;
+    return `<td class="php-bar-cell" title="${esc(tip)}">`+
+      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
+  };
   const php=document.getElementById('pt-php');
   if(php&&data.procPhp){
-    const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
+    // Cubuk hesabin KENDI surec tavanina (lNPROC) gore; cekince ipucunda.
+    const npNot=t('the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher');
     php.innerHTML=data.procPhp.map(p=>{
       const c=p[1]>=10?'hot':p[1]>=5?'warm':'';
-      const w=Math.round(p[1]/mx*100);
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${c}">${p[1]}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],x=>''+Math.trunc(x),false,npNot)+
+        `<td class="num ${c}">${p[1]}</td></tr>`;}).join('');
   }
   const dsk=document.getElementById('pt-disk'); // en dolu hesaplar (3. sütun, dikey tablo)
   if(dsk&&data.diskAcct&&data.diskAcct.length){
-    const mx=Math.max(0.1,...data.diskAcct.map(p=>p[1]));
     const tot=data.diskTotalGB||0;
+    // PHP $fmtKota ikizi: tek ondalik, gereksiz sifir atilir.
+    const fmtKota=x=>(''+(Math.round(x*10)/10)).replace(/\.0$/,'')+' GB';
     dsk.innerHTML=data.diskAcct.map(p=>{
-      const w=Math.round(p[1]/mx*100);
       const gb=(''+(Math.round(p[1]*10)/10)).replace(/\.0$/,'');
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],fmtKota,true)+
+        `<td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
   // Büyüme gövdesi — PHP diskGrowRows() ikizi. Gizliyken de güncellenir ki
   // sekmeye geçildiğinde bayat veri görünmesin.
@@ -1919,16 +1947,6 @@ function renderProcs(data){
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
-  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
-  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
-  const lveBarCell=(v,lim,fmt)=>{
-    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
-    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
-    const tip=dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
-                  :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim));
-    return `<td class="php-bar-cell" title="${esc(tip)}">`+
-      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
-  };
   const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
@@ -2288,7 +2306,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.85 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.86 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

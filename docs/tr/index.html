@@ -709,7 +709,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="hdr-status-short" id="hdr-short">Sorun</span>
       <div class="hdr-status-full">
         <span class="hdr-status-txt" id="hdr-txt">Sorun tespit edildi</span>
-        <span class="hdr-status-detail" id="hdr-detail" title="Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; FTP &#199;evrimd&#305;&#351;&#305; &#183; Servis beslemesi yok &#183; Web Sorunlu">Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; FTP &#199;evrimd&#305;&#351;&#305; &#183; Servis beslemesi yok &#183; Web Sorunlu</span>
+        <span class="hdr-status-detail" id="hdr-detail" title="Web 2059ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; Veritaban&#305; &#199;evrimd&#305;&#351;&#305; &#183; +2">Web 2059ms &#183; Web &#199;evrimd&#305;&#351;&#305; &#183; Mail &#199;evrimd&#305;&#351;&#305; &#183; DNS &#199;evrimd&#305;&#351;&#305; &#183; Veritaban&#305; &#199;evrimd&#305;&#351;&#305; &#183; +2</span>
       </div>
     </div>
     <div class="meta-item"><div class="meta-lbl">SUNUCU ADI</div>
@@ -719,7 +719,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     <div class="meta-item"><div class="meta-lbl">&#199;ALI&#350;MA S&#220;RES&#304;</div>
       <div class="meta-val" id="uptime">0 G&#252;n 00:00:00</div></div>
     <div class="meta-item"><div class="meta-lbl" id="updated-lbl">ANLIK G&#214;R&#220;NT&#220;</div>
-      <div class="meta-val"><span class="dot"></span><span id="time-val">18:20:18</span></div></div>
+      <div class="meta-val"><span class="dot"></span><span id="time-val">12:55:39</span></div></div>
   </div>
 </div>
 
@@ -762,15 +762,15 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
     </div>
     <div class="res-meta" id="rm-ram">0 / 0 GB</div>
   </div>
-  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:9%">
+  <div class="res-card" id="rc-disk" style="--c:var(--c-disk);--fill:8%">
     <div class="res-top">
       <div class="res-left"><span class="res-icon ic-disk"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">Disk</span></div>
-      <span class="res-val" id="rv-disk"><b>9</b><u>%</u></span>
+      <span class="res-val" id="rv-disk"><b>8</b><u>%</u></span>
     </div>
     <div class="res-middle">
       <span class="spark-wrap metric-spark"><span class="spark-ssr" id="ssr-disk"></span><canvas class="res-spark" id="sp-disk"></canvas></span>
     </div>
-    <div class="res-meta" id="rm-disk">78 / 894 GB</div>
+    <div class="res-meta" id="rm-disk">75 / 894 GB</div>
   </div>
   <div class="res-card" id="rc-iow" style="--c:var(--c-iow);--fill:0%">
     <div class="res-top">
@@ -806,12 +806,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
       <span class="info-spark spark-wrap"><span class="spark-ssr" id="ssr-mq"></span><canvas class="info-spark-canvas" id="sp-mq"></canvas></span>
       <div class="res-meta" id="iv-mailq-sub">kuyruktaki mesaj</div>
     </div>
-  <div class="info-card" id="ic-web" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
+  <div class="info-card" id="ic-web" style="--c:var(--danger);border-color:var(--danger)">
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></span><span class="res-name">Web yan&#305;t&#305;</span></div><span class="res-val" id="iv-web" style="color:var(--danger)"><b>2059</b><u class="w">ms</u></span></div>
       <div class="res-meta">HTTP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card" id="ic-mysql" style="--c:var(--accent)">
-      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)"><b>6</b><u class="w">ms</u></span></div>
+      <div class="res-top"><div class="res-left"><span class="res-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></span><span class="res-name">MySQL yan&#305;t&#305;</span></div><span class="res-val" id="iv-mysql" style="color:var(--accent)">&#8212;</span></div>
       <div class="res-meta">TCP yan&#305;t s&#252;resi</div>
     </div>
   <div class="info-card">
@@ -829,12 +829,12 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-web" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" /></svg></div>
-      <div class="svc-info"><div class="svc-name">Web sunucusu</div><div class="svc-count" id="sk-web">2/5 kontrol ge&#231;ti</div></div>
-      <div class="badge badge-warn" id="bd-web">Sorunlu</div>
+      <div class="svc-info"><div class="svc-name">Web sunucusu</div><div class="svc-count" id="sk-web">0/5 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-web">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">Apache</span><span class="sub-note">&#231;al&#305;&#351;&#305;yor</span><span class="sub-bar"></span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-web"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">Apache</span><span class="sub-note">durdu</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTPS (443)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-bar"></span><span class="sub-age"></span></div>
-<div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">yan&#305;t veriyor</span><span class="sub-bar"></span><span class="sub-age"></span></div>
+<div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">HTTP (80)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">WHM (2087)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">cPanel (2083)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 </div>
@@ -881,10 +881,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
   <div class="svc-card">
     <div class="svc-top">
       <div class="svc-icon" id="si-db" style="background:var(--accent-bg);color:var(--accent)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg></div>
-      <div class="svc-info"><div class="svc-name">Veritaban&#305;</div><div class="svc-count" id="sk-db">1/2 kontrol ge&#231;ti</div></div>
-      <div class="badge badge-ok" id="bd-db">&#199;al&#305;&#351;&#305;yor</div>
+      <div class="svc-info"><div class="svc-name">Veritaban&#305;</div><div class="svc-count" id="sk-db">0/2 kontrol ge&#231;ti</div></div>
+      <div class="badge badge-err" id="bd-db">&#199;evrimd&#305;&#351;&#305;</div>
     </div>
-    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot ok"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yan&#305;t veriyor</span><span class="sub-bar"></span><span class="sub-age"></span></div>
+    <div class="svc-checks" id="ch-db"><div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL (3306)</span><span class="sub-note">yan&#305;t yok</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 <div class="sub-check"><span class="sub-dot err"></span><span class="sub-lbl">MySQL socket</span><span class="sub-note">bulunamad&#305;</span><span class="sub-bar"></span><span class="sub-age"></span></div>
 </div>
   </div>
@@ -912,7 +912,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 </div>
 
 <div class="sec" style="margin-top:12px"><span>S&#220;RE&#199;LER</span><i class="sec-hair"></i>
-  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 18 sn &#246;nce</span>
+  <span class="proc-age" id="proc-age">root anl&#305;k g&#246;r&#252;nt&#252;s&#252;, 19 sn &#246;nce</span>
   <span id="act-chips"></span>
 </div>
 <div class="proc-row" id="proc-row"><div class="proc-card" id="cpu-card"><input type="radio" name="cpv" id="cpv-a" class="vw-radio" checked><input type="radio" name="cpv" id="cpv-p" class="vw-radio"><div class="proc-title">&#304;&#351;lemci<span class="proc-age cp-tabs">
@@ -939,8 +939,9 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 </tbody><tfoot><tr>
 <td colspan="4" class="lve-ozet" id="pt-ramsum" title="Hesaplar: bu turda &#246;l&#231;&#252;lebilen B&#220;T&#220;N hesaplar&#305;n toplam&#305; (yaln&#305;z listelenen 15&#8217;i de&#287;il). Sistem, kullan&#305;lan belle&#287;in geri kalan&#305;: root, MySQL, LiteSpeed, Redis, Imunify ve &#231;ekirdek &#8212; hi&#231;bir hesaba yaz&#305;lamayan bellek. &#304;kisi de ayn&#305; andaki fiziksel bellek, ortalama de&#287;il.">
 </td></tr></tfoot></table></div><div class="proc-card"><div class="proc-title">PHP &#183; hesap<span class="proc-age">aktif+bo&#351;ta</span></div><table class="proc-table acct3"><thead><tr><th>HESAP</th><th></th><th class="num" title="Hesab&#305;n t&#252;m lsphp s&#252;re&#231;leri, bo&#351;taki havuz dahil &#8212; PHP &#304;&#351;&#231;ileri kart&#305; yaln&#305;z aktif (R/D) olanlar&#305; sayar">S&#220;RE&#199;</th></tr></thead><tbody id="pt-php">
-<tr><td class="proc-user">maplebox</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num ">3</td></tr>
-<tr><td class="proc-user">wholesale</td><td class="php-bar-cell"><span class="php-bar" style="width:67%"></span></td><td class="num ">2</td></tr>
+<tr><td class="proc-user">maplebox</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %90 kadar&#305; (tavan 40) &#8212; tavan hesab&#305;n B&#220;T&#220;N s&#252;re&#231;lerini kaps&#305;yor; burada yaln&#305;z lsphp say&#305;ld&#305;, ger&#231;ek say&#305; daha y&#252;ksek olabilir"><span class="php-bar" style="width:90%"></span></td><td class="num hot">36</td></tr>
+<tr><td class="proc-user">wholesale</td><td class="php-bar-cell" title="LVE tavan&#305;n&#305;n %12 kadar&#305; (tavan 100) &#8212; tavan hesab&#305;n B&#220;T&#220;N s&#252;re&#231;lerini kaps&#305;yor; burada yaln&#305;z lsphp say&#305;ld&#305;, ger&#231;ek say&#305; daha y&#252;ksek olabilir"><span class="php-bar" style="width:12%"></span></td><td class="num hot">12</td></tr>
+<tr><td class="proc-user">zencache</td><td class="php-bar-cell"></td><td class="num ">2</td></tr>
 </tbody></table></div><div class="proc-card" id="io-card"><input type="radio" name="iov" id="iov-a" class="vw-radio" checked><input type="radio" name="iov" id="iov-p" class="vw-radio"><div class="proc-title">I/O<span class="proc-age io-tabs">
 <label for="iov-a" class="io-tab io-t-acct" title="Hesap ba&#351;&#305;na disk I/O (okuma+yazma), son 60 saniyenin ortalamas&#305;. Kaynak: CloudLinux LVE &#231;ekirdek saya&#231;lar&#305;n&#305;n iki tur aras&#305;ndaki fark&#305; &#8212; k&#305;sa &#246;m&#252;rl&#252; s&#252;re&#231;ler dahil hesab&#305;n t&#252;m s&#252;re&#231;lerini sayar. S&#252;re&#231; g&#246;r&#252;n&#252;m&#252;yle ayn&#305; pencere. Renk: listelenen toplam&#305;n &#8805;%60 k&#305;rm&#305;z&#305;, &#8805;%30 turuncu">hesap &#183; LVE 1dk</label>
 <label for="iov-p" class="io-tab io-t-proc" title="S&#252;re&#231; ba&#351;&#305;na disk I/O (okuma+yazma), son 60 saniyenin ortalamas&#305; &#8212; hesap g&#246;r&#252;n&#252;m&#252;yle ayn&#305; pencere. Kaynak: /proc/&lt;pid&gt;/io farklar&#305;: iki &#246;l&#231;&#252;m aras&#305;nda do&#287;up &#246;len s&#252;re&#231; say&#305;lmaz, ayr&#305;ca root s&#252;re&#231;leri burada g&#246;r&#252;n&#252;r ama hesap listesinde asla g&#246;r&#252;nmez; bu y&#252;zden ikisinin toplam&#305; tutmaz.">s&#252;re&#231;</label></span></div><div class="io-wrap"><table class="proc-table acct3"><thead><tr>
@@ -951,9 +952,9 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 <tr><td class="proc-user">mysql</td><td class="td-fill"><span class="proc-cmd" title="/usr/sbin/mariadbd">/usr/sbin/mariadbd</span></td><td class="num hot">2 MB/s</td></tr>
 <tr><td class="proc-user">root</td><td class="td-fill"><span class="proc-cmd" title="/usr/local/cpanel/bin/backup -x">/usr/local/cpanel/bin/backup -x</span></td><td class="num ">512 KB/s</td></tr>
 </tbody></table></div></div><div class="proc-card" id="disk-card"><input type="radio" name="dkv" id="dkv-s" class="vw-radio" checked><input type="radio" name="dkv" id="dkv-1" class="vw-radio"><div class="proc-title">Disk &#183; hesap<span class="proc-age dk-tabs"><label for="dkv-s" class="dk-tab dk-t-size" title="Kotadan cPanel hesap disk kullan&#305;m&#305; (saatlik). Renk: k&#305;rm&#305;z&#305; &gt;%3, turuncu &gt;%1.5 toplam disk">GB dolu</label><label for="dkv-1" class="dk-tab" title="Pencere boyunca art&#305;&#351;; hesap ba&#351;&#305;na g&#252;nl&#252;k kay&#305;ttan. B&#252;y&#252;meyen hesaplar listelenmez.">1g</label></span></div><table class="proc-table acct3"><thead><tr><th>HESAP</th><th></th><th class="num"><span class="dkh-s">GB</span><span class="dkh-g">ARTI&#350;</span></th></tr></thead><tbody id="pt-disk">
-<tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num warm">22.6</td></tr>
-<tr><td class="proc-user">shopfast</td><td class="php-bar-cell"><span class="php-bar" style="width:58%"></span></td><td class="num warm">13.1</td></tr>
-<tr><td class="proc-user">zencache</td><td class="php-bar-cell"><span class="php-bar" style="width:48%"></span></td><td class="num warm">10.8</td></tr>
+<tr><td class="proc-user">bluewave</td><td class="php-bar-cell" title="disk kotas&#305;n&#305;n %90 kadar&#305; (kota 25 GB)"><span class="php-bar" style="width:90%"></span></td><td class="num warm">22.6</td></tr>
+<tr><td class="proc-user">shopfast</td><td class="php-bar-cell" title="disk kotas&#305;n&#305;n %13 kadar&#305; (kota 100 GB)"><span class="php-bar" style="width:13%"></span></td><td class="num warm">13.1</td></tr>
+<tr><td class="proc-user">zencache</td><td class="php-bar-cell"></td><td class="num warm">10.8</td></tr>
 </tbody><tbody class="dkg" id="pt-dkg-1">
 <tr><td class="proc-user">bluewave</td><td class="php-bar-cell"><span class="php-bar" style="width:100%"></span></td><td class="num">+1.33 GB</td></tr>
 <tr><td class="proc-user">zencache</td><td class="php-bar-cell"><span class="php-bar" style="width:11%"></span></td><td class="num">+145 MB</td></tr>
@@ -971,17 +972,21 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
   </div>
   <div class="log-list" id="log-list">
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">18:20</span></div>
-    <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">FTP kapand&#305; &#183; FTP service, Kernel state</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">Veritaban&#305; kapand&#305; &#183; MySQL (3306), MySQL socket</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot warn"></div>
+<span class="log-txt">G&#252;venlik sorunlu &#183; Imunify360, LFD</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot err"></div>
-<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">DNS kapand&#305; &#183; DNS TCP (53), DNS UDP (53)</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Mail servisleri kapand&#305; &#183; SMTP (25), SMTP Submit. (587) +7</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Web sunucusu kapand&#305; &#183; Apache, HTTPS (443) +3</span><span class="log-ts">12:55</span></div>
+    <div class="log-item"><div class="log-dot err"></div>
+<span class="log-txt">Web yan&#305;t s&#252;resi y&#252;ksek: 2059ms</span><span class="log-ts">12:55</span></div>
     <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Web sunucusu sorunlu &#183; HTTPS (443), WHM (2087) +1</span><span class="log-ts">18:20</span></div>
-    <div class="log-item"><div class="log-dot warn"></div>
-<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">18:20</span></div>
+<span class="log-txt">Servis beslemesi yok (root anl&#305;k g&#246;r&#252;nt&#252;s&#252; bayat m&#305;?)</span><span class="log-ts">12:55</span></div>
   </div>
   <div class="log-grip" id="log-grip" title="S&#252;r&#252;kleyerek boyutland&#305;r &#183; &#231;ift t&#305;kla: otomatik y&#252;kseklik"></div>
 </div>
@@ -989,7 +994,7 @@ hesaplar %205</td></tr></tfoot></table></div><div class="proc-card" id="ram-card
 <div class="footer">
   <div id="footer-mode"><span class="dot"></span><span id="footer-mode-txt">Statik anl&#305;k g&#246;r&#252;nt&#252; (mail eki)</span></div>
   <div class="footer-credit"><a href="https://ayzeta.net" target="_blank" rel="noopener">Ayzeta</a></div>
-  <div id="footer-time"><span title="Server Status Monitor 1.5.85">v1.5.85</span> &middot; 2026-11-09 18:20:18</div>
+  <div id="footer-time"><span title="Server Status Monitor 1.5.86">v1.5.86</span> &middot; 2026-11-10 12:55:39</div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1068,7 +1073,7 @@ const TH={
     "snap_stale": 180
 };
 const LANG_UI="tr";
-const PAGE_VER="1.5.85"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
+const PAGE_VER="1.5.86"; // bu sekmenin yuklendigi surum (bkz. tick: appVer farkliysa yenile)
 // Ekrani uyanik tutma istegi (config: keep_awake). Varsayilan KAPALI: bu birinin
 // ekranini acik tutma karari, kurulumu yapan acikca istemeden yapilmaz.
 const KEEP_AWAKE=false;
@@ -1183,6 +1188,9 @@ const TR={
     "%s GB server": "sunucu %s GB",
     "%s%% of its LVE ceiling (%s)": "LVE tavanının %%%s kadarı (tavan %s)",
     "At its LVE ceiling (%s) — the kernel is throttling this account": "LVE tavanında (%s) — çekirdek bu hesabı frenliyor, istekleri yavaşlıyor",
+    "%s%% of its disk quota (%s)": "disk kotasının %%%s kadarı (kota %s)",
+    "At its disk quota (%s) — the account cannot write any more": "disk kotası dolu (%s) — hesap artık yazamaz",
+    "the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher": "tavan hesabın BÜTÜN süreçlerini kapsıyor; burada yalnız lsphp sayıldı, gerçek sayı daha yüksek olabilir",
     "Processes the account has right now, idle ones included (LVE NPROC). 0 = no process at the moment of reading; if CPU is shown next to it, those processes ran and exited inside that minute — CPU is a one-minute difference, this count is an instant. An empty cell means LVE did not report the field at all.": "Hesabın şu anki süreç sayısı, boşta bekleyenler dahil (LVE NPROC). 0 = okuma anında süreç yok; yanında CPU varsa o süreçler dakika içinde koşup kapanmış demektir — CPU bir dakikalık FARK, bu sayı ANLIK. Hücre boşsa LVE alanı hiç bildirmemiş.",
     "Accounts: the sum of ALL accounts measured this round (not just the 15 listed). System is the remainder of used RAM: root, MySQL, LiteSpeed, Redis, Imunify and the kernel — memory no account can be billed for. Both are physical RAM at the same instant, not an average.": "Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil). Sistem, kullanılan belleğin geri kalanı: root, MySQL, LiteSpeed, Redis, Imunify ve çekirdek — hiçbir hesaba yazılamayan bellek. İkisi de aynı andaki fiziksel bellek, ortalama değil.",
     "Accounts: the sum of ALL accounts measured this round (not just the 15 listed), converted from one-core percent to server percent by dividing by the core count. System is the remainder: root, mysql, LiteSpeed, Imunify and other scans — load that no account can be billed for. Same window as the account list.": "Hesaplar: bu turda ölçülebilen BÜTÜN hesapların toplamı (yalnız listelenen 15’i değil), çekirdek sayısına bölünerek tek çekirdek yüzdesinden sunucu yüzdesine çevrildi. Sistem geri kalanı: root, mysql, LiteSpeed, Imunify ve diğer taramalar — hiçbir hesaba yazılamayan yük. Pencere hesap listesiyle aynı.",
@@ -1223,6 +1231,7 @@ const TR={
     "%s no response": "%s yanıt vermiyor",
     "Redis · user": "Redis · kullanıcı",
     "%s\/%s active": "%s\/%s aktif",
+    "%s suspended accounts are not counted — their Redis is not meant to be running": "askıya alınmış %s hesap sayılmadı — Redis’lerinin çalışması beklenmiyor",
     "%s\/%s up": "%s\/%s ayakta",
     "%s up": "%s ayakta",
     "not running": "çalışmıyor",
@@ -1407,7 +1416,7 @@ const seed={
     "mq": [],
     "topcpua": []
 };
-const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:9,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'18:20:18'};
+const init={l1:0,l5:0,l15:0,t:1,cpu:0,ram:0,disk:8,iow:0,wrk:0,rx:0,tx:0,mq:0,time:'12:55:39'};
 Object.keys(hist).forEach(k=>{if(seed[k]&&seed[k].length)hist[k]=seed[k].slice();});
 let histT=(seed.t&&seed.t.length)?seed.t.slice():[];
 let lastCardCol={}; // metrik kartı renkleri (sunucudan); tema geçişinde spark yeniden çizimi için
@@ -1434,43 +1443,55 @@ let seedLogs=[
     {
         "type": "err",
         "msg": "FTP kapand\u0131 \u00b7 FTP service, Kernel state",
-        "ts": "18:20",
-        "t": 1794248418
+        "ts": "12:55",
+        "t": 1794315339
+    },
+    {
+        "type": "err",
+        "msg": "Veritaban\u0131 kapand\u0131 \u00b7 MySQL (3306), MySQL socket",
+        "ts": "12:55",
+        "t": 1794315339
     },
     {
         "type": "warn",
         "msg": "G\u00fcvenlik sorunlu \u00b7 Imunify360, LFD",
-        "ts": "18:20",
-        "t": 1794248418
+        "ts": "12:55",
+        "t": 1794315339
     },
     {
         "type": "err",
         "msg": "DNS kapand\u0131 \u00b7 DNS TCP (53), DNS UDP (53)",
-        "ts": "18:20",
-        "t": 1794248418
+        "ts": "12:55",
+        "t": 1794315339
     },
     {
         "type": "err",
         "msg": "Mail servisleri kapand\u0131 \u00b7 SMTP (25), SMTP Submit. (587) +7",
-        "ts": "18:20",
-        "t": 1794248418
+        "ts": "12:55",
+        "t": 1794315339
     },
     {
-        "type": "warn",
-        "msg": "Web sunucusu sorunlu \u00b7 HTTPS (443), WHM (2087) +1",
-        "ts": "18:20",
-        "t": 1794248418
+        "type": "err",
+        "msg": "Web sunucusu kapand\u0131 \u00b7 Apache, HTTPS (443) +3",
+        "ts": "12:55",
+        "t": 1794315339
+    },
+    {
+        "type": "err",
+        "msg": "Web yan\u0131t s\u00fcresi y\u00fcksek: 2059ms",
+        "ts": "12:55",
+        "t": 1794315339
     },
     {
         "type": "warn",
         "msg": "Servis beslemesi yok (root anl\u0131k g\u00f6r\u00fcnt\u00fcs\u00fc bayat m\u0131?)",
-        "ts": "18:20",
-        "t": 1794248418
+        "ts": "12:55",
+        "t": 1794315339
     }
 ];
 // Sunucu saati (epoch) ve saat dilimi kaymasi — olay kaydinin gun etiketi icin.
 // Her fetch'te data.now/data.tz ile tazelenir; tarayici saatine guvenilmez.
-let srvNow=1794248418,TZOFF=0;
+let srvNow=1794315339,TZOFF=0;
 let srvWall=Date.now(); // srvNow'un alindigi tarayici ani — aradaki sure eklenerek sunucu saati yurutulur
 function srvClock(){return srvNow+Math.floor((Date.now()-srvWall)/1000);}
 function hmsOf(e){var s=(((e+TZOFF)%86400)+86400)%86400,z=function(n){return(n<10?'0':'')+n;};
@@ -1536,7 +1557,7 @@ function seedAllowed(s,c){if(!c)return true;
     }
     renderLog();saveLogs();
   } else if(seedLogs&&seedLogs.length)logs=seedLogs.slice();})();
-const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"ok","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"ok","ssl":"ok","mailq":"ok"});
+const mlvl=Object.assign({load:'ok',cpu:'ok',ram:'ok',iow:'ok',webrt:'ok',dbrt:'ok',ssl:'ok',snap:'ok',swap:'ok',shmem:'ok',inode:'ok',raid:'ok',smart:'ok',mismatch:'ok',net:'ok',mysqlthr:'ok',wrk:'ok',disk:'ok',mailq:'ok'},{"load":"ok","cpu":"ok","ram":"ok","iow":"ok","snap":"ok","swap":"ok","shmem":"ok","inode":"ok","raid":"ok","mismatch":"ok","smart":"ok","net":"ok","mysqlthr":"ok","wrk":"ok","disk":"ok","dbrt":"ok","webrt":"err","ssl":"ok","mailq":"ok"});
 const mpend={};
 // PHP lvlHyst'in ikizi: seviyeye giris normal esikten, cikis %10 altindan.
 // Eskiden JS'te histerezis yoktu: sayfa 0.9×esik bandinda acilinca PHP 'warn'
@@ -2066,7 +2087,7 @@ function renderSvc(key,data){
   }
 }
 
-let lastSnapMtime=1794248383; // PHP render'ın damgası — ilk tick boşa kurmasın
+let lastSnapMtime=1794315298; // PHP render'ın damgası — ilk tick boşa kurmasın
 let actWas=null; // aktivite çipleri durum izleme (null = henüz gözlem yok)
 // Cip ayrintisi (tur + kapsam) BASLARKEN hatirlanir: is bitince collector
 // artik yayinlamadigi icin 'bitti' satiri onsuz kalirdi.
@@ -2184,23 +2205,42 @@ function renderProcs(data){
     return `<tr><td>${esc(p[0])}</td><td class="proc-user">${esc(p[1])}</td>`+
     `<td class="num ${mc}">${esc(p[3])}</td><td class="num ${mc}">${esc(p[4])}</td>`+
     `<td class="td-fill"><span class="proc-cmd" title="${esc(p[5])}">${esc(p[5])}</span></td></tr>`;}).join('');
+  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
+  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
+  // BURADA, BES TABLONUN HEPSINDEN ONCE tanimli: const'un TDZ'si var, asagida
+  // tanimlansa lsphp ve disk tablolari "lveBarCell is not defined" ile duserdi.
+  const lveBarCell=(v,lim,fmt,kota,not)=>{
+    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
+    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
+    let tip=kota?(dolu?tf('At its disk quota (%s) — the account cannot write any more',fmt(lim))
+                      :tf('%s%% of its disk quota (%s)',Math.round(oran),fmt(lim)))
+                :(dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
+                      :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim)));
+    if(not)tip+=' — '+not;
+    return `<td class="php-bar-cell" title="${esc(tip)}">`+
+      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
+  };
   const php=document.getElementById('pt-php');
   if(php&&data.procPhp){
-    const mx=Math.max(1,...data.procPhp.map(p=>p[1]));
+    // Cubuk hesabin KENDI surec tavanina (lNPROC) gore; cekince ipucunda.
+    const npNot=t('the ceiling covers ALL of the account’s processes; only lsphp is counted here, so the real figure can be higher');
     php.innerHTML=data.procPhp.map(p=>{
       const c=p[1]>=10?'hot':p[1]>=5?'warm':'';
-      const w=Math.round(p[1]/mx*100);
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${c}">${p[1]}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],x=>''+Math.trunc(x),false,npNot)+
+        `<td class="num ${c}">${p[1]}</td></tr>`;}).join('');
   }
   const dsk=document.getElementById('pt-disk'); // en dolu hesaplar (3. sütun, dikey tablo)
   if(dsk&&data.diskAcct&&data.diskAcct.length){
-    const mx=Math.max(0.1,...data.diskAcct.map(p=>p[1]));
     const tot=data.diskTotalGB||0;
+    // PHP $fmtKota ikizi: tek ondalik, gereksiz sifir atilir.
+    const fmtKota=x=>(''+(Math.round(x*10)/10)).replace(/\.0$/,'')+' GB';
     dsk.innerHTML=data.diskAcct.map(p=>{
-      const w=Math.round(p[1]/mx*100);
       const gb=(''+(Math.round(p[1]*10)/10)).replace(/\.0$/,'');
       const pct=tot>0?p[1]/tot*100:0,cls=pct>=3?'hot':pct>=1?'warm':''; // PHP diskAcctCls ile aynı
-      return `<tr><td class="proc-user">${esc(p[0])}</td><td class="php-bar-cell"><span class="php-bar" style="width:${w}%"></span></td><td class="num ${cls}">${gb}</td></tr>`;}).join('');
+      return `<tr><td class="proc-user">${esc(p[0])}</td>`+
+        lveBarCell(p[1],p[2],fmtKota,true)+
+        `<td class="num ${cls}">${gb}</td></tr>`;}).join('');
   }
   // Büyüme gövdesi — PHP diskGrowRows() ikizi. Gizliyken de güncellenir ki
   // sekmeye geçildiğinde bayat veri görünmesin.
@@ -2229,16 +2269,6 @@ function renderProcs(data){
   // guncellenir ki sekmeye gecince bayat veri gorunmesin (disk/io ile ayni kural).
   // PHP'deki lveAcctRows()'un ikizi. LVE yoksa bu tablolar sayfada HIC yok
   // (PHP basmiyor), yani buraya girilmez: "LVE kur" mesaji da yok.
-  // PHP'deki lveBarCell()'in IKIZI — ayni sira, ayni kurallar: tavan yoksa
-  // (null / -1 bildirilmedi / 0 sinirsiz) hucre BOS, uydurma oran yok.
-  const lveBarCell=(v,lim,fmt)=>{
-    if(lim===null||lim===undefined||lim<=0)return '<td class="php-bar-cell"></td>';
-    const oran=v/lim*100, w=Math.max(0,Math.min(100,Math.round(oran))), dolu=oran>=100;
-    const tip=dolu?tf('At its LVE ceiling (%s) — the kernel is throttling this account',fmt(lim))
-                  :tf('%s%% of its LVE ceiling (%s)',Math.round(oran),fmt(lim));
-    return `<td class="php-bar-cell" title="${esc(tip)}">`+
-      `<span class="php-bar${dolu?' cap':''}" style="width:${w}%"></span></td>`;
-  };
   const lveGovde=(rows,tur,totalGB)=>{
     if(!rows||!rows.length)return `<tr><td colspan="4" style="color:var(--hint)">${
       t(tur==='cpu'?'no account is burning CPU right now':'no account RAM reported')}</td></tr>`;
@@ -2598,7 +2628,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v1.5.85 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v1.5.86 · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)

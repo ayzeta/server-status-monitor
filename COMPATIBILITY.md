@@ -37,6 +37,15 @@ version file `/usr/local/cpanel/version`, the `/var/cpanel/users/` format,
 accounting, the tool paths under `/usr/local/cpanel/3rdparty/bin`, and the
 Imunify360 CLI (`imunify360-agent version`, `malware`).
 
+**Disk quota** — per-account usage *and* ceiling come from one
+`repquota -a -O csv` run, whose header line names its own columns:
+`BlockUsed` (4), `BlockSoftLimit` (5), `BlockHardLimit` (6), all in KB. The
+effective ceiling is the smaller of the two limits that is not zero, and zero
+means no quota. Every ceiling is read from that account's own row: on the
+server this was measured against, three accounts all showed 1 GB, and that
+number is deliberately written nowhere in the code — a limit seen on one
+account says nothing about the next one.
+
 **CSF** — `csf.conf` (notably `PT_APACHESTATUS`), `csf.disable`, and the lfd
 service state.
 
@@ -49,7 +58,16 @@ reads the per-account cache from three shapes, none of them probed over the
 network.
 
 How many instances are *meant* to run comes from the unit names
-`/etc/systemd/system/multi-user.target.wants/user-redis@<account>.service`.
+`/etc/systemd/system/multi-user.target.wants/user-redis@<account>.service`,
+minus the accounts cPanel has suspended. Suspending an account does not remove
+its systemd unit — measured on a live server, `is-enabled` still answers
+`enabled` while `is-active` answers `failed` — so a suspended account used to
+sit in the denominator and turn the card amber over a Redis that is not meant
+to be running at all. The suspended list is the file names in
+`/var/cpanel/suspended/` (those accounts also carry `SUSPENDED=1` in
+`/var/cpanel/users/<account>`). They are dropped from both sides of the ratio,
+never just the denominator, and how many were dropped is reported on its own
+line so the figure stays visible rather than being quietly swallowed.
 
 How many actually run, and the memory they hold, come from the process table,
 where each instance is matched by the **user column**: the unit runs with

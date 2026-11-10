@@ -213,7 +213,9 @@
   }
   function procPhp(){
     var rows=[], tot=Math.round(S.workers), n=Math.min(16,Math.max(6,Math.round(tot/2)+4)), big=S.workers>CORES;
-    for(var i=0;i<n;i++){ var w=big&&i<3?(6+(2-i)):Math.max(1,Math.round(jit(big?3:2,1))); rows.push([pick(i+1),w]); }
+    // Ucuncu alan: hesabin SUREC TAVANI (LVE lNPROC, adet). Ucte biri sinirsiz
+    // (0) -- panoda o satirda cubuk olmaz, oran uydurulmaz.
+    for(var i=0;i<n;i++){ var w=big&&i<3?(6+(2-i)):Math.max(1,Math.round(jit(big?3:2,1))); rows.push([pick(i+1),w,i===2?0:40]); }
     rows.sort(function(a,b){return b[1]-a[1];});
     return rows;
   }
@@ -234,7 +236,11 @@
       ['root',64,'jbd2/sda1-8',412]], r=[];
     for(var i=0;i<base.length;i++)r.push([base[i][0],base[i][1]*(0.5+S.iow/12),base[i][2],base[i][3]]);
     return r; }
-  function diskAcct(){ var gb=[29.8,11.8,10.6,7.8,7.5,7.4,7.2,6.3,6.2,5.7,5.5,5.0,4.6,4.5], r=[]; for(var i=0;i<gb.length;i++)r.push([pick(i),gb[i]]); return r; }
+  // Ucuncu alan: hesabin KENDI disk kotasi (GB, repquota). Hesaptan hesaba
+  // degisir -- tek bir tavan varsayilmaz; biri kotasiz (0), onda cubuk olmaz.
+  function diskAcct(){ var gb=[29.8,11.8,10.6,7.8,7.5,7.4,7.2,6.3,6.2,5.7,5.5,5.0,4.6,4.5],
+    kota=[30,50,25,10,25,10,25,10,25,0,25,10,25,10], r=[];
+    for(var i=0;i<gb.length;i++)r.push([pick(i),gb[i],kota[i]]); return r; }
   // Hesap basina CPU (bir cekirdegin yuzdesi) ve anlik fiziksel RAM (MB) — ikisi
   // de /proc/lve/list'ten gelir. CPU sunucu yuku ile birlikte oynar, RAM oynamaz
   // (anlik deger, ortalama degil). Ucuncu alan surec sayisi.

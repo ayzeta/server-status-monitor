@@ -315,7 +315,60 @@ OUT="$HOME_DIR/.proc_snapshot"
       print $1, $3, $5, $6, $7, a }' | cut -c1-280
   echo
   echo "--- lsphp per user ---"
+  # DORDUNCU ALAN = hesabin KENDI LVE surec tavani (lNPROC), pano cubugu oradan
+  # yuzde cikariyor. Tavan UYDURULMAZ: /proc/lve/list'in o hesaba ait satirindan
+  # okunur (alan 6; birim ADET, 2026-11-09'da "lvectl list" NPROC ile ayni hesapta
+  # dogrulandi). Satir yoksa ya da alan bossa -1, sinirsizsa 0 -- pano ucunu de
+  # ayri tutuyor ve hicbirinde cubuk cizmiyor.
+  #
+  # DIKKAT, SAYDIGIMIZ SEY TAVANIN TAMAMI DEGIL: burada yalnizca lsphp surecleri
+  # sayiliyor, lNPROC ise hesabin BUTUN sureclerinin tavani (cron, kabuk, mail
+  # de ayni kovada). Yani oran ALTTAN SINIR: gercek NPROC daha yuksek olabilir.
+  # Panodaki ipucu bunu aynen yaziyor, "yuzde su kadar" diye yuvarlak bir iddia
+  # bırakmiyor.
+  # SAYIM AYRI BIR ISLEVDE: boru hattinin kendisi t_pssnap.sh tarafindan bu
+  # dosyadan CIKARILIP kosuluyor, yani satirin sonuna yonlendirme eklenemez --
+  # eklenirse test eval ettiginde cikti dosyaya gider ve olcum sessizce boşalir.
+  lsphp_sayim() {
   awk '$6=="lsphp"{c[$2]++} END{for(u in c) printf "%d %s lsphp\n", c[u], u}' "$PS_COMM" | sort -rn | head -15
+  }
+  LS_TOP=$DATA_DIR/.lsphp_top
+  lsphp_sayim > "$LS_TOP"
+  LS_OUT=""
+  if [ -s "$LS_TOP" ] && [ -r /proc/lve/list ]; then
+    LS_OUT=$(python3 -I - "$LS_TOP" /proc/lve/list <<'PYEOF'
+import sys, pwd
+# Hesap adi -> lNPROC. Dosya SEKME ile ayrilmis ve ALANLAR BOS GELEBILIYOR
+# (uretimde olculdu), o yuzden her satir ayri try icinde okunur: bir bozuk satir
+# listenin kalanini dusurmez.
+lim = {}
+try:
+    for ln in open(sys.argv[2]):
+        f = ln.split('\t')
+        if len(f) < 6 or ',' not in f[0]:
+            continue
+        try:
+            uid = int(f[0].split(',')[1]); lim[uid] = int(f[5])
+        except (ValueError, IndexError):
+            continue
+except Exception:
+    pass
+for ln in open(sys.argv[1]):
+    p = ln.split()
+    if len(p) < 2:
+        continue
+    try:
+        tav = lim.get(pwd.getpwnam(p[1]).pw_uid, -1)
+    except KeyError:
+        tav = -1          # hesap silinmis olabilir: tavani UYDURMA, bildirme
+    print("%s %d" % (ln.rstrip('\n'), tav))
+PYEOF
+)
+  fi
+  # Python/LVE yoksa ESKI UC ALANLI satir yazilir: pano tavani null gorur ve
+  # cubugu hic cizmez. Sayim kaybolmaz.
+  if [ -n "$LS_OUT" ]; then echo "$LS_OUT"; else cat "$LS_TOP" 2>/dev/null; fi
+  rm -f "$LS_TOP"
   echo
   prof "surec listeleri (cpu/rss/lsphp)"
   echo "--- Security checks ---"
@@ -546,8 +599,34 @@ PYEOF
   # yalnizca "N ayakta" der, olculmeyen bir hedef uydurmaz.
   UR_UNITS=$(ls -1 /etc/systemd/system/multi-user.target.wants/user-redis@*.service 2>/dev/null \
     | sed 's|.*/user-redis@||; s|\.service$||' | tr '\n' ' ')
-  awk -v tanimli="$UR_UNITS" '
-    BEGIN { t = split(tanimli, a, " "); for (i = 1; i <= t; i++) tan[a[i]] = 1 }
+  # ASKIYA ALINMIS HESAP SAYILMAZ -- ne payda ne paydada.
+  #
+  # GERCEK OLAY (uretimde goruldu 2026-11-10): askiya alinmis "parkdoor"
+  # hesabinin Redis'i cok dogal olarak kosmuyordu; birim HALA enabled (systemd
+  # kaydi askiya alinca silinmiyor -- olculdu: is-enabled "enabled", is-active
+  # "failed"), yani paydada duruyordu. Pano 366/367 deyip Onbellek kartini
+  # "Sorunlu" yakti. Oysa ortada ariza yok: calismasi BEKLENMEYEN bir sey
+  # calismiyor. t_onbellek'teki kuralin ta kendisi -- YOKLUK ARIZA DEGILDIR.
+  #
+  # KAYNAK OLCULDU: /var/cpanel/suspended/ icinde hesap ADIYLA bir dosya var
+  # (lin'de 2 hesap) ve /var/cpanel/users/<hesap> icinde SUSPENDED=1 yaziyor.
+  # Dizini okumak tercih edildi: tek readdir, 374 hesap dosyasini grep'lemek
+  # degil. Dizin yoksa (cPanel disi kurulum) liste bos kalir, davranis degismez.
+  #
+  # IKI TARAFTAN DA DUSULUYOR: askidaki hesabin Redis'i bir sekilde ayaktaysa
+  # pay da onu saymaz. Yoksa "366/365" gibi kendi icinde tutarsiz bir oran
+  # cikardi. Kac tane dusuldugu AYRI satirda gidiyor -- olcum gizlenmiyor,
+  # siniflandiriliyor; pano ipucunda yaziyor.
+  UR_SUSP=$(ls -1 /var/cpanel/suspended/ 2>/dev/null | tr '\n' ' ')
+  awk -v tanimli="$UR_UNITS" -v askida="$UR_SUSP" '
+    BEGIN {
+      # DIKKAT: "s" asagida duran hesap adlarini biriktiriyor, buraya sayac
+      # diye yazilirsa ad listesi "0 gama" diye cikiyor (test yakaladi).
+      q = split(askida, b, " "); for (i = 1; i <= q; i++) asp[b[i]] = 1
+      t = split(tanimli, a, " ")
+      for (i = 1; i <= t; i++) { if (a[i] in asp) sus++; else tan[a[i]] = 1 }
+      t -= sus          # payda: KOSMASI BEKLENEN birimler
+    }
     # Esleme KULLANICI kolonundan yapilir, argumanlardan DEGIL. Uretimde
     # olculdu: surecin butun komut satiri "/usr/bin/redis-server *:0" — soket
     # yolu da --unixsocket bayragi da argumanlarda yok, birim onlari kendi
@@ -563,8 +642,13 @@ PYEOF
       else if ($0 ~ /redis-server \*:0/) { n++; m += $7; if ($4+0 > y) y = $4+0 }
     }
     END {
-      if (t == 0 && n == 0) exit        # bu sunucuda boyle bir yapi yok
+      # Kosmasi beklenen birim de ayakta ornek de yoksa bu sunucuda boyle bir
+      # yapi yok demektir -- hepsi askidaysa da satir yazilmaz, cunku pano
+      # zaten "0/0"i cizmiyor ve tek basina kalan askida satirinin anlami olmaz.
+      if (t == 0 && n == 0) exit
       print "userredis", n+0, t+0
+      # Kac birim askida oldugu icin dusuldu. Sifirsa satir hic yazilmaz.
+      if (sus) print "userredis_susp", sus
       if (m > 0) print "userredis_mem", int(m/1024)
       # Yas: ornekler arasinda EN ESKISI — panodaki diger satirlarda da kural
       # bu ("en eski surec = servisin kendisi"). Sag sutun uptime sutunu.
@@ -1400,15 +1484,39 @@ except Exception:
   # repquota CSV (kota dosyasini okur, filesystem gezmez → ucuz). SAATLIK cache
   # cunku disk kullanimi dakikada degismez. BlockUsed KB → GB.
   DAC=$DATA_DIR/.diskacct_cache
-  if [ ! -s "$DAC" ] || [ $(( $(date +%s) - $(stat -c %Y "$DAC" 2>/dev/null || echo 0) )) -gt 3600 ]; then
+  # UCUNCU KOSUL BICIM: onbellek saatlik ama 1.5.86'da satira KOTA alani eklendi.
+  # Yalnizca yasa bakilsaydi guncellemeden sonra bir saat boyunca eski uc alanli
+  # satirlar okunur, cubuklar sebepsiz yere cikmazdi. Alan sayisi tutmuyorsa
+  # onbellek bayattir.
+  if [ ! -s "$DAC" ] || [ $(( $(date +%s) - $(stat -c %Y "$DAC" 2>/dev/null || echo 0) )) -gt 3600 ] \
+     || [ "$(head -1 "$DAC" 2>/dev/null | awk '{print NF}')" != "4" ]; then
     ls /var/cpanel/users/ 2>/dev/null > "$DAC.users"
     # TUM hesaplar once ara dosyaya: ayni gecisten hem ilk 15'lik cip listesi hem
     # de gunluk buyume kaydi cikiyor, repquota ikinci kez kosmuyor.
+    # UCUNCU ALAN = HESABIN KOTASI (KB). Sutun sirasi repquota'nin KENDI baslik
+    # satirindan okundu (olculdu 2026-11-10, lin):
+    #   1 User  2 BlockStatus  3 FileStatus  4 BlockUsed
+    #   5 BlockSoftLimit  6 BlockHardLimit  7 BlockGrace  8..11 File*
+    # Birim KB: ayni sutun ailesindeki BlockUsed'i 1048576'ya bolup GB yaziyoruz
+    # ve uretimde dogru cikiyor. Olculen hesaplarda soft = hard = 1048576 (1 GB).
+    # ETKIN TAVAN = sifir olmayanlarin KUCUGU: ikisi esitken fark etmiyor, ama
+    # ayrildiklarinda hesabin once carptigi sinir budur. "cPanel soft'u doldurur"
+    # diye tek sutuna bagl1 kalmak, obur sutunun dolu oldugu bir kurulumda
+    # kotayi sessizce 0 (sinirsiz) gosterirdi.
+    # 0 = KOTA YOK (sinirsiz) -- LVE tarafindaki kuralin aynisi, pano cubuk cizmez.
     repquota -a -O csv 2>/dev/null | awk -F, '
       NR==FNR{cp[$1]=1; next}
-      FNR>1 && ($1 in cp) && $4+0>0 {printf "%d %s\n", $4, $1}
+      FNR>1 && ($1 in cp) && $4+0>0 {
+        lim = 0
+        if ($5+0 > 0 && $6+0 > 0) lim = ($5+0 < $6+0 ? $5+0 : $6+0)
+        else if ($5+0 > 0) lim = $5+0
+        else if ($6+0 > 0) lim = $6+0
+        printf "%d %s %d\n", $4, $1, lim
+      }
     ' "$DAC.users" - | sort -rn > "$DAC.all"
-    head -15 "$DAC.all" | awk '{printf "diskacct %s %.1f\n", $2, $1/1048576}' > "$DAC.tmp" \
+    # Gecmis kaydi ($1 KB, $2 ad) ucuncu alandan ETKILENMEZ: kota gunluk buyume
+    # defterine girmiyor, orada olculen sey hesabin kendi degisimi.
+    head -15 "$DAC.all" | awk '{printf "diskacct %s %.1f %.1f\n", $2, $1/1048576, $3/1048576}' > "$DAC.tmp" \
       && mv "$DAC.tmp" "$DAC"
 
     # --- Hesap basina buyume gecmisi (GUNDE bir satir) -----------------------

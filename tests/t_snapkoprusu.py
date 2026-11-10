@@ -49,6 +49,22 @@ ornek = NL.join([
     # YENI BICIM (5 alan): besincisi I/O tavani, KB/s (LVE lIO).
     "ioacct riverside 35.0 9 32768",
     "",
+    "--- Top disk accounts ---",
+    # HER SATIRIN KOTASI KENDI SATIRINDAN: uc hesap, UC AYRI tavan. Biri
+    # otekinin tavaniyla cizilirse ya da tek bir "sunucu kotasi" varsayilirsa
+    # bu satirlar tutmaz. Ucuncude 0 = kota yok (sinirsiz), dorduncude alan
+    # hic yok (eski toplayici) -- ikisi ayri sey, ikisinde de cubuk cizilmez.
+    "diskacct makinem 22.6 25",
+    "diskacct riverside 13.1 100",
+    "diskacct oakhost 10.8 0",
+    "diskacct acmeco 9.2",
+    "",
+    "--- lsphp per user ---",
+    # YENI BICIM (4 alan): dorduncusu hesabin surec tavani (LVE lNPROC).
+    "36 makinem lsphp 40",
+    # ESKI BICIM (3 alan): tavan UYDURULMAZ -> null, pano cubugu cizmez.
+    "2 riverside lsphp",
+    "",
     "--- Top IO processes ---",
     "ioproc_ok 1m",           # "olctuk, yapan yok" ile "olculemedi" ayrimi
     # YENI bicim (PID'li) ve ESKI bicim bir arada: guncellemeden sonra diskteki
@@ -73,7 +89,8 @@ test = NL.join([
     "$svcAge = []; $svcVer = []; $mailqTop = []; $smartBad = []; $netSpeed = [];",
     kod,
     'echo json_encode(["ioSrc" => $ioSrc, "ioWin" => $ioWin, "ioProcOk" => $ioProcOk,',
-    '                  "acct" => $ioAcct, "proc" => $ioProc]);',
+    '                  "acct" => $ioAcct, "proc" => $ioProc, "php" => $procPhp,',
+    '                  "disk" => $diskAcct]);',
 ])
 io.open(os.path.join(BURASI, "t_snap.php"), "w", encoding="utf-8", newline=NL).write(test)
 r = subprocess.run(["php", "t_snap.php"], capture_output=True, text=True,
@@ -104,6 +121,15 @@ ck("surec olcum isareti", o["ioProcOk"], True)
 ck("hesap satiri", o["acct"],
    [["makinem", 45.0, 12, None], ["riverside", 35.0, 9, 32768.0]])
 ck("surec satiri sayisi", len(o["proc"]), 2)
+# lsphp satiri da tavanli/tavansiz AYNI tabloda: cubuk ancak tavan olcumleyse
+# ciziliyor, eski toplayicinin yazdigi uc alanli satirda null kaliyor.
+ck("lsphp satiri", o["php"], [["makinem", 36, 40.0], ["riverside", 2, None]])
+# KOTA SATIR BASINA: dort hesap, dort ayri durum. Tek bir hesabin kotasini
+# okuyup hepsine ayni tavani yazan bir kod bu satirda yakalanir.
+ck("disk satiri (her hesabin KENDI kotasi)", o["disk"],
+   [["makinem", 22.6, 25.0], ["riverside", 13.1, 100.0],
+    ["oakhost", 10.8, 0.0], ["acmeco", 9.2, None]])
+ck("iki hesabin tavani AYNI DEGIL", o["disk"][0][2] != o["disk"][1][2], True)
 # PID satirda tasiniyor ama EKRANDA YOK: ayristirici onu atar, iki bicim de
 # ayni uc alana dusurulur (yeni collector 5 alan, eskisi 4 alan yaziyor).
 ck("yeni bicim: pid atilir", o["proc"][0], ["mysql", 2048.0, "/usr/sbin/mariadbd"])

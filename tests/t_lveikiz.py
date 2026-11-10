@@ -39,7 +39,7 @@ js_fmt = src[jb:je]
 # Cubuk hucresi AYRI bir yardimci: lveGovde onu cagiriyor, yani ikizi
 # kosturmak icin o da KAYNAKTAN cikarilmali. Cikarilmazsa test
 # "lveBarCell is not defined" ile duser -- sessizce gecmez.
-bb = src.index("  const lveBarCell=(v,lim,fmt)=>{")
+bb = src.index("  const lveBarCell=(v,lim,fmt,kota,not)=>{")
 be = src.index(NL + "  };", bb) + len(NL + "  };")
 js_bar = src[bb:be]
 gb = src.index("  const lveGovde=(rows,tur,totalGB)=>{")
@@ -76,6 +76,21 @@ RAM_OZET = [
     [None, 56.0],         # toplayici bildirmedi -> satir BOS
     [39526.0, None],      # sunucu tarafi yok -> satir BOS
     [39526.0, 0],         # /proc/meminfo okunamadi (Windows render) -> BOS
+]
+
+# ── Cubuk hucresinin KENDISI (lveBarCell) — bes tablonun hepsi buradan gecer ──
+# (v, tavan, kota mi, ipucuna eklenen cekince). 1.5.86'da lsphp ve disk de bu
+# renderer'a bagland1: oncesinde o iki tablonun cubugu "satiri TABLODAKI EN
+# BUYUGE" oranliyordu, yani ayni panoda iki ayri anlam vardi.
+BAR = [
+    [36, 40, False, "CEKINCE"],    # %90 + cekince (lsphp: tavan tum surecler)
+    [40, 40, False, ""],           # tam tavan -> .cap, cekince YOK
+    [36, 0, False, "CEKINCE"],     # sinirsiz -> cubuk yok (cekince de olmaz)
+    [36, None, False, ""],         # alan hic yok (eski toplayici) -> cubuk yok
+    [36, -1, False, ""],           # LVE bildirmedi -> cubuk yok
+    [19.8, 20, True, ""],          # kota: %99 -- ipucu LVE DEMEMELI
+    [20, 20, True, ""],            # kota dolu -> .cap + "artik yazamaz"
+    [5, 0, True, ""],              # kotasiz hesap -> cubuk yok
 ]
 
 # RAM 94 GB (demo tohumuyla ayni): %5 = 4812 MB, %2,5 = 2406 MB.
@@ -143,6 +158,11 @@ php = NL.join([
     "foreach (json_decode(file_get_contents('t_lve_rozet.json'), true) as [$t, $u]) {",
     "  $cikti[] = lveRamOzetMetni($t, $u);",
     "}",
+    # Bicimlendirici IKI TARAFTA DA AYNI: kota GB, oteki adet (lsphp NPROC).
+    "foreach (json_decode(file_get_contents('t_lve_bar.json'), true) as [$v, $lim, $kota, $not]) {",
+    "  $fmt = $kota ? fn($x) => $x . ' GB' : fn($x) => (string)(int)$x;",
+    "  $cikti[] = lveBarCell($v, $lim, $fmt, $kota, $not);",
+    "}",
     "echo json_encode($cikti);",
 ])
 
@@ -175,12 +195,19 @@ js = NL.join([
     "for(const [tur,rows] of giris){cikti.push(govde(tur,rows));}",
     "for(const [t,c,s] of require('./t_lve_ozet.json')){cikti.push(ozet(t,c,s));}",
     "for(const [t,u] of require('./t_lve_rozet.json')){cikti.push(rozet(t,u));}",
+    "function barh(v,lim,kota,not){",
+    js_bar,
+    "  const fmt=kota?(x=>x+' GB'):(x=>''+Math.trunc(x));",
+    "  return lveBarCell(v,lim,fmt,kota,not);",
+    "}",
+    "for(const [v,lim,kota,not] of require('./t_lve_bar.json')){cikti.push(barh(v,lim,kota,not));}",
     "console.log(JSON.stringify(cikti));",
 ])
 
 io.open(os.path.join(BURASI, "t_lve_in.json"), "w", encoding="utf-8").write(json.dumps(ORNEK))
 io.open(os.path.join(BURASI, "t_lve_ozet.json"), "w", encoding="utf-8").write(json.dumps(OZET))
 io.open(os.path.join(BURASI, "t_lve_rozet.json"), "w", encoding="utf-8").write(json.dumps(RAM_OZET))
+io.open(os.path.join(BURASI, "t_lve_bar.json"), "w", encoding="utf-8").write(json.dumps(BAR))
 io.open(os.path.join(BURASI, "t_lveikiz.php"), "w", encoding="utf-8", newline=NL).write(php)
 io.open(os.path.join(BURASI, "t_lveikiz.js"), "w", encoding="utf-8", newline=NL).write(js)
 
@@ -214,7 +241,7 @@ def ck(ad, gelen, beklenen):
               % (ad, NL, beklenen, NL, gelen))
 
 
-N = len(ORNEK) + len(OZET) + len(RAM_OZET)
+N = len(ORNEK) + len(OZET) + len(RAM_OZET) + len(BAR)
 ck("iki taraf ayni sayida cikti uretti", (len(p), len(j)), (N, N))
 for i, (a, b) in enumerate(zip(p[:len(ORNEK)], j[:len(ORNEK)])):
     tur, rows = ORNEK[i]
@@ -223,8 +250,42 @@ KES = len(ORNEK)
 for i, (a, b) in enumerate(zip(p[KES:KES + len(OZET)], j[KES:KES + len(OZET)])):
     ck("ozet %s" % json.dumps(OZET[i]), a == b, True)
 KES2 = KES + len(OZET)
-for i, (a, b) in enumerate(zip(p[KES2:], j[KES2:])):
+for i, (a, b) in enumerate(zip(p[KES2:KES2 + len(RAM_OZET)], j[KES2:KES2 + len(RAM_OZET)])):
     ck("RAM ozeti %s" % json.dumps(RAM_OZET[i]), a == b, True)
+KES3 = KES2 + len(RAM_OZET)
+for i, (a, b) in enumerate(zip(p[KES3:], j[KES3:])):
+    ck("cubuk %s" % json.dumps(BAR[i]), a == b, True)
+
+# ── Cubugun KENDISI (ikizlik tek basina yetmez) ─────────────────────────
+bar = [norm(x) for x in p[KES3:]]
+ck("%90 cubugu oranli", '<span class="php-bar" style="width:90%">' in bar[0], True)
+ck("tavana yapisik cubuk .cap aliyor",
+   '<span class="php-bar cap" style="width:100%">' in bar[1], True)
+# Cekince ipucuna EKLENIR: lsphp sayimi tavanin tamamini olcmuyor, bu satirda
+# yazili olmazsa cubuk oldugundan daha emin gorunur.
+ck("cekince ipucunda", "CEKINCE" in bar[0], True)
+ck("cekince verilmediyse ipucuna girmiyor", "CEKINCE" in bar[1], False)
+ck("tavansiz uc sebep de BOS hucre",
+   [bar[2], bar[3], bar[4]], ['<td class="php-bar-cell"></td>'] * 3)
+# Diskin tavani LVE'de DEGIL (kota ayri kaynak): ipucu "LVE" dememeli, yoksa
+# kullaniciyi yanlis yere -- lvectl'e -- yollar.
+ck("kota ipucunda 'LVE' GECMEZ", "LVE" in bar[5], False)
+ck("kota ipucu kotayi yaziyor", "disk quota (20 GB)" in bar[5], True)
+ck("kota %99", '<span class="php-bar" style="width:99%">' in bar[5], True)
+ck("kota dolu -> .cap + 'artik yazamaz'",
+   ('cap' in bar[6], "cannot write" in bar[6]), (True, True))
+ck("kotasiz hesapta cubuk yok", bar[7], '<td class="php-bar-cell"></td>')
+
+# ── Cagri yerleri: lsphp satiri gercekten bu renderer'dan geciyor mu ────
+# (Govde testi lveAcctRows'u kosuyor; lsphp tablosu renderProcTables icinde,
+# oraya elle kopyalanmis ikinci bir cubuk yazilmasin diye kaynaktan sorulur.)
+ck("lsphp satiri PHP'de lveBarCell cagiriyor",
+   "lveBarCell($p[1], $p[2] ?? null" in src, True)
+ck("lsphp satiri JS'te lveBarCell cagiriyor", "lveBarCell(p[1],p[2]," in src, True)
+# Cekince metni TEK YERDE yazili degil -- sozlukte 1, iki ikizde 1'er. Ucu de
+# AYNI dizge olmali, yoksa t() sessizce Ingilizceye duser (1.5.83 dersi).
+ck("cekince metni sozluk + iki ikiz = 3 kez",
+   src.count("the ceiling covers ALL of the account’s processes"), 3)
 
 # ── Govdenin kendisi dogru mu (ikizlik tek basina yetmez) ───────────────
 g = norm(p[2])          # CPU esikleri
@@ -296,7 +357,7 @@ ck("ozette '%%' kacisi cozulmus (cift yuzde yok)",
    any("%%" in s for s in o), False)
 
 # ── RAM ozeti: CPU'nun esi, ama BIRIM CEVRIMI YOK ───────────────────────
-ro = p[KES2:]
+ro = p[KES2:KES2 + len(RAM_OZET)]   # cubuk ciktilarini KAPSAMAZ (asagida ayri)
 ck("tipik: 39526 MB / 56 GB kullanim", ro[0],
    "hesaplar 38.6 GB · sistem 17.4 GB · sunucu 56.0 GB")
 ck("hic hesap bellek tutmuyor ama sunucu dolu", ro[1],
