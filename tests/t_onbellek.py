@@ -253,7 +253,9 @@ else:
     # DOLULUK ÇUBUĞU not ile yaş arasında, SABİT genişlikte bir sütun (1.5.80).
     # Yalnız paydası ölçülmüş satırlarda dolu; ötekilerde boş span duruyor ki
     # notlar aynı hizada bitsin. Aşağıdaki iki yardımcı onu atlayarak okuyor.
-    CUB = r'<span class="sub-bar">(?:<i[^>]*></i>)?</span>'
+    # "yer" sınıfı 1.5.86'da geldi: o KARTTA çubuklu satır varsa boş çubuk da
+    # yerini korur (yoksa aynı kartın notları farklı yerde biter).
+    CUB = r'<span class="sub-bar(?: yer)?">(?:<i[^>]*></i>)?</span>'
 
     def sag(kart, etiket):
         """Sağdaki dar sütun — UPTIME sütunu (başka birim oraya girmez)."""
@@ -266,7 +268,7 @@ else:
         """O satırın doluluk çubuğu: dolu ise yüzde, boşsa None, satır yoksa 'YOK'."""
         m = re.search(r'<span class="sub-lbl">' + re.escape(etiket) +
                       r'(?:<[^>]*>[^<]*</span>)?</span><span class="sub-note"[^>]*>[^<]*</span>'
-                      r'<span class="sub-bar">(<i style="width:(\d+)%"></i>)?</span>', kart)
+                      r'<span class="sub-bar(?: yer)?">(<i style="width:(\d+)%"></i>)?</span>', kart)
         if not m:
             return "YOK"
         return int(m.group(2)) if m.group(1) else None
@@ -349,12 +351,36 @@ else:
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
                                         "unit memcached notfound inactive",
                                         "userredis 366 366", "userredis_susp 2",
-                                        "userredis_mem 1126"])
+                                        "userredis_use 305 325", "userredis_mem 1126",
+                                        "userredis_cap 11520 0 0"])
     ck("askıdakiler düşünce oran tam -> yeşil", chip(kart, "Redis · user"),
-       ("ok", "366/366"))
+       ("ok", "366/366 · 1.1/11.3 GB"))
     ck("grup rozeti sarıya dönmez", rozet, "Operational")
-    ck("kaç hesabın düştüğü ipucunda", ipucu(kart, "Redis · user"),
-       "2 suspended accounts are not counted — their Redis is not meant to be running · 1.1 GB")
+    # KISA VE SONDA: yalnız parantez içinde bir dipnot, kullanım satırından
+    # SONRA. Önce uzun bir gerekçe cümlesiydi ve ipucunun başında duruyordu;
+    # kullanıcı üretimde görüp kesti (2026-11-10).
+    ck("askıda notu kısa ve kullanımdan sonra",
+       ipucu(kart, "Redis · user"),
+       "305 accounts in use, 325 non-empty databases · (2 accounts suspended, not counted)")
+
+    # 5c) SATIRDA OLAN İPUCUNDA TEKRARLANMAZ: tavan biliniyorsa not zaten
+    #     "1.1/11.3 GB" diyor. Aynı sayıyı ipucunda ikinci kez göstermek
+    #     ipucunun yarısını yiyordu (üretimde görüldü 2026-11-10).
+    kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
+                                        "unit memcached notfound inactive",
+                                        "userredis 180 180", "userredis_mem 1126",
+                                        "userredis_cap 11520 0 0"])
+    ck("tavan biliniyorsa oran NOTTA", chip(kart, "Redis · user")[1],
+       "180/180 · 1.1/11.3 GB")
+    ck("ve ipucunda tekrar YOK", ipucu(kart, "Redis · user"), "")
+    # 5d) HİZA: aynı kartta çubuklu satır varsa çubuksuz satır da sütunu tutar
+    #     ("yer"), yoksa notlar farklı yerde bitiyor (üretimde görüldü).
+    #     Çubuğu HİÇ olmayan kartta sütun açılmaz: orada 34px ayırmak on satırın
+    #     metnini kırpıyordu, eski karar oydu ve korunuyor.
+    ck("çubuklu kartta boş çubuk da yer tutar",
+       '<span class="sub-bar yer"></span>' in kart, True)
+    ck("çubuksuz kartta yer ayrılmaz",
+       'sub-bar yer' in render(["acct 5"])[0], False)
 
     # 6) hiçbiri ayakta değil -> kırmızı
     kart, rozet, sinif, sayac = render(["unit redis disabled inactive",
@@ -396,8 +422,12 @@ else:
     # hakkında hiçbir şey söylemiyordu ("16dk ne alaka" diye soruldu).
     # "kurulum" DEĞİL: ölçülen şey INFO keyspace'teki boş olmayan db sayısı.
     # Sitelerin ayrı db'lere bağlanması bu sunucunun kendi yapılandırmasıydı.
-    ck("ipucunda hesap, dolu db ve tavan", ipucu(kart, "Redis · user"),
-       "150 accounts in use, 170 non-empty databases · 1.1 GB of 11.3 GB ceiling")
+    # TAVAN IPUCUNDA TEKRARLANMAZ (1.5.86): notun ikinci alanı zaten
+    # "1.1/11.3 GB" diyor, aynı sayıyı ipucunda ikinci kez göstermek ipucunun
+    # yarısını yiyordu. İpucunda yalnız notta OLMAYAN şeyler kalır.
+    ck("ipucunda hesap ve dolu db; tavan tekrarı yok", ipucu(kart, "Redis · user"),
+       "150 accounts in use, 170 non-empty databases")
+    ck("oran NOTTA duruyor", " GB" in chip(kart, "Redis · user")[1], True)
     ck("ipucunda önbellek yaşı YOK", "ago" in (ipucu(kart, "Redis · user") or ""), False)
     ck("kullanım uyarı üretmez", chip(kart, "Redis · user")[0], "ok")
     # DOLULUK ÇUBUĞU (1.5.80): kullanılan/tavan oranı. Rakamlar ipucunda kalır

@@ -200,9 +200,9 @@ $TR = [
     '%s unverified' => '%s doğrulanamadı', '%s no response' => '%s yanıt vermiyor',
     'Redis · user' => 'Redis · kullanıcı', '%s/%s active' => '%s/%s aktif',
     // Askiya alinmis hesabin Redis'i kosmaz; bu ARIZA DEGIL, o yuzden oranin
-    // disinda tutuluyor ve sayisi ipucunda yaziyor.
-    '%s suspended accounts are not counted — their Redis is not meant to be running'
-        => 'askıya alınmış %s hesap sayılmadı — Redis’lerinin çalışması beklenmiyor',
+    // disinda tutuluyor. Ipucunda YALNIZ parantez icinde bir not -- "neden
+    // sayilmadigi"ni anlatan uzun cumle ipucunun yarisini yiyordu.
+    '(%s accounts suspended, not counted)' => '(%s hesap askıda, sayılmadı)',
     '%s/%s up' => '%s/%s ayakta', '%s up' => '%s ayakta', 'not running' => 'çalışmıyor',
     '%s not running' => '%s çalışmıyor',
     '%s in use' => '%s kullanımda',
@@ -1699,12 +1699,6 @@ if ($rootFresh && isset($procSec['userredis'])) {
         // ASKIYA ALINMIS HESAPLAR PAYDADAN DUSTU (toplayicida): oran "koşması
         // beklenen" birimlere göre. Sayı burada YAZILIYOR — ölçüm gizlenmiyor,
         // sınıflandırılıyor; okuyan "367 birim vardı, ikisi askıda" diyebilsin.
-        if (isset($procSec['userredis_susp'])
-            && ctype_digit(trim($procSec['userredis_susp']))
-            && (int)trim($procSec['userredis_susp']) > 0) {
-            $urTips[] = tf('%s suspended accounts are not counted — their Redis is not meant to be running',
-                           (int)trim($procSec['userredis_susp']));
-        }
         if (isset($procSec['userredis_use'])) {
             $u = preg_split('/\s+/', trim($procSec['userredis_use']));
             if (count($u) === 2 && ctype_digit($u[0]) && ctype_digit($u[1])) {
@@ -1713,6 +1707,15 @@ if ($rootFresh && isset($procSec['userredis'])) {
                 // Ayni sayi zaten asagidaki ipucu satirinin icinde duruyor.
                 $urTips[] = tf('%s accounts in use, %s non-empty databases', $u[0], $u[1]);
             }
+        }
+        // SIRA: kullanim satirindan SONRA. Askidakiler oranin disinda tutuldu
+        // ve bu yalnizca bir dipnot -- ipucunun basinda durunca asil sayilarin
+        // onune geciyordu.
+        if (isset($procSec['userredis_susp'])
+            && ctype_digit(trim($procSec['userredis_susp']))
+            && (int)trim($procSec['userredis_susp']) > 0) {
+            $urTips[] = tf('(%s accounts suspended, not counted)',
+                           (int)trim($procSec['userredis_susp']));
         }
         // TAVAN: örnek başına maxmemory, aynı turda aynı soketten CONFIG GET
         // ile ölçülüyor (ek bağlantı yok). EKSİK TOPLAM "TAVAN" DİYE YAZILMAZ:
@@ -1728,10 +1731,12 @@ if ($rootFresh && isset($procSec['userredis'])) {
             }
         }
         $urCapT = $urCap >= 1024 ? round($urCap / 1024, 1) . ' GB' : $urCap . ' MB';
-        // BELLEK İPUCUNDA: sağdaki dar sütun UPTIME sütunu, başka bir birim
-        // oraya girerse sütunun anlamı bozulur (kart boyunca "4sa" ile
-        // "2.3 GB" alt alta gelirdi). Bellek ayrıca Bellek kartında da var.
-        if ($urMem) $urTips[] = $urCap > 0 ? tf('%s of %s ceiling', $urMemT, $urCapT) : $urMemT;
+        // BELLEK İPUCUNDA ANCAK NOTTA YOKSA. Tavan biliniyorsa notun ikinci
+        // alanı zaten "2.4/23.4 GB" diyor; aynı sayıyı ipucunda ikinci kez
+        // yazmak yer kaplamaktan başka bir şey yapmıyordu (üretimde görüldü,
+        // 2026-11-10). Tavan bilinmiyorsa notta oran yok, bellek o zaman
+        // ipucunda yazılır — sağdaki dar sütun UPTIME sütunu, oraya giremez.
+        if ($urMem && $urCap <= 0) $urTips[] = $urMemT;
         // NOTUN IKINCI ALANI: kullanilan/tavan, IKISI DE TAVANIN BIRIMINDE.
         // Ayri birimlerde yazilsaydi ("900 MB/11.3 GB") oran gozle okunamazdi.
         // TAVAN BILINMIYORSA HIC YAZILMAZ -- cubugun kuraliyla ayni, uydurma
@@ -2684,6 +2689,15 @@ header('Cache-Control: no-cache');
 
 function renderChecks($checks) {
     $out = '';
+    // CUBUK SUTUNU KART BAZINDA AYRILIR. Boş çubuk genişliği 0 olunca o satırın
+    // notu ötekilerden 40px daha sağa taşıyor ve aynı kartta notlar farklı
+    // yerde bitiyordu (Önbellek'te "kullanılmıyor" ile alttaki iki satır —
+    // üretimde görüldü 2026-11-10). Her satırda sabit yer ayırmak da yanlıştı:
+    // hiç çubuğu olmayan kartlarda (Güvenlik, FTP) on satır 34px not genişliği
+    // kaybedip sürüm/durum metinleri kırpılıyordu. İkisi birden: yer YALNIZCA
+    // o kartta çubuklu bir satır varsa ayrılır.
+    $anyFill = false;
+    foreach ($checks as $c) { if (isset($c['fill'])) { $anyFill = true; break; } }
     foreach ($checks as $c) {
         $type = isset($c['type']) ? $c['type'] : 'check';
         if ($type === 'cmd') {
@@ -2725,7 +2739,7 @@ function renderChecks($checks) {
                   // bilinmeyen bir onbellege cubuk cizmek uydurma payda demek
                   // olurdu; alan hic gelmezse yerinde bos span durur ki oteki
                   // satirlarin notu ayni hizada bitsin.
-                  . '<span class="sub-bar">'
+                  . '<span class="sub-bar' . ($anyFill ? ' yer' : '') . '">'
                   . (isset($c['fill']) ? '<i style="width:' . (int)$c['fill'] . '%"></i>' : '')
                   . '</span>'
                   . $age
@@ -3774,6 +3788,10 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 .sub-bar{width:34px;flex-shrink:0;height:4px;border-radius:2px;margin-left:6px;
   background:var(--border);overflow:hidden;align-self:center;}
 .sub-bar:empty{width:0;margin-left:0;background:none;}
+/* ...AMA o kartta çubuklu bir satır varsa boş çubuk YERİNİ KORUR: yoksa aynı
+   kartın notları farklı yerde biter (Önbellek'te görüldü). Kanal çizilmez,
+   yalnız yer tutar. Sıra önemli: aynı özgüllükte, sonraki kazanır. */
+.sub-bar.yer:empty{width:34px;margin-left:6px;background:none;}
 /* DOLU KISMA 3px TABAN: %11 olan Redis satırında dolgu 34px'in 4px'iydi ve
    "az dolu" ile "hiç yok" aynı görünüyordu (canlıda görüldü). Kanal da
    --line yerine --border: boş kısım okunmazsa oran da okunmuyor. */
@@ -5021,6 +5039,7 @@ function renderSvc(key,data){
     if(don)p.push(tf('%s unverified',don));
     count.textContent=p.length?p.join(' · '):('0/0 '+t(u[key]||''));}
   if(checks&&data.checks){
+    const anyFill=data.checks.some(c=>c.fill!=null);
     checks.innerHTML=data.checks.map(ch=>{
       if(ch.type==='cmd'){
         return `<div class="sub-check"><span class="sub-dot muted"></span><span class="sub-lbl">${ch.label}</span><button class="copy-btn" data-cmd="${ch.cmd}" title="${t('Copy')}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><code class="sub-cmd-inline">${ch.cmd}</code></div>`;
@@ -5036,7 +5055,9 @@ function renderSvc(key,data){
       // Doluluk çubuğu — PHP'deki dalın ikizi. Payda ölçülmemişse çubuk BOŞ
       // kalır (uydurma payda yok), ama span yine basılır ki satırlar hizada
       // kalsın: sabit genişlikte bir sütun bu.
-      const cub='<span class="sub-bar">'+(ch.fill!=null?'<i style="width:'+Math.min(100,Math.round(ch.fill))+'%"></i>':'')+'</span>';
+      // "yer" sınıfı: o KARTTA çubuklu satır varsa boş çubuk da yerini korur
+      // (PHP $anyFill ikizi) — yoksa notlar aynı kartta farklı yerde biter.
+      const cub='<span class="sub-bar'+(anyFill?' yer':'')+'">'+(ch.fill!=null?'<i style="width:'+Math.min(100,Math.round(ch.fill))+'%"></i>':'')+'</span>';
       return `<div class="sub-check"><span class="sub-dot ${nokta}"></span><span class="sub-lbl">${ch.label}${ver}</span>${not}${cub}${age}</div>`;
     }).join('');
   }
