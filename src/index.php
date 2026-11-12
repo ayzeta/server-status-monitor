@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.86';
+const APP_VERSION = '1.5.87';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -160,6 +160,8 @@ $TR = [
         => 'Paylaşımlı bellek: OPcache segmentleri, tmpfs ve /dev/shm. Geri kazanılamaz ve “kullanılan” RAM’e dahildir — boşalması için süreçlerin yeniden başlaması gerekir.',
     'Right now %s GB of it is tmpfs, the rest is mostly OPcache.'
         => 'Şu an %s GB’ı tmpfs, kalanı ağırlıkla OPcache.',
+    'A free-style count says %s GB (%s%%) right now — that is the number WHM shows: it treats all of Cached as free, and shmem sits inside Cached.'
+        => '“free” tarzı hesap şu an %s GB (%%%s) der — WHM’in yazdığı sayı budur: o Cached’in tamamını boş sayar, shmem de Cached’in içindedir.',
     '%s GB accounts' => 'hesaplar %s GB', '%s GB system' => 'sistem %s GB',
     '%s GB server' => 'sunucu %s GB',
     // Doluluk cubugu: hesabin KENDI LVE tavanina gore (sunucu varsayilani DEGIL).
@@ -736,6 +738,7 @@ function netMeta($sat, $peakKB, $capMbps, $fromCfg, $tekArayuz = true) {
 // ── Memory ────────────────────────────────────────────────────
 $meminfo      = @file('/proc/meminfo');
 $memTotal     = 0; $memAvailable = 0; $swapTotal = 0; $swapFree = 0; $memShmem = 0;
+$memFree      = 0; $memBuffers   = 0; $memCached = 0; $memSRecl = 0;
 if ($meminfo) {
     foreach ($meminfo as $line) {
         if (strpos($line, 'MemTotal:')     === 0) $memTotal     = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
@@ -743,9 +746,31 @@ if ($meminfo) {
         if (strpos($line, 'SwapTotal:')    === 0) $swapTotal    = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
         if (strpos($line, 'SwapFree:')     === 0) $swapFree     = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
         if (strpos($line, 'Shmem:')        === 0) $memShmem     = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
+        // Asagidaki dordu YALNIZCA iki is icin: MemAvailable yoksa yedek hesap,
+        // bir de ipucundaki "WHM neden daha dusuk yaziyor" cumlesi.
+        if (strpos($line, 'MemFree:')      === 0) $memFree      = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
+        if (strpos($line, 'Buffers:')      === 0) $memBuffers   = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
+        if (strpos($line, 'Cached:')       === 0) $memCached    = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
+        if (strpos($line, 'SReclaimable:') === 0) $memSRecl     = (int)filter_var($line, FILTER_SANITIZE_NUMBER_INT);
     }
 }
+// MemAvailable'i BILDIRMEYEN cekirdekte (3.14 oncesi) alan 0 kalir ve pano
+// bellegi %100 kullanilmis gosterirdi — sunucu bos dururken kirmizi kart.
+// Yedek, MemAvailable'in KENDI anlamini elle kurar: sayfa onbellegi ve geri
+// kazanilabilir slab bos sayilir, shmem sayilmaz (geri kazanilamaz).
+// OLCULDU (lin, 2026-11-12): cekirdegin kendi MemAvailable'i 49,3 GB, bu yedek
+// 50,3 GB — aradaki ~1 GB cekirdegin rezerv (watermark) payi, yani yedek birkac
+// puan iyimser. Gercek alan varken ASLA kullanilmaz, yalniz yoklugunda.
+if ($memAvailable <= 0 && $memTotal > 0 && $memCached > 0) {
+    $memAvailable = max(0, $memFree + $memBuffers + $memCached + $memSRecl - $memShmem);
+}
 $memUsed         = $memTotal - $memAvailable;
+// WHM'in "Kullanilan Bellek" satirinin formulu. OLCULDU (lin, 2026-11-12, ayni
+// dakika icinde): WHM %33,24 (32.693.720 KB), bu formul 31,1 GB / %33,2 —
+// panonun formulu ayni anda 44,5 GB / %47,5 diyordu. Aradaki 13 GB'in sebebi
+// Cached'in icinde duran shmem (20,4 GB), eksi WHM'in kullanilan saydigi
+// SReclaimable (8,1 GB). Ekranda DEGIL, yalniz shmem ipucunda gosteriliyor.
+$memFreeStyle    = $memTotal - $memFree - $memBuffers - $memCached;
 $memUsagePercent = $memTotal > 0 ? round(($memUsed / $memTotal) * 100) : 0;
 $memTotalGB      = $memTotal > 0 ? round($memTotal / 1024 / 1024, 1) : 0;
 $memUsedGB       = round($memUsed / 1024 / 1024, 1);
@@ -785,6 +810,15 @@ $shmemTip  = t('Shared memory: OPcache segments, tmpfs and /dev/shm. It cannot b
 if ($tmpfsGB !== null && $shmemGB > $tmpfsGB) {
     $shmemTip .= ' ' . tf('Right now %s GB of it is tmpfs, the rest is mostly OPcache.',
                           number_format($tmpfsGB, 1, '.', ''));
+}
+// WHM ayni anda cok daha dusuk bir "kullanilan" yazar ve iki sayfayi yan yana
+// koyan herkes once panoyu sucluyor. Rakam BU SUNUCUDAN hesaplaniyor: shmem'i
+// olmayan bir makinede iki sayi birbirine yakin cikar ve cumle kendiliginden
+// zararsizlasir. Alanlar olculmediyse (Cached okunamadiysa) hic yazilmaz.
+if ($memTotal > 0 && $memCached > 0 && $memFreeStyle > 0) {
+    $shmemTip .= ' ' . tf('A free-style count says %s GB (%s%%) right now — that is the number WHM shows: it treats all of Cached as free, and shmem sits inside Cached.',
+                          number_format($memFreeStyle / 1024 / 1024, 1, '.', ''),
+                          (int)round($memFreeStyle / $memTotal * 100));
 }
 
 // ── Disk ──────────────────────────────────────────────────────

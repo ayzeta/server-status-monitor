@@ -1970,7 +1970,11 @@ read L1 L5 L15 _ < /proc/loadavg
 # — ayni metrigi gosterdikleri halde farkli gorunuyorlardi.
 # ISLEM SIRASI da PHP ile ayni: ((t-a)/t)*100. Kayan noktada (t-a)*100/t farkli
 # sonuc verebiliyor — %56.5 sinirinda biri 57 digeri 56 yaziyordu.
-RAM=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{printf "%d", int(((t-a)/t)*100 + 0.5)}' /proc/meminfo)
+# MemAvailable YOKSA (3.14 oncesi cekirdek) a bos kalir, (t-a)/t = 1 cikar ve
+# gecmis grafigi sunucu bos dururken %100 cizerdi. Yedek PHP tarafiyla AYNI:
+# sayfa onbellegi + geri kazanilabilir slab bos, shmem degil (index.php,
+# $memAvailable). Gercek alan varken yedege hic girilmez.
+RAM=$(awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} /^MemFree:/{f=$2} /^Buffers:/{b=$2} /^Cached:/{c=$2} /^SReclaimable:/{s=$2} /^Shmem:/{sh=$2} END{if (t+0 <= 0) exit; if (a+0 <= 0 && c+0 > 0) {a = f+b+c+s-sh; if (a < 0) a = 0} printf "%d", int(((t-a)/t)*100 + 0.5)}' /proc/meminfo)
 # df'in HAZIR Use% sutunu KULLANILMAZ: POSIX onu YUKARI yuvarlar (ceiling), PHP
 # tarafi ise round() yapiyor — olculdu, xfs'te bile 1 puan ayrisiyordu (df 54,
 # PHP 53.18). Kart ile grafik ayni metrigi gostersin diye yuzde burada da PHP'nin
