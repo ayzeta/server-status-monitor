@@ -3,7 +3,7 @@ ini_set('serialize_precision', '-1'); // json_encode float'ları kısa bassın (
 // Cevabı hazırlamak ne kadar sürdü — istemcinin istek son tarihi BUNDAN çıkarılır
 // (bkz. genBudgetMs). Betiğin ilk satırında alınır ki yoklamalar dahil olsun.
 $GEN_T0 = microtime(true);
-const APP_VERSION = '1.5.87';
+const APP_VERSION = '1.5.88';
 // ps DURUM HARFLERİ — CPU kartının alt satırındaki sayıların ipucu. Metin
 // ÇEVİRİ ANAHTARININ KENDİSİ (t() çeviri bulamazsa anahtarı basar), bu yüzden
 // tek yerde sabit tutulur: PHP işaretlemesi ve JS ikizi aynı dizgiyi kullanır.
@@ -4789,7 +4789,13 @@ function hintTara(){
     e.removeAttribute('title');
   });
   hintSup=false;
-  if(hintFor&&!hintFor.isConnected)hintGizle(); // uzerinde durulan oge yeniden cizildi
+  // Uzerinde durulan oge yeniden cizildi. MASAUSTUNDE kutu kapanir: fare hala
+  // orada, altindaki oge yok oldu. DOKUNMATIKTE kapanmaz — parmak cekildigi
+  // icin kutuyu ayakta tutan tek sey zamanlayici, canli dongu araya girince
+  // okunan ipucu ortadan kayboluyordu (uretimde goruldu 2026-11-12, bellek
+  // karti saniyede bir yenilenen res-meta'yi yeniden yaziyor). Bag birakilir,
+  // kutu zamanlayici dolana ya da bosluga dokunulana kadar kalir.
+  if(hintFor&&!hintFor.isConnected){hintFor=null;if(!hintDokunmatik)hintEl.style.opacity=0;}
 }
 function hintPlanla(){if(!hintBek){hintBek=true;requestAnimationFrame(hintTara);}}
 new MutationObserver(()=>{if(!hintSup)hintPlanla();})
@@ -4861,7 +4867,12 @@ document.addEventListener('touchstart',e=>{
   hintDokunmatik=true;   // .proc-cmd istisnasi hintIzle icinde, tek bogazda
   hintIzle({target:e.target,clientX:d.clientX,clientY:d.clientY});
   clearTimeout(hintZam);
-  if(hintFor)hintZam=setTimeout(hintGizle,4000);
+  // SURE METNE GORE: sabit 4 sn kisa ipuclari icin yeterliydi ama uzun olanlar
+  // (shmem ipucu Turkce ~330 karakter) okunmadan kapaniyordu — kullanici
+  // 2026-11-12'de "bir turlu okuyamadim" dedi. Tabani ayni, karakter basina
+  // 60 ms ekleniyor, tavan 20 sn: kisa ipucu eskisi gibi hizli kayboluyor,
+  // uzun olan okunacak kadar duruyor, hicbiri ekranda unutulmuyor.
+  if(hintFor)hintZam=setTimeout(hintGizle,Math.min(20000,4000+hintEl.textContent.length*60));
 },{passive:true});
 
 // Sorun renginde (danger/warn) kart kenarlığı da renklenir — sunucu render'ıyla

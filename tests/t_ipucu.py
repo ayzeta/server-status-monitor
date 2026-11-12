@@ -97,8 +97,18 @@ ck("tasima sayfa genelinde, gozlemciyle tetikleniyor",
    "new MutationObserver" in src and "attributeFilter:['title']" in src, True)
 ck("tarama butun title'lari suruyor",
    "document.querySelectorAll('[title]').forEach" in src, True)
-ck("uzerinde durulan oge yeniden cizildiyse kutu gizleniyor",
-   "if(hintFor&&!hintFor.isConnected)hintGizle();" in src, True)
+ck("uzerinde durulan oge yeniden cizildiyse MASAUSTUNDE kutu gizleniyor",
+   "if(hintFor&&!hintFor.isConnected){hintFor=null;if(!hintDokunmatik)hintEl.style.opacity=0;}"
+   in src, True)
+# DOKUNMATIKTE kapanmamali: parmak cekildigi icin kutuyu ayakta tutan tek sey
+# zamanlayici. Canli dongu kartin icini yeniden yazinca okunan ipucu yok
+# oluyordu (uretimde goruldu 2026-11-12). Bag birakilir, kutu kalir.
+ck("dokunmatikte yeniden cizim kutuyu KAPATMIYOR",
+   bool(re.search(r"isConnected\)\{hintFor=null;if\(!hintDokunmatik\)", src)), True)
+# Kapanma suresi METNE GORE: sabit 4 sn uzun ipucunu okutmuyordu.
+ck("dokunmatik kapanma suresi metin uzunluguna bagli",
+   "setTimeout(hintGizle,Math.min(20000,4000+hintEl.textContent.length*60))" in src, True)
+ck("kisa ipucunda taban sure korunuyor", "4000+" in src, True)
 ck("metinsiz ogede erisilebilirlik icin aria-label birakiliyor",
    "setAttribute('aria-label',s)" in src, True)
 ck("kivilcim ustundeyken metin ipucu kapaniyor", "hintGizle();" in src, True)
