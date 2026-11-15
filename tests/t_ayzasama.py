@@ -212,6 +212,44 @@ if len(cikti2) == 4:
     # dusulmuyor. Dusseydi burada "GoogleDrive,Storage_Box__ot" cikardi.
     ck("alan yoksa da kapsam yazilmiyor", cikti2[1], "-")
 
+# ── IKINCI GERCEK KAYIT: kancanin AYRI tamamlama isi ────────────────────
+# tests/ornek/ayz_meta_tamamla_bekliyor.json, 2026-11-15'te sunucudaki canli
+# isin meta.json'u (2.99.61). Bu surumde kancanin tamamlamasi denetimden
+# AYRILDI: denetim 'done' olup kapaniyor, tamamlama kendi is kimligiyle
+# aciliyor. Dosyada hic hesap adi yok, bu yuzden hicbir alan degistirilmedi.
+#
+# Degeri su: 'asama'nin "bekliyor" oldugu daha once CIKARIMDI (aracin kendi
+# oturumu da "olmali" demisti); burada olculmus hali duruyor. Ayrica 'user'in
+# hedef adi degil ISIN ADI oldugu, 'current'in bos kaldigi ve kayitta hic
+# 'finished_at' bulunmadigi da gorunuyor.
+tam = json.load(io.open(KOK + "tests/ornek/ayz_meta_tamamla_bekliyor.json",
+                        encoding="utf-8"))
+ck("ikinci ornek kancanin tamamlama isi",
+   (tam["kind"], tam["kaynak"], tam["asama"], tam["current"], tam["state"]),
+   ("tamamla", "kanca", "bekliyor", "", "running"))
+ck("yeni bir kind DEGIL, eslemede var", tam["kind"] in GRUP, True)
+ck("ornekte user hesap degil isin adi",
+   tam["user"].startswith("Eksik aktarım tamamlama"), True)
+ck("ornekte bitis damgasi hic yok", "finished_at" in tam, False)
+
+cikti4 = kos(dict(tam, pid=0, updated=int(time.time())))
+ck("tamamla isinde dort alan basildi", len(cikti4), 4)
+if len(cikti4) == 4:
+    ck("tamamla+bekliyor sira bekliyor", cikti4[3], "waiting_for_window")
+    # Susturma olmasaydi: "Eksik_aktarım_tamamlama__oto" — tur etiketiyle ayni
+    # seyi soyleyen, 28 karakterde kesilmis bir dizgi.
+    ck("tamamla isinde de kapsam yazilmiyor", cikti4[1], "-")
+    ck("tamamla isinde bitis damgasi yok", cikti4[2], "-")
+
+# Ayni kayit, 'asama' silinmis: aralik ICINDE baslayan tamamlama isi boyle
+# gorunuyor (arac: aralik icinde baslarsa alan hic yazilmiyor). Taban
+# eslemenin "backup" degil "eksik aktarim" olmasi tam da bunun icin.
+alansiz = {k: v for k, v in tam.items() if k != "asama"}
+cikti5 = kos(dict(alansiz, pid=0, updated=int(time.time())))
+ck("alansiz tamamla isinde dort alan", len(cikti5), 4)
+if len(cikti5) == 4:
+    ck("alansiz tamamla eksik aktarim", cikti5[3], "missing_transfer")
+
 # Ayni kayit + 'finished' dosyasi: bitmis isin damgasi OKUNUR. Boylece
 # yukaridaki "-" iddiasi "hic okumuyoruz" degil, "dogru kosulda okuyoruz".
 cikti3 = kos(canli, bitti=True)
