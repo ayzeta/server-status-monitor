@@ -1057,14 +1057,41 @@ import json, os, sys, time
 # 'yapilandirma', 'gunluk']), esleme de oyle. Arac yeni tur eklerse burasi
 # yeniden bakilir -- kardes arac takibi kuralinin tam olcusu bu.
 GRUP = {
-    "backup": "backup", "yapilandirma": "backup", "tamamla": "backup",
-    "gunluk": "backup",
+    "backup": "backup", "yapilandirma": "backup", "gunluk": "backup",
+    # 'tamamla' ESKIDEN "backup" grubundaydi (api.php'deki aile listesine
+    # bakarak). Yanlis degildi ama genisti: bu is eksik kalan AKTARIMLARI
+    # tamamliyor. Aracin kendi arayuzu da her surumde oyle adlandiriyor
+    # (ar.js isTurAdi -> jobs.kindTamamla -> "eksik aktarim"), 2.99.56
+    # oncesi kayitlar dahil. 2026-11-15'te kullanici onayiyla hizalandi:
+    # boylece elle tamamlama isinin etiketi is boyunca ayni kaliyor
+    # (eksik aktarim -> sira bekliyor -> eksik aktarim).
+    "tamamla": "missing transfer",
     "single": "restore", "batch": "restore", "dosya": "restore",
     "posta": "restore", "vt": "restore", "cron_uygula": "restore",
     "dns_uygula": "restore",
     "scan": "archive check", "indir": "download",
     "liste": "read", "vt_oku": "read", "cron_oku": "read",
     "gunluk_oku": "read", "dns_oku": "read",
+}
+# AsAMA: 2.99.57'den beri meta.json'da 'asama' alani var ve KIND TEK BASINA
+# YANILTIYOR. 2.99.57'de kancanin isinde sira cevrildi: once arsiv denetimi,
+# sonra eksik aktarim. Yani 'scan' turundeki is denetim bittikten SONRA da
+# saatlerce 'running' kaliyor -- o sirada yaptigi is tamamlama ya da saat
+# beklemesi. Eski eslemede rozet o saatler boyunca "arsiv denetimi" yazardi.
+# Alan yalnizca scan ve tamamla islerinde yaziliyor; obur 16 turde ve 2.99.56
+# oncesi kayitlarin HEPSINDE yok. Yoksa eski etikete dusuluyor (ASAMA.get
+# bulamayinca grup), yani bugunku davranis aynen korunuyor.
+# Bitmis iste bu alana BAKILMAZ: arac is bitince alani silmiyor, son deger
+# kaliyor. Bitis bilgimiz zaten finished dosyasi + finished_at.
+# Kaynak: aracin kendi oturumu, worker.php 2.99.58 (satir 1629/1633, 5237,
+# 5289, 5339) -- 2026-11-15'te yazili olarak teyit edildi.
+ASAMA = {
+    ("scan",    "denetim"):    "archive check",
+    ("scan",    "tamamlama"):  "missing transfer",
+    ("scan",    "bekliyor"):   "waiting for window",
+    ("scan",    "yukleyici"):  "waiting for transporter",
+    ("tamamla", "tamamlama"):  "missing transfer",
+    ("tamamla", "bekliyor"):   "waiting for window",
 }
 root = sys.argv[1]
 now = int(time.time())
@@ -1108,7 +1135,14 @@ for ad in girisler:
                     if latest_fin is None or fa > latest_fin:
                         latest_fin = fa
                         fin_kind = GRUP[mb["kind"]]
-                        fin_scope = (mb.get("current") or mb.get("user") or "").strip()
+                        # Canli daldaki kuralin ayni: 'scan'/'tamamla' isinde
+                        # 'user' hesap degil. Burada ozellikle onemli, cunku
+                        # is bitince 'current' HER ZAMAN bosaltiliyor -- yani
+                        # eski kuralla biten her denetimin "bitti" cipi hedef
+                        # adlarini yazardi.
+                        fin_scope = (mb.get("current") or "").strip()
+                        if not fin_scope and mb["kind"] not in ("scan", "tamamla"):
+                            fin_scope = (mb.get("user") or "").strip()
         except Exception:
             pass
         continue
@@ -1127,9 +1161,23 @@ for ad in girisler:
         continue
     # En ESKI canli is kazanir: "ne zamandir yedekleme suruyor" sorusunun cevabi o.
     if best_started is None or started < best_started:
+        asama = str(m.get("asama") or "")
         best_started = started
-        best_scope = (m.get("current") or m.get("user") or "").strip()
-        best_kind = grup
+        # KAPSAM: 'current' o an islenen hesaptir. Bos kaldiginda 'user'a
+        # dusmek YALNIZCA hesap bazli islerde dogru. 'scan' ve 'tamamla'
+        # sunucu genelinde kosuyor ve o ikisinde 'user' HESAP ADI DEGIL:
+        #   scan     -> hedef adlari  "GoogleDrive, Storage Box . otomatik ..."
+        #   tamamla  -> isin kendi adi "Eksik aktarim tamamlama . otomatik ..."
+        # Ikisi de rozette hesap adinin beklendigi yere yaziliyordu, ustelik 28
+        # karakterde kesilerek ("Eksik_aktarim_tamamlama__oto"). Tur etiketi
+        # zaten ayni seyi soyluyor, yani bilgi de katmiyordu.
+        # 'current' bu iki turde NE ZAMAN bos: saat araligi beklenirken, is
+        # baslarken ve bir arsivden digerine gecerken (2026-11-15: gercek
+        # kayitta olculdu, aracin kaynak listesiyle de teyitli).
+        best_scope = (m.get("current") or "").strip()
+        if not best_scope and m.get("kind") not in ("scan", "tamamla"):
+            best_scope = (m.get("user") or "").strip()
+        best_kind = ASAMA.get((m.get("kind"), asama), grup)
 
 # Anlik goruntu satiri BOSLUKLA ayrilir, bu yuzden bosluk kalamaz. Virgul korunur:
 # kuyrukta 'current' "hesap1, hesap2" olabiliyor, virgulu atmak iki hesap adini tek

@@ -293,6 +293,11 @@ $TR = [
     'update available' => 'güncelleme var', 'Page was loaded as v%s, server is v%s — reloading' => 'Sayfa v%s ile yüklenmişti, sunucu v%s — yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
+    // Ayzeta Backup 2.99.57'den beri 'asama' alani: 'scan' isi denetim bittikten
+    // sonra da suruyor (eksik aktarim / saat beklemesi). Jetonlari collector
+    // uretiyor, JS ikizi de ayni $TR'yi kullaniyor (TR=json_encode).
+    'missing transfer' => 'eksik aktarım', 'waiting for window' => 'sıra bekliyor',
+    'waiting for transporter' => 'aktarıcı bekleniyor',
 ];
 $T = ($LANG_UI === 'tr') ? $TR : [];               // en'de boş → anahtar (İngilizce) döner
 function t($s) { global $T; return $T[$s] ?? $s; } // düz metin
