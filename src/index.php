@@ -1148,13 +1148,30 @@ function rtCol($ms, $warn, $crit) {
 
 // ── SSL ───────────────────────────────────────────────────────
 $sslDaysLeft = null; $sslExpiry = null; $sslIssuer = null;
+// ÖNBELLEK BAŞARISIZLIĞI DA KAPSAR (2026-11-19). Önceden yalnızca başarı
+// yazılıyordu: 2087 cevap vermediğinde hiçbir şey kaydedilmiyor, bu yüzden HER
+// sayfa açılışı 5 saniyelik zaman aşımını baştan bekliyordu — yani WHM tökezlediği
+// sürece pano her istekte onunla birlikte ağırlaşıyordu. Artık başarısızlık da
+// yazılır, ama KISA ömürle: başarı 6 saat, başarısızlık 5 dakika. Böylece WHM geri
+// geldiğinde sertifika en geç 5 dakikada doğru görünür, bu arada bekleme olmaz.
 $sslCache    = azTmp('ssl_cache');
-if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
-    $cached      = json_decode(@file_get_contents($sslCache), true);
-    $sslDaysLeft = $cached['days']   ?? null;
-    $sslExpiry   = $cached['expiry'] ?? null;
-    $sslIssuer   = $cached['issuer'] ?? null;   // eski önbellekte yok: null kalır
-} else {
+$sslTaze     = false;
+if (file_exists($sslCache)) {
+    $cached = json_decode(@file_get_contents($sslCache), true);
+    if (is_array($cached)) {
+        // 'ok' alanı ESKİ önbellekte yok; o dosyalar yalnız başarıda yazıldığı
+        // için varsayılanı true, yani eski kayıt 6 saat geçerli sayılır.
+        $omur = ($cached['ok'] ?? true) ? 21600 : 300;
+        if ((time() - filemtime($sslCache)) < $omur) {
+            $sslTaze     = true;
+            $sslDaysLeft = $cached['days']   ?? null;
+            $sslExpiry   = $cached['expiry'] ?? null;
+            $sslIssuer   = $cached['issuer'] ?? null;   // eski önbellekte yok: null kalır
+        }
+    }
+}
+if (!$sslTaze) {
+    $sslYazildi = false;
     $ctx = stream_context_create(['ssl' => ['capture_peer_cert' => true, 'verify_peer' => false, 'verify_peer_name' => false]]);
     $fp  = @stream_socket_client('ssl://' . gethostname() . ':2087', $e, $s, 5, STREAM_CLIENT_CONNECT, $ctx);
     if ($fp) {
@@ -1167,9 +1184,14 @@ if (file_exists($sslCache) && (time() - filemtime($sslCache)) < 21600) {
             $iss = $info['issuer'] ?? [];
             $sslIssuer = trim((string)(($iss['O'] ?? '') . ' ' . ($iss['CN'] ?? '')));
             @file_put_contents($sslCache, json_encode(
-                ['days' => $sslDaysLeft, 'expiry' => $sslExpiry, 'issuer' => $sslIssuer]));
+                ['ok' => true, 'days' => $sslDaysLeft, 'expiry' => $sslExpiry, 'issuer' => $sslIssuer]));
+            $sslYazildi = true;
         }
     }
+    // Bağlanamadık ya da sertifika okunamadı: bunu da yaz ki sonraki 5 dakika
+    // boyunca aynı zaman aşımı tekrar tekrar ödenmesin. Değerler null kalır,
+    // yani kart "bilinmiyor" gösterir — yanlış bir gün sayısı uydurulmaz.
+    if (!$sslYazildi) @file_put_contents($sslCache, json_encode(['ok' => false]));
 }
 // Uyarı eşiği, sertifikayı VEREN MAKAMA göre seçilir — config'te açıkça yazılmadıysa.
 //
