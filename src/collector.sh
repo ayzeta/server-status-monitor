@@ -1341,6 +1341,15 @@ PYEOF
       fi
     fi
     read UPD_RREV UPD_BEH < <(cat "$UPD_CACHE" 2>/dev/null)
+    # SON BAKISIN ZAMANI (2026-11-19). Onbellek dosyasi YALNIZCA fetch basarili
+    # olunca yazilir, yani mtime'i "uzaga en son ne zaman bakildi"nin ta kendisi.
+    # Bu sayi panoda gosterilecek: "geride kalinan tur" her turda yeniden
+    # hesaplanıyor ama yereldeki origin/<dal> isaretcisi ancak fetch'le ilerledigi
+    # icin, iki fetch arasinda pano "guncelim" derken aslinda "en son baktigimda
+    # guncelsem" diyor. Olculdu: 19 Kasim'da pano updBehind=0 gosterirken depo
+    # 4 commit ileriydi. Yas gorunur olunca bu yanilgi kalmaz.
+    UPD_CHK=$(stat -c %Y "$UPD_CACHE" 2>/dev/null)
+    case "${UPD_CHK:-}" in ''|*[!0-9]*) ;; *) echo "upd_checked $UPD_CHK";; esac
     # GERIDE KALINAN TUR SAYISI HER TURDA YENIDEN SAYILIR — ag erisimi YOK, yalnizca
     # yereldeki 'origin/<dal>' isaretcisi okunur. Fetch gunde bir yeterli ama SAYI
     # oyle degil: guncelleme uygulanir uygulanmaz 0'a dusmesi gerekiyor. Eskiden sayi

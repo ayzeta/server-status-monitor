@@ -290,7 +290,7 @@ $TR = [
     // Ayzeta Backup is turu grubu — collector jetonu yayinliyor, burada cevriliyor
     // ('backup' karsiligi yukarida zaten var).
     'Service feed unavailable' => 'Servis beslemesi yok', '%s unknown' => '%s bilinmiyor',
-    'update available' => 'güncelleme var', 'Page was loaded as v%s, server is v%s — reloading' => 'Sayfa v%s ile yüklenmişti, sunucu v%s — yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
+    'update available' => 'güncelleme var', 'up to date' => 'güncel', 'checked %s ago' => '%s önce bakıldı', 'not checked yet' => 'henüz bakılmadı', 'Page was loaded as v%s, server is v%s — reloading' => 'Sayfa v%s ile yüklenmişti, sunucu v%s — yenileniyor', 'Dashboard updated: %s → %s' => 'Pano güncellendi: %s → %s',
     'restore' => 'geri yükleme', 'archive check' => 'arşiv denetimi',
     'download' => 'indirme', 'read' => 'okuma',
     // Ayzeta Backup 2.99.57'den beri 'asama' alani: 'scan' isi denetim bittikten
@@ -1498,6 +1498,15 @@ $updBehind = ($rootFresh && isset($procSec['upd_behind']) && is_numeric($procSec
 $updAt     = ($rootFresh && isset($procSec['upd_at']) && is_numeric($procSec['upd_at']))
            ? (int)$procSec['upd_at'] : null;
 $updFrom   = $rootFresh ? ($procSec['upd_from'] ?? null) : null;
+// SON BAKISIN YASI (2026-11-19). "Geride kalinan tur" her turda yeniden
+// sayiliyor ama yereldeki origin/<dal> isaretcisi ancak GUNDE BIR kosan fetch'le
+// ilerliyor. Yani iki fetch arasinda altbilgi "guncel" derken aslinda "en son
+// baktigimda guncelsem" diyor. Olculdu: 19 Kasim'da pano updBehind=0 gosterirken
+// depo 4 commit ileriydi ve kullanici panoyu guncel sandi. Artik sayinin ne kadar
+// taze oldugu da yaziyor; metin SUNUCUDA uretilir, canli dongu hazir dizgiyi
+// basar (PHP ve JS'te iki ayri yas hesabi tutmayalim diye).
+$updChk    = ($rootFresh && isset($procSec['upd_checked']) && is_numeric($procSec['upd_checked']))
+           ? (int)$procSec['upd_checked'] : null;
 $actChips = []; $acts = []; $actScopes = []; $actKinds = []; $actFbs = []; $actLive = []; $actImunifyN = null;
 foreach ($actDefs as [$aLbl, $aKey]) {
     $mx = ($rootFresh && isset($procSec[$aKey]) && is_numeric($procSec[$aKey])) ? (int)$procSec[$aKey] : null;
@@ -1932,6 +1941,20 @@ function fmtAgeShort($s) {
     if ($s >= 86400) return floor($s / 86400) . $u[0];
     if ($s >= 3600)  return floor($s / 3600) . $u[1];
     return max(1, floor($s / 60)) . $u[2];
+}
+// Altbilginin guncelleme metni. TEK YERDE uretilir: hem ilk render hem canli
+// dongu bunu basar, yani yas hesabi PHP ile JS arasinda ayrisamaz.
+//
+// "Guncel" demek yetmiyor, NE ZAMAN bakildigini da soylemek gerekiyor: uzaktaki
+// surum gunde bir kez cekiliyor (collector.sh), dolayisiyla sayi 24 saate kadar
+// bayat olabilir. Git kopyasi hic yoksa ($rev null) satir cikmaz — o kurulumda
+// guncelleme takibi diye bir sey yok, "guncel" demek yanlis olurdu.
+function updFooterTxt($rev, $behind, $chk) {
+    if ($rev === null) return '';
+    $txt = $behind > 0 ? t('update available') . ' (' . $behind . ')' : t('up to date');
+    $txt .= ' · ' . ($chk === null ? t('not checked yet')
+                   : tf('checked %s ago', fmtAgeShort(max(0, time() - $chk))));
+    return ' · ' . $txt;
 }
 function tagAge(&$chk, $aliases) {
     global $svcAge, $rootFresh;
@@ -2710,7 +2733,8 @@ if (isset($_GET['json'])) {
         'ioW'               => $ioWrite !== null ? fmtBytes($ioWrite) : null,
         'dstate'            => $dState, 'rstate' => $rState, 'zstate' => $zState, 'mysqlThr' => $mysqlThr, 'mysqlThrCol' => $mysqlThrCol, 'vers' => $svcVer ?: null, 'acts' => $acts, 'actEnds' => $actEnds, 'actEndsT' => $actEndsT, 'actEndsP' => $actEndsP, 'actEndsK' => $actEndsK, 'actScopes' => $actScopes, 'actKinds' => $actKinds, 'actFbs' => $actFbs, 'actLive' => $actLive,
         'updRev' => $updRev, 'updBehind' => $updBehind,
-        'updAt' => $updAt, 'updFrom' => $updFrom, 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
+        'updAt' => $updAt, 'updFrom' => $updFrom,
+        'updChecked' => $updChk, 'updTxt' => updFooterTxt($updRev, $updBehind, $updChk), 'actImunifyN' => $actImunifyN, 'actImunifyP' => ($procSec['act_imunify_p'] ?? null),
         'rxRate'            => fmtBytes($rxRate), 'txRate' => fmtBytes($txRate), 'rxK' => (int)round(($rxRate ?? 0)/1024), 'txK' => (int)round(($txRate ?? 0)/1024), 'mqRaw' => ($mailQ ?? 0), 'lsphpIdle' => $lsphpIdle,
         'netRxSat'          => $netRxSat, 'netTxSat' => $netTxSat, 'netRxCol' => $netRxCol, 'netTxCol' => $netTxCol,
         'netCapMbps'        => $netCapMbps, 'netCapCfg' => $netCapFromCfg, 'netIfOne' => ($netIfCount <= 1),
@@ -4441,7 +4465,7 @@ body{background:var(--bg);font-family:system-ui,-apple-system,'Segoe UI',Roboto,
 <?php if ($CREDIT_TEXT): ?>
   <div class="footer-credit"><?php if ($CREDIT_URL): ?><a href="<?=htmlspecialchars($CREDIT_URL, ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noopener"><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?></a><?php else: ?><?=htmlspecialchars($CREDIT_TEXT, ENT_QUOTES, 'UTF-8')?><?php endif; ?></div>
 <?php endif; ?>
-  <div id="footer-time"><span title="Server Status Monitor <?=APP_VERSION?>">v<?=APP_VERSION?></span> &middot; <?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?><?=$updBehind > 0 ? ' · ' . t('update available') . ' (' . $updBehind . ')' : ''?></div>
+  <div id="footer-time"><span title="Server Status Monitor <?=APP_VERSION?>">v<?=APP_VERSION?></span> &middot; <?=date('Y-m-d H:i:s')?><?=isset($svcVer['kernel']) ? ' · ' . htmlspecialchars($svcVer['kernel']) : ''?><?=htmlspecialchars(updFooterTxt($updRev, $updBehind, $updChk), ENT_QUOTES, 'UTF-8')?></div>
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -5676,7 +5700,7 @@ function applyMetrics(data){
   document.getElementById('time-val').textContent=lastGoodTime;
   // Altbilgi JS tarafindan textContent ile yeniden yaziliyor, bu yuzden
   // guncelleme ibaresi DUZ METIN ve IKI tarafta da olmak zorunda.
-  document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updBehind>0?' · '+t('update available')+' ('+data.updBehind+')':'');
+  document.getElementById('footer-time').textContent='v<?=APP_VERSION?> · '+data.time+(data.vers&&data.vers.kernel?' · '+data.vers.kernel:'')+(data.updTxt||'');   // metin SUNUCUDA uretilir (bkz. updFooterTxt)
   const nowT=data.time.split(' ')[1];
   // Uyku/askı boşluğu: son geçmiş noktasıyla şimdi arasında >5dk fark varsa,
   // client canlı geçmişi bayat/eksik → sunucunun taze 30dk'sıyla (data.hist)
