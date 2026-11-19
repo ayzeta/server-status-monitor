@@ -21,8 +21,8 @@ separately.
 
 | | Read through |
 |---|---|
-| cPanel & WHM | 138.0.21 (2026-11-05) |
-| CSF | 16.34-1 (2026-11-02) |
+| cPanel & WHM | 138.0.25 (2026-11-18) |
+| CSF | 16.35-1 (2026-11-09) |
 
 Older and newer releases are not excluded — these are simply the ones whose
 notes have been reviewed.
@@ -91,6 +91,23 @@ directory, or the unit stops running as the account, the card loses its numbers
 silently — the denominator is then omitted rather than guessed.
 
 ## Review log
+
+**2026-11-19** — cPanel 138.0.22, 138.0.24 and 138.0.25; CSF 16.35-1. Nothing
+that required a change. 138 is still the newest series on the change log index —
+there is no 140 log. Two entries were close enough to check rather than wave
+off: CPANEL-55297 hardens the *save handler* of WHM's Configure cPanel Cron Jobs
+interface, which does not touch the crontab format this dashboard reads to find
+the `csf_autogroup.sh` line; and CPANEL-58291 adds a Mailman dependency on
+AlmaLinux 10 and CloudLinux 10 only, while the server measured here runs
+CloudLinux 8.10. The rest were a ProFTPD update, a Safari login fix under
+mod_ruid2, a reseller error page, a webmail session fix on service subdomains,
+WHM Backup Configuration promotions, and an unspecified Targeted Security
+Release. The single CSF entry preserves local edits to the Messenger v1
+templates across updates; the dashboard reads `csf.conf`, `csf.disable` and the
+lfd service state, never a Messenger template. Both change logs were opened and
+read directly. The server itself is already on both of these releases
+(`cPanel 11.138.0.25`, `CSF v16.35`, read from the running dashboard), so the
+notes describe code that is live here, not code still ahead of us.
 
 **2026-11-09** — Nothing new to read, so nothing to decide. The cPanel 138
 change log still ends at 138.0.21 (page last modified 2026 November 5), and the
