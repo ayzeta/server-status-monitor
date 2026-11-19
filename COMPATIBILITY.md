@@ -21,7 +21,7 @@ separately.
 
 | | Read through |
 |---|---|
-| cPanel & WHM | 138.0.25 (2026-11-18) |
+| cPanel & WHM | 138.0.27 (2026-11-19) |
 | CSF | 16.35-1 (2026-11-09) |
 
 Older and newer releases are not excluded — these are simply the ones whose
@@ -91,6 +91,17 @@ directory, or the unit stops running as the account, the card loses its numbers
 silently — the denominator is then omitted rather than guessed.
 
 ## Review log
+
+**2026-11-19 (second pass, same day)** — cPanel 138.0.27, released the same day
+and already installed here: the dashboard's own version panel reports
+`cPanel 11.138.0.27`, up from the 138.0.25 read earlier today. The change log
+carries exactly one line for it, "[Security] Targeted Security Release", with no
+case IDs and no component names, so there is nothing to match against this
+dashboard's surface — a security release that names nothing cannot be judged
+from the log. There is no 138.0.26 on the page at all: the list goes 138.0.27,
+138.0.25, 138.0.24. CSF is unchanged at 16.35; the dashboard reports `CSF v16.35`.
+Nothing to do; this entry exists so the next session knows .27 was seen and that
+its contents were not disclosed.
 
 **2026-11-19** — cPanel 138.0.22, 138.0.24 and 138.0.25; CSF 16.35-1. Nothing
 that required a change. 138 is still the newest series on the change log index —
