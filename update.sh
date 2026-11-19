@@ -14,6 +14,26 @@ BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 echo "Checking for updates on '$BRANCH'…"
 git fetch --quiet origin "$BRANCH"
 
+# UZAGA BAKTIK — panonun "en son ne zaman bakildi" sayacini da tazele.
+# Altbilgi o yasi $DATA_DIR/.upd_cache dosyasinin mtime'indan okuyor ve o dosyayi
+# normalde toplayici GUNDE BIR yaziyor. Elle guncelleme de uzaga bakmaktir:
+# yazmasaydik, "ssmon update" kostuktan hemen sonra bile altbilgi "17 saat once
+# bakildi" demeye devam eder, kullanici bos yere tekrar guncellerdi.
+# Sayi merge'den ONCE hesaplanir (o anki gercek fark); merge'den sonra toplayici
+# zaten her turda yerelden yeniden sayip 0'a dusurur.
+# Alt kabukta ve "|| true" ile: set -e altinda eksik DATA_DIR guncellemeyi
+# durdurmasin — bu sayac guncellemenin kendisinden daha onemli degil.
+if [ -f .install.conf ]; then
+  ( . ./.install.conf
+    [ -n "${DATA_DIR:-}" ] && [ -d "$DATA_DIR" ] || exit 0
+    printf '%s %s\n' "$(git rev-parse --short "origin/$BRANCH")" \
+                     "$(git rev-list --count "@..origin/$BRANCH")" \
+      > "$DATA_DIR/.upd_cache.tmp" \
+      && mv "$DATA_DIR/.upd_cache.tmp" "$DATA_DIR/.upd_cache" \
+      && chmod 600 "$DATA_DIR/.upd_cache"
+  ) || true
+fi
+
 LOCAL="$(git rev-parse @)"
 REMOTE="$(git rev-parse "origin/$BRANCH")"
 BASE="$(git merge-base @ "origin/$BRANCH")"

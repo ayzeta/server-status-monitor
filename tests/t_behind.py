@@ -182,6 +182,43 @@ else:
     ck("TR: 'güncel · 19sa önce bakıldı'",
        ("güncel" in alt) and ("19sa önce bakıldı" in alt), True)
 
+# ── C) elle guncelleme de sayaci tazeliyor mu ───────────────────────
+# "ssmon update" her kosusunda uzaga BAKAR (git fetch). Tazelemeseydi altbilgi
+# guncellemeden hemen sonra bile "17 saat once bakildi" demeye devam eder,
+# kullanici bos yere tekrar guncellerdi. Blok URUN KAYNAGINDAN cikarilip
+# GERCEK bir depoda kosuluyor.
+upd_src = io.open(KOK + "update.sh", encoding="utf-8", errors="replace").read()
+mb = re.search(r'(if \[ -f \.install\.conf \]; then\n(?:.|\n)*?\nfi)\n', upd_src)
+if not mb:
+    sys.exit("update.sh'te .upd_cache tazeleme blogu bulunamadi")
+blok = mb.group(1)
+
+veri = os.path.join(tmp, "veri")
+os.makedirs(veri, exist_ok=True)
+io.open(os.path.join(yerel, ".install.conf"), "w").write('DATA_DIR="%s"\n' % veri.replace("\\", "/"))
+
+# Uzakta bir tur daha; yerel fetch eder ama MERGE ETMEZ -> 1 tur geride.
+io.open(os.path.join(uzak, "a.txt"), "w").write("4")
+g("add", "-A", cwd=uzak); g("commit", "-qm", "tur4", cwd=uzak)
+g("fetch", "-q", "origin", "main", cwd=yerel)
+
+subprocess.run(["bash", "-c", 'BRANCH=main\n' + blok], cwd=yerel,
+               capture_output=True, text=True)
+onb2 = os.path.join(veri, ".upd_cache")
+ck("elle guncelleme onbellegi yaziyor", os.path.exists(onb2), True)
+if os.path.exists(onb2):
+    icerik = io.open(onb2).read().split()
+    ck("yazilan revizyon uzaktakinin kisasi",
+       icerik[0], g("rev-parse", "--short", "origin/main", cwd=yerel))
+    ck("yazilan sayi o andaki gercek fark", icerik[1], "1")
+    ck("damga taze (yas < 60 sn)", int(time.time()) - int(os.stat(onb2).st_mtime) < 60, True)
+
+# DATA_DIR yoksa guncelleme DURMAZ: sayac guncellemenin kendisinden onemli degil.
+io.open(os.path.join(yerel, ".install.conf"), "w").write('DATA_DIR="%s/yok"\n' % veri.replace("\\", "/"))
+r2 = subprocess.run(["bash", "-c", 'set -e\nBRANCH=main\n' + blok], cwd=yerel,
+                    capture_output=True, text=True)
+ck("DATA_DIR yoksa blok hata vermiyor", r2.returncode, 0)
+
 shutil.rmtree(tmp, ignore_errors=True)
 print()
 print("GECEN: %d  KALAN: %d" % (pass_, fail))
