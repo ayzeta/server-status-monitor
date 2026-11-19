@@ -5,7 +5,34 @@
 # saved settings (no prompts, config.php/branding/lang preserved).
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
-cd "$(cd "$(dirname "$0")" && pwd)"
+
+# ── ONCE KENDINI /tmp'YE KOPYALA, ORADAN KOS ────────────────────
+# Bu betik asagida "git merge" ile KENDINI diskte yeniden yaziyor. Bash ise
+# betigi bayt konumuna gore parca parca okuyor: her dis komuttan once okudugu
+# yere geri sariyor. Dosya bu arada degisirse kalan kisim KAYMIS konumdan
+# okunur.
+#
+# 2026-11-19'da olculdu (bash 5.1.8, CloudLinux 8 ile ayni surum):
+#   dosya UZARSA  -> eski konumdan devam etti, cop bir parca "command not found"
+#                    verdi, sonra YENI dosyanin satirlari bastan kostu;
+#   dosya KISALIRSA -> kalan satirlarin HICBIRI calismadi ve cikis kodu 0 kaldi.
+# Ikincisi bizim icin sessiz felaket: merge'den sonraki "bash install.sh --yes"
+# hic kosmaz, update.sh basariyla bitmis gorunur, git "guncelim" der ama panonun
+# dosyalari eski kalir. Hata mesaji da yoktur.
+#
+# Cozum: betik kendini /tmp'ye kopyalayip oradan kosar. Merge artik CALISAN
+# kopyaya dokunamaz. mktemp basarisiz olursa yerinde kosmaya devam eder —
+# eski davranis, yani bu koruma hicbir seyi KOTULESTIRMEZ.
+SSM_KOK="$(cd "$(dirname "$0")" && pwd)"
+if [ -z "${SSM_UPD_KOPYA:-}" ] \
+   && KOPYA="$(mktemp /tmp/ssm_update.XXXXXX 2>/dev/null)" \
+   && cat "$0" > "$KOPYA" 2>/dev/null && [ -s "$KOPYA" ]; then
+  rc=0
+  SSM_UPD_KOPYA=1 SSM_UPD_KOK="$SSM_KOK" bash "$KOPYA" "$@" || rc=$?
+  rm -f "$KOPYA"
+  exit $rc
+fi
+cd "${SSM_UPD_KOK:-$SSM_KOK}"
 
 [ "$(id -u)" -eq 0 ] || { echo "ERROR: run as root (install step needs cron + chown)."; exit 1; }
 [ -d .git ] || { echo "ERROR: not a git checkout — 'git clone' the repo and run from it."; exit 1; }

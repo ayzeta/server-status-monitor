@@ -30,7 +30,7 @@ PHP_GEREK=" t_growikiz.py t_ioikiz.py t_lveikiz.py t_sslikiz.py t_bosdurum.py t_
 NODE_GEREK=" t_growikiz.py t_ioikiz.py t_lveikiz.py t_sslikiz.py "
 # Gercek Linux "ps" isteyenler. Git Bash'te /proc taklidi VAR ama ps Windows'un
 # ps'i: "--sort" yok. O yuzden olcut dosya degil, procps'in kendisi.
-LINUX_GEREK=" t_pscanli.sh "
+LINUX_GEREK=" t_pscanli.sh t_updself.sh "
 HAS_PROCPS=0
 ps --version 2>&1 | grep -qi procps && HAS_PROCPS=1
 
