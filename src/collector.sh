@@ -1249,6 +1249,11 @@ PYEOF
       CAG_EV="${CAG_EV:-/var/lib/csf_autogroup}/events.jsonl"
     fi
     CAG_T=""; CAG_BLK=0
+    # Uc alanin adi 2026-11-19'da sunucudaki GERCEK satirla dogrulandi
+    # (csf-autogroup 1.15.110): {"t":...,"v":"1.15.110","dur":9,"added":0,
+    # "warn16":0,"warnpfx":0,"temp_added":0,"promoted":0,...}. Aracin kendi
+    # deposundaki ornek satir bu alanlari TASIMIYOR — o sentetik bir fikstur,
+    # olcut degil. Alan yoksa toplam 0 kalir, rozet yine cikar.
     if [ -r "$CAG_EV" ]; then
       read -r CAG_T CAG_BLK < <(grep '"type":"run"' "$CAG_EV" 2>/dev/null \
         | grep -E '^\{"t":[0-9]+,.*\}$' | tail -1 | awk '
