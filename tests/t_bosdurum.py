@@ -16,6 +16,8 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import os as _os
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import ortak_cfg   # gercek config.php yok edilmesin
 # Depo koku: test dosyasinin yerinden bulunur (tests/ -> kok).
 KOK = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))) + '/'
 BURASI = os.path.dirname(os.path.abspath(__file__))
@@ -48,15 +50,13 @@ def render(ad, lang):
     os.makedirs(seed)
     io.open(os.path.join(seed, ".proc_snapshot"), "w", encoding="utf-8",
             newline=NL).write(tohum(ad))
-    cfg = KOK + "src/config.php"
-    io.open(cfg, "w", encoding="utf-8", newline=NL).write(
-        "<?php" + NL + "return ['home_dir' => " + json.dumps(seed.replace("\\", "/")) + "];" + NL)
+    ortak_cfg.yaz(KOK, seed)
     try:
         kod = ('$_COOKIE["lang"]="tr"; include "src/index.php";' if lang == "tr"
                else 'include "src/index.php";')
         r = subprocess.run(["php", "-r", kod], capture_output=True, timeout=120, cwd=KOK)
     finally:
-        os.remove(cfg)
+        ortak_cfg.geri(KOK)
     if r.returncode:
         sys.exit("php hatasi: " + r.stderr.decode("utf-8", "replace")[:400])
     govde = r.stdout.decode("utf-8", "replace")

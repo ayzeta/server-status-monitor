@@ -23,6 +23,8 @@ import subprocess
 import sys
 
 import os as _os
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import ortak_cfg   # gercek config.php yok edilmesin
 # Depo koku: test dosyasinin yerinden bulunur (tests/ -> kok).
 KOK = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))) + '/'
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -83,13 +85,11 @@ bugun = datetime.date.today()
 io.open(os.path.join(seed, ".diskacct_history"), "w", encoding="utf-8", newline=NL).write(
     "%s bluewave:21.300 shopfast:13.050%s%s bluewave:22.635 shopfast:13.068%s"
     % (bugun - datetime.timedelta(days=1), NL, bugun, NL))
-cfg = KOK + "src/config.php"
-io.open(cfg, "w", encoding="utf-8", newline=NL).write(
-    "<?php" + NL + "return ['home_dir' => " + json.dumps(seed.replace("\\", "/")) + "];" + NL)
+ortak_cfg.yaz(KOK, seed)
 try:
     r = subprocess.run(["php", KOK + "src/index.php"], capture_output=True, timeout=120)
 finally:
-    os.remove(cfg)
+    ortak_cfg.geri(KOK)
     shutil.rmtree(IS, ignore_errors=True)
 if r.returncode:
     sys.exit("php hatasi: " + r.stderr.decode("utf-8", "replace")[:300])
@@ -156,12 +156,11 @@ shutil.rmtree(IS, ignore_errors=True)
 seed2 = os.path.join(IS, "seed")
 os.makedirs(seed2)
 io.open(os.path.join(seed2, ".proc_snapshot"), "w", encoding="utf-8", newline="").write(kesik)
-io.open(cfg, "w", encoding="utf-8", newline=NL).write(
-    "<?php" + NL + "return ['home_dir' => " + json.dumps(seed2.replace("\\", "/")) + "];" + NL)
+ortak_cfg.yaz(KOK, seed2)
 try:
     r2 = subprocess.run(["php", KOK + "src/index.php"], capture_output=True, timeout=120)
 finally:
-    os.remove(cfg)
+    ortak_cfg.geri(KOK)
     shutil.rmtree(IS, ignore_errors=True)
 if r2.returncode:
     sys.exit("php hatasi (LVE'siz): " + r2.stderr.decode("utf-8", "replace")[:300])

@@ -50,10 +50,41 @@ if [ "$HAS_PROCPS" = "0" ] && command -v wsl.exe >/dev/null 2>&1; then
   wsl.exe $WSL_SEC -e bash -lc "[ -r /proc/stat ] && [ -d '$WSL_KOK' ]" >/dev/null 2>&1 || WSL_KOK=""
 fi
 
+# ── Testlerin temp'i AYRI ──────────────────────────────────────────────
+# Urun gecici dosyalarini sys_get_temp_dir()'e koyuyor (azTmp): yoklama
+# onbellegi, donanim kusagi. Testler oraya yazarsa CANLI panonun onbellegine
+# karisirlar — bu depo sunucuda da duruyor ve pano oradan kosuyor. Ayri dizin
+# hem onu onler hem isitmayi (asagi) mumkun kilar.
+# Windows PHP TMPDIR'i YOK SAYAR, TMP/TEMP'e bakar; Linux'ta tersi. Ucu de.
+export TMPDIR="${TMPDIR_TEST:-${TMP:-/tmp}/az_test_tmp}"
+mkdir -p "$TMPDIR" 2>/dev/null
+export TMP="$TMPDIR" TEMP="$TMPDIR"
+
+# ── Yoklama onbellegini isit ───────────────────────────────────────────
+# Urun kapali her portu 1 sn zaman asimiyla yokluyor; gelistirme makinesinde
+# hicbiri dinlemedigi icin tek render 16 saniyesini beklemekle geciriyordu
+# (CPU suresi 0.015 sn). Urunun onbellegi var ama tam sayfa TTL'i 5 saniye,
+# yani render bitmeden bayatliyordu. Bir kez isitip damgalari ileri aliriz;
+# degerler gercek olcumdur, uydurma yok. Ayrintisi probe_isit.py'de.
+if [ "$HAS_PHP" = "1" ] && ! ls "$TMPDIR"/az_probe_cache_*.json >/dev/null 2>&1; then
+  printf '  %-20s %s' "(isitma)" "yoklama onbellegi dolduruluyor... "
+  ( cd "$KOK" && php -r 'include "src/index.php";' ) >/dev/null 2>&1
+  "$PY" probe_isit.py "$TMPDIR" | tail -1
+fi
+
 gecen=0; kalan=0; atlanan=0; bozuk=()
 
+# Sure olcumu: EPOCHREALTIME mikrosaniye verir, ama ondalik ayraci YERELE bagli
+# (tr_TR'de virgul). Ikisini de at, tamsayi mikrosaniye kalsin.
+simdi_us(){ local e=${EPOCHREALTIME}; e=${e/,/}; e=${e/./}; printf '%s' "$e"; }
+sure_yaz(){ # $1 = baslangic (mikrosaniye)
+  local ms=$(( ($(simdi_us) - $1) / 1000 ))
+  printf '%d.%01ds' $(( ms / 1000 )) $(( (ms % 1000) / 100 ))
+}
+
 kosu(){ # dosya
-  local f="$1" ad="${1%.*}" cikti son durum
+  local f="$1" ad="${1%.*}" cikti son durum t0
+  t0=$(simdi_us)
   case " $f " in
     *" ${f} "*) ;;
   esac
@@ -77,9 +108,9 @@ kosu(){ # dosya
     cikti="${cikti//$'\r'/}"
     son="$(printf '%s\n' "$cikti" | grep -E 'GECEN|KALAN' | tail -1)"
     if [ "$durum" -eq 0 ]; then
-      gecen=$((gecen+1)); printf '  %-20s OK    %s   [WSL]\n' "$ad" "$son"
+      gecen=$((gecen+1)); printf '  %-20s OK  %7s  %s   [WSL]\n' "$ad" "$(sure_yaz "$t0")" "$son"
     else
-      kalan=$((kalan+1)); bozuk+=("$ad"); printf '  %-20s HATA  %s   [WSL]\n' "$ad" "$son"
+      kalan=$((kalan+1)); bozuk+=("$ad"); printf '  %-20s HATA %6s  %s   [WSL]\n' "$ad" "$(sure_yaz "$t0")" "$son"
       printf '%s\n' "$cikti" | tail -12 | sed 's/^/        /'
     fi
     return
@@ -96,15 +127,16 @@ kosu(){ # dosya
   # Testler son satirda ozet basar: "GECEN: n KALAN: m" / "HATA: n" / "SIZINTI: n"
   son="$(printf '%s\n' "$cikti" | grep -E 'GECEN|KALAN|HATA|IHLAL|SIZINTI|AYRISMA|SORUN' | tail -1)"
   if [ "$durum" -eq 0 ]; then
-    gecen=$((gecen+1)); printf '  %-20s OK    %s\n' "$ad" "$son"
+    gecen=$((gecen+1)); printf '  %-20s OK  %7s  %s\n' "$ad" "$(sure_yaz "$t0")" "$son"
   else
-    kalan=$((kalan+1)); bozuk+=("$ad"); printf '  %-20s HATA  %s\n' "$ad" "$son"
+    kalan=$((kalan+1)); bozuk+=("$ad"); printf '  %-20s HATA %6s  %s\n' "$ad" "$(sure_yaz "$t0")" "$son"
     printf '%s\n' "$cikti" | tail -12 | sed 's/^/        /'
   fi
 }
 
 echo "Server Status Monitor — testler ($KOK)"
 echo
+TOPLAM_T0=$(simdi_us)
 
 for f in t_*.py t_*.sh t_*.js; do
   [ -e "$f" ] || continue
@@ -121,5 +153,5 @@ for f in t_*.py t_*.sh t_*.js; do
 done
 
 echo
-echo "GECEN: $gecen   HATA: $kalan   ATLANDI: $atlanan"
+echo "GECEN: $gecen   HATA: $kalan   ATLANDI: $atlanan   SURE: $(sure_yaz "$TOPLAM_T0")"
 [ "$kalan" -eq 0 ] || { echo "Bozuk: ${bozuk[*]}"; exit 1; }

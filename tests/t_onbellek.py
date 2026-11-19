@@ -27,6 +27,8 @@ import subprocess
 import sys
 
 import os as _os
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import ortak_cfg   # gercek config.php yok edilmesin
 # Depo koku: test dosyasinin yerinden bulunur (tests/ -> kok).
 KOK = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))) + '/'
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -222,13 +224,11 @@ else:
         snap = taban + NL + "--- Root checks ---" + NL + NL.join(root_satirlari) + NL
         io.open(os.path.join(seed, ".proc_snapshot"), "w", encoding="utf-8",
                 newline=NL).write(snap)
-        cfg = KOK + "src/config.php"
-        io.open(cfg, "w", encoding="utf-8", newline=NL).write(
-            "<?php" + NL + "return ['home_dir' => " + json.dumps(seed.replace("\\", "/")) + "];" + NL)
+        ortak_cfg.yaz(KOK, seed)
         try:
             r = subprocess.run(["php", KOK + "src/index.php"], capture_output=True, timeout=120)
         finally:
-            os.remove(cfg)
+            ortak_cfg.geri(KOK)
             shutil.rmtree(IS, ignore_errors=True)
         if r.returncode:
             sys.exit("php hatasi: " + r.stderr.decode("utf-8", "replace")[:300])

@@ -20,6 +20,19 @@ BOSEXE="/tmp/ssm test"
 cp -p "$(command -v sleep)" "$BOSEXE" 2>/dev/null && "$BOSEXE" 30 &
 BOSPID=$!
 
+# SURECIN GORUNMESINI BEKLE (2026-11-19). Arka plan isi baslatilip hemen
+# anlik goruntu aliniyordu; fork ile exec arasinda comm hala kabugun adi
+# oluyor, yani ps o anda "ssm test" diye bir satir basmiyor. Test bu yuzden
+# ARA SIRA, urun tamamen dogruyken "bosluklu comm satiri sayisi = 0" deyip
+# iki iddiayi birden dusuruyordu -- yani kirmizi, kodda bir sey degistigi icin
+# degil, makine o an yavas oldugu icin yaniyordu. En fazla 5 saniye beklenir.
+BOSBEKLE=0
+while [ "$BOSBEKLE" -lt 50 ]; do
+  case "$(ps -o comm= -p "$BOSPID" 2>/dev/null)" in *"ssm test"*) break ;; esac
+  BOSBEKLE=$((BOSBEKLE + 1)); sleep 0.1
+done
+[ "$BOSBEKLE" -ge 50 ] && echo "  bilgi: bosluklu comm sureci 5 sn icinde gorunmedi (cp basarisiz olabilir)"
+
 ps axo pid=,state=,user:19=,etimes=,pcpu=,pmem=,rss=,args= > "$S" 2>/dev/null
 ps axo state=,user:19=,etimes=,pcpu=,rss=,comm=  > "$C" 2>/dev/null
 
