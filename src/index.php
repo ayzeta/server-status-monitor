@@ -1303,6 +1303,23 @@ function svcTally($checks) {
                     : ($unk > 0 ? 'unused' : 'operational');
     return [$st, $ok, $tot, $unk];
 }
+// Olay kaydı satırının "neyin yüzünden" kısmı: en fazla iki kontrol adı, kalanı
+// sayı olarak. JS ikizi svcBad() — biçim ikisinde de aynı olmalı.
+//
+// YOKLUK ARIZA DEĞİLDİR burada da geçerli: doğrulanamayan (unknown) kontrol
+// kartı sorunlu YAPMIYOR (svcTally onu sayımdan düşürüyor), o yüzden sebep
+// listesinde de yazmaz. 2026-11-20'de üretimde görüldü: kart "2/2 aktif ·
+// 1 kullanılmıyor" derken olay kaydı "Önbellek sorunlu · Redis (6379), Redis ·
+// kullanıcı" yazdı. Oysa 6379 bu sunucuda kullanılmıyor (gri); kartı sarıya
+// çeviren tek şey ikinci satırdı. Kullanıcı olay kaydına bakıp yanlış servisi
+// aradı — ölçülmüş bir arıza varken yanlış yere bakmak, hiç bakmamaktan kötü.
+function svcBadTxt($checks) {
+    $bad = [];
+    foreach ($checks as $c) if (empty($c['ok']) && empty($c['unknown'])) $bad[] = $c['label'];
+    if (!$bad) return '';
+    return ' · ' . implode(', ', array_slice($bad, 0, 2))
+                 . (count($bad) > 2 ? ' +' . (count($bad) - 2) : '');
+}
 function chkPort($label, $port, $lp) {
     $ok  = portOpen('127.0.0.1', $port);
     $lst = isListening($port, $lp);
@@ -2658,12 +2675,14 @@ $svcSeed = [
     'FTP'           => [$ftpStatus,   $ftpChecks],
 ];
 foreach ($svcSeed as $sName => $sInf) {
-    if ($sInf[0] === 'operational') continue;
-    $sBad = [];
-    foreach ($sInf[1] as $sChk) if (empty($sChk['ok'])) $sBad[] = $sChk['label'];
-    $sMsg = tf($sInf[0] === 'offline' ? '%s went offline' : '%s degraded', t($sName));
-    if ($sBad) $sMsg .= ' · ' . implode(', ', array_slice($sBad, 0, 2))
-                      . (count($sBad) > 2 ? ' +' . (count($sBad) - 2) : '');
+    // 'unused' = kartın ölçülebilir hiçbir kontrolü yok (hepsi kullanılmıyor /
+    // kurulu değil). Kart orada GRİ yanıyor, rozeti "Kullanılmıyor" diyor —
+    // ama bu döngü 'operational' olmayan her şeyi sorun sayıp "DNS sorunlu"
+    // diye SARI bir olay yazıyordu. Dışarıda DNS kullanan ya da Redis/Memcached
+    // olmayan her kurulumda sayfa her açıldığında uydurma bir alarm demekti.
+    if ($sInf[0] === 'operational' || $sInf[0] === 'unused') continue;
+    $sMsg = tf($sInf[0] === 'offline' ? '%s went offline' : '%s degraded', t($sName))
+          . svcBadTxt($sInf[1]);
     $seedLogs[] = ['type' => $sInf[0] === 'offline' ? 'err' : 'warn', 'msg' => $sMsg, 'ts' => date('H:i')];
 }
 
@@ -5452,9 +5471,11 @@ function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:srvNow)});
 // Grup satirina dusen kontrolleri ekler. "Mail servisleri sorunlu" tek basina neyin
 // bozuldugunu soylemiyordu. En fazla iki etiket yazilir, kalan sayi olarak eklenir.
 // PHP tarafindaki seed ile ayni bicim.
+// unknown (kullanilmiyor / kurulu degil) SEBEP DEGILDIR: karti sorunlu yapmiyor,
+// listede de yazmaz. PHP ikizi svcBadTxt() — gerekcesi orada.
 function svcBad(g){
   if(!g||!g.checks)return'';
-  const b=g.checks.filter(c=>!c.ok).map(c=>c.label);
+  const b=g.checks.filter(c=>!c.ok&&!c.unknown).map(c=>c.label);
   if(!b.length)return'';
   return' · '+b.slice(0,2).join(', ')+(b.length>2?' +'+(b.length-2):'');
 }
@@ -5670,6 +5691,12 @@ function checkAlerts(data){
     if(prev[k]&&prev[k]!==cs){
       if(cs==='offline')      addLog('err', tf('%s went offline',t(names[k]))+svcBad(g),now);
       else if(cs==='degraded')addLog('warn',tf('%s degraded',t(names[k]))+svcBad(g),now);
+      // 'unused': kartin olculebilir kontrolu kalmadi (hepsi kullanilmiyor).
+      // Ne ariza ne duzelme — HIC yazilmaz. Eskiden else'e dusup "Onbellek geri
+      // geldi" diye YESIL yaziyordu; oysa geri gelen bir sey yok, olcebildigimiz
+      // sey kalmadi. prev yine guncellenir, yani unused->operational "geri geldi"
+      // der (dogru: artik olculuyor ve calisiyor).
+      else if(cs==='unused')  {}
       else                    addLog('ok',  tf('%s restored',t(names[k])),now);
     }
     prev[k]=cs;

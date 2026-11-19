@@ -15,6 +15,7 @@ t_tur.sh
 t_growikiz.js
 t_ioikiz.js
 t_sslikiz.js
+t_olaysatiri.js
 # Geçici çalışma dizinleri
 t_ioproc/
 t_lve_cp/
