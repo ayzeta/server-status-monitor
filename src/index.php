@@ -1313,9 +1313,15 @@ function svcTally($checks) {
 // kullanıcı" yazdı. Oysa 6379 bu sunucuda kullanılmıyor (gri); kartı sarıya
 // çeviren tek şey ikinci satırdı. Kullanıcı olay kaydına bakıp yanlış servisi
 // aradı — ölçülmüş bir arıza varken yanlış yere bakmak, hiç bakmamaktan kötü.
+//
+// ETIKET TEK BASINA YETMIYOR (kullanici, 2026-11-22): "Önbellek sorunlu · Redis ·
+// kullanıcı" satiri hangi HESABIN Redis'inin düştüğünü söylemiyordu; o ad kartta
+// zaten ölçülü duruyor (not: "364/365 · gama"). Kontrolde 'who' alani
+// varsa parantez içinde satira da giriyor. JS ikizi svcBad() — biçim aynı.
 function svcBadTxt($checks) {
     $bad = [];
-    foreach ($checks as $c) if (empty($c['ok']) && empty($c['unknown'])) $bad[] = $c['label'];
+    foreach ($checks as $c) if (empty($c['ok']) && empty($c['unknown']))
+        $bad[] = $c['label'] . (empty($c['who']) ? '' : ' (' . $c['who'] . ')');
     if (!$bad) return '';
     return ' · ' . implode(', ', array_slice($bad, 0, 2))
                  . (count($bad) > 2 ? ' +' . (count($bad) - 2) : '');
@@ -1749,6 +1755,10 @@ if ($rootFresh && isset($procSec['userredis'])) {
         $urMem  = isset($procSec['userredis_mem']) && ctype_digit(trim($procSec['userredis_mem']))
                 ? (int)trim($procSec['userredis_mem']) : 0;
         $urMemT = $urMem >= 1024 ? round($urMem / 1024, 1) . ' GB' : $urMem . ' MB';
+        // Ayni ad listesi olay kaydinda da gerekiyor (kontrolun 'who' alani):
+        // "Önbellek sorunlu · Redis · kullanıcı (gama)". Not ile AYNI
+        // dizge — iki ad + kalan sayi — ikisi ayri bicimde yazilmasin.
+        $urWho = '';
         if ($urTot > $urUp) {
             // Nota İKİ AD sığıyor (kart 314 px ölçüldü), gerisi "+N" ve tamamı
             // ipucunda. Yalnız sayı yazmak "hangileri" sorusunu açık bırakırdı;
@@ -1759,7 +1769,8 @@ if ($rootFresh && isset($procSec['userredis'])) {
             if ($ad) {
                 $gor = array_slice($ad, 0, 2);
                 $kalan = $eksik - count($gor);
-                $urNote .= ' · ' . implode(' ', $gor) . ($kalan > 0 ? ' +' . $kalan : '');
+                $urWho   = implode(' ', $gor) . ($kalan > 0 ? ' +' . $kalan : '');
+                $urNote .= ' · ' . $urWho;
                 $urTips[] = t('not running') . ': ' . implode(' ', $ad)
                           . (count($ad) < $eksik ? ' +' . ($eksik - count($ad)) : '');
             } else {
@@ -1874,6 +1885,10 @@ if ($rootFresh && isset($procSec['userredis'])) {
                           // için saklı.
                           'warn' => $urUp > 0 && ($urUp < $urTot || $urAsim || $urNoEv > 0),
                           'note' => $urNote]
+                       // Olay kaydi bu alandan hesap adini yaziyor (svcBadTxt /
+                       // svcBad). Notta zaten var; ayri alan, ayristirma olmasin
+                       // diye — notun bicimi degisirse olay satiri bozulmasin.
+                       + ($urWho !== '' ? ['who' => $urWho] : [])
                        + ($urAge  ? ['up' => fmtAge($urAge), 'upS' => fmtAgeShort($urAge)] : [])
                        + ($urTips ? ['noteT' => implode(' · ', $urTips)] : [])
                        // DOLULUK CUBUGU: kullanilan/tavan. Sayilar ipucunda
@@ -4877,11 +4892,21 @@ function hintYer(x,y){
   // genisligi viewport-left'tir). Olcum tam genislikte yapilsin.
   hintEl.style.left='0px';hintEl.style.top='0px';
   const g=hintEl.getBoundingClientRect();
-  let l=x+12,u=y-g.height-12;
+  let l=x+12;
   if(l+g.width>innerWidth-8)l=innerWidth-8-g.width;
   if(l<8)l=8;
+  // YUKSEKLIK SOLDAKI OLCUMDEN ALINAMAZ (uretimde olculdu 2026-11-22, canli panoda
+  // 1280x900 pencerede): kutu position:fixed, yani left verilince
+  // kullanilabilir genislik viewport-left kadar kaliyor. "Kaydı temizle..."
+  // ipucu solda 278x26 (tek satir), gercek yerinde (left 994) 271x40 (iki
+  // satir) olcüldü. Ust kenar tek satirlik 26 pikselle hesaplanınca kutu 14
+  // piksel asagi tasip IMLECIN VE DUGMENIN ustune biniyordu — kullanici
+  // "butonu kapatiyor" dedi. Once yatay yer kesinlesir, left uygulanir,
+  // yukseklik ORADA olculur.
+  hintEl.style.left=l+'px';
+  let u=y-hintEl.getBoundingClientRect().height-12;
   if(u<8)u=y+20;                       // tepeye sigmiyorsa imlecin altina
-  hintEl.style.left=l+'px';hintEl.style.top=u+'px';
+  hintEl.style.top=u+'px';
 }
 function hintIzle(e){
   const el=e.target&&e.target.closest?e.target.closest('[title],[data-tip]'):null;
@@ -5475,7 +5500,8 @@ function addLog(type,msg,ts,t){logs.unshift({type,msg,ts,t:(t!=null?t:srvNow)});
 // listede de yazmaz. PHP ikizi svcBadTxt() — gerekcesi orada.
 function svcBad(g){
   if(!g||!g.checks)return'';
-  const b=g.checks.filter(c=>!c.ok&&!c.unknown).map(c=>c.label);
+  // 'who' varsa hesap adi da satira girer (PHP ikizi svcBadTxt — gerekcesi orada).
+  const b=g.checks.filter(c=>!c.ok&&!c.unknown).map(c=>c.label+(c.who?' ('+c.who+')':''));
   if(!b.length)return'';
   return' · '+b.slice(0,2).join(', ')+(b.length>2?' +'+(b.length-2):'');
 }

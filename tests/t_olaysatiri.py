@@ -54,12 +54,13 @@ def satir(imza):
 # GERÇEK vaka: canlı panonun 'cache' bölümü (hesap adı kurgusal).
 ONBELLEK = [
     {"label": "Redis (6379)", "ok": False, "unknown": True, "note": "not in use"},
-    {"label": "Redis · user", "ok": False, "warn": True, "note": "364/365 · gama"},
+    {"label": "Redis · user", "ok": False, "warn": True, "note": "364/365 · gama",
+     "who": "gama"},
     {"label": "OPcache", "ok": True, "note": "154 pools"},
 ]
 KONTROL_VAKA = [
     ("gerçek Önbellek kartı: sebep yalnız kullanıcı Redis'i",
-     ONBELLEK, " · Redis · user"),
+     ONBELLEK, " · Redis · user (gama)"),
     ("kullanılmıyor arada: sebep listesine girmez",
      [{"label": "A", "ok": False}, {"label": "B", "ok": False, "unknown": True},
       {"label": "C", "ok": False}], " · A, C"),
@@ -74,6 +75,11 @@ KONTROL_VAKA = [
      [{"label": "A", "ok": False, "unknown": True},
       {"label": "B", "ok": False, "unknown": True}], ""),
     ("hepsi sağlam: sebep yok", [{"label": "A", "ok": True}], ""),
+    ("saglam kontrolun who'su satira girmez",
+     [{"label": "A", "ok": True, "who": "delta"}, {"label": "B", "ok": False}], " · B"),
+    ("iki adlı who olduğu gibi geçer",
+     [{"label": "Redis · user", "ok": False, "who": "gama teta +3"}],
+     " · Redis · user (gama teta +3)"),
 ]
 
 # Tohum döngüsü: kart durumu -> yazılan olaylar
@@ -82,7 +88,7 @@ TOHUM_VAKA = [
     ("kullanılmayan kart olay YAZMAZ", "DNS", "unused",
      [{"label": "DNS TCP (53)", "ok": False, "unknown": True}], []),
     ("sorunlu kart: sebep yalnız gerçek arıza", "Cache", "degraded", ONBELLEK,
-     [["warn", "Cache degraded · Redis · user"]]),
+     [["warn", "Cache degraded · Redis · user (gama)"]]),
     ("çökmüş kart: kırmızı ve iki ad", "Mail services", "offline",
      [{"label": "SMTP (25)", "ok": False}, {"label": "IMAP (143)", "ok": False},
       {"label": "POP3 (110)", "ok": False, "unknown": True}],
@@ -92,13 +98,13 @@ TOHUM_VAKA = [
 # JS geçiş tablosu: önceki durum -> yeni durum
 GECIS_VAKA = [
     ("çalışır -> sorunlu: sarı, sebepli", "cache", "operational", "degraded",
-     ONBELLEK, [["warn", "Cache degraded · Redis · user"]]),
+     ONBELLEK, [["warn", "Cache degraded · Redis · user (gama)"]]),
     ("sorunlu -> kullanılmıyor: HİÇBİR ŞEY yazılmaz", "cache", "degraded", "unused",
      [{"label": "Redis (6379)", "ok": False, "unknown": True}], []),
     ("kullanılmıyor -> çalışır: geri geldi", "cache", "unused", "operational",
      [{"label": "OPcache", "ok": True}], [["ok", "Cache restored"]]),
     ("çökmüş -> sorunlu: 'geri geldi' DEĞİL", "cache", "offline", "degraded",
-     ONBELLEK, [["warn", "Cache degraded · Redis · user"]]),
+     ONBELLEK, [["warn", "Cache degraded · Redis · user (gama)"]]),
     ("durum değişmedi: olay yok", "cache", "degraded", "degraded", ONBELLEK, []),
 ]
 
