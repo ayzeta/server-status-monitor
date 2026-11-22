@@ -4855,7 +4855,16 @@ let hintFor=null,hintSup=false,hintBek=false;
 // Cihaz bir kez DOKUNULDUYSA kalici olarak dokunmatik sayilir. Masaustunde hic
 // kurulmaz, yani fare ipuculari oldugu gibi kalir.
 let hintDokunmatik=false;
-function hintGizle(){if(hintFor){hintFor=null;hintEl.style.opacity=0;}}
+// KAPATMA KOSULSUZ. Eskiden "if(hintFor)" vardi ve kutu DOKUNMATIKTE EKRANDA
+// KILITLENIYORDU (kullanici 2026-11-22; canli panoda yeniden uretildi): asagidaki
+// hintTara dokunmatikte bag kopunca hintFor'u null yapar ama kutuyu bilerek
+// ACIK BIRAKIR (okunurken canli tik karti yeniden cizmesin diye). O andan sonra
+// kapatma yollarinin HEPSI bu fonksiyondan geciyordu -- zamanlayici, bosluga
+// dokunus, kaydirma -- ve hepsi "hintFor yok" diye hicbir sey yapmiyordu. Kutu
+// yalnizca baska bir ipucu acilinca degisiyor, kendiliginden hic kapanmiyordu.
+// Olculen sira: ac (opaklik 1) -> tik yeniden cizdi (hintFor null, opaklik 1)
+// -> hintGizle (opaklik 1) -> bosluga dokun (opaklik 1).
+function hintGizle(){hintFor=null;if(hintEl.style.opacity!=='0')hintEl.style.opacity=0;}
 // TASIMA SAYFA GENELINDE, bir kerede. Yalniz hover aninda tasimak YETMIYOR:
 // canli dongu kart icerigini dakikada bir yeniden yaziyor, title'li YENI dugum
 // geliyor ve fare kipirdamadigi icin donusum hic calismiyor — uretimde IKI
