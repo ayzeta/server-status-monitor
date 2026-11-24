@@ -93,6 +93,8 @@ $LANG_UI = ($LANG_UI === 'tr') ? 'tr' : 'en';
 $TR = [
     // Genel durum + bölüm başlıkları
     'All systems operational' => 'Tüm sistemler çalışıyor', 'Degraded' => 'Sorunlu', 'Issues detected' => 'Sorun tespit edildi', 'Issues' => 'Sorun',
+    // Besleme kesikken: pano hiçbir şey ölçemiyor, son ölçümü iddia etmez.
+    'Status unknown' => 'Durum bilinmiyor', 'Unknown' => 'Bilinmiyor', 'last data %s ago' => 'son veri %s önce',
     'System metrics' => 'Sistem metrikleri', 'System info' => 'Sistem bilgisi', 'Services' => 'Servisler',
     'Processes' => 'Süreçler', 'Event log' => 'Olay kaydı',
     // Kimlik/başlık şeridi
@@ -5043,7 +5045,7 @@ function _favLink(){let l=document.querySelector('link[rel~="icon"]');if(!l){l=d
 (function(){if(!FAV_OK)return;_favImg=new Image();_favImg.onload=()=>{_favImgOk=true;if(_favCol==='var(--danger)'||_favCol==='var(--warn)')_paintProblemFav(_favCol);};_favImg.src=FAV_OK;})();
 function _paintProblemFav(colorVar){
   const r=getComputedStyle(document.documentElement);
-  const col=(colorVar==='var(--danger)'?r.getPropertyValue('--danger'):colorVar==='var(--warn)'?r.getPropertyValue('--warn'):r.getPropertyValue('--ok')).trim()||'#10b981';
+  const col=(colorVar==='var(--danger)'?r.getPropertyValue('--danger'):colorVar==='var(--warn)'?r.getPropertyValue('--warn'):colorVar==='var(--muted)'?r.getPropertyValue('--muted'):r.getPropertyValue('--ok')).trim()||'#10b981';
   // Favicon saydam olduğundan SADECE kenar boyamak ortayı beyaz bırakır. Bu yüzden
   // TÜM yuvarlak-kare zemini durum rengiyle doldurup gerçek "A"yı (rengi korunur)
   // üstüne basarız → "A" komple renkli zeminde durur. withImg=false: taint (yerel
@@ -5064,7 +5066,9 @@ function setStatusIcon(colorVar, shortStatus){
   _favCol=colorVar;
   // sağlıklı: yapılandırılmış favicon varsa onu kullan; yoksa durum renginde (yeşil)
   // ikon çiz — yoksa önceki sorun (kırmızı/turuncu) favicon'u ekranda kalırdı.
-  if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'){if(FAV_OK){_favLink().href=FAV_OK;}else{_paintProblemFav('var(--ok)');}return;}
+  // var(--muted) = BESLEME KESIK, durum bilinmiyor (bkz. markStale): o da boyanir,
+  // yoksa kesinti boyunca saglikli favicon ekranda kalirdi.
+  if(colorVar!=='var(--danger)'&&colorVar!=='var(--warn)'&&colorVar!=='var(--muted)'){if(FAV_OK){_favLink().href=FAV_OK;}else{_paintProblemFav('var(--ok)');}return;}
   _paintProblemFav(colorVar);
 }
 // İlk yükte sunucu render'ındaki durumdan (ilk fetch'i beklemeden)
@@ -5868,6 +5872,33 @@ let lastHttpStatus=null;
 // Bayat veri isareti: son basarili veri saati + ne kadar eski oldugu. Her
 // basarisiz tick'te yenilenir (30 sn), basarili tick'te kaldirilir.
 let lastGoodTime='';
+// Ulasilamama sebebinin METNI — olay kaydi ve tepe rozeti AYNI yerden okur.
+// Eskiden yalniz tick()'in icinde satir ici yazilmisti; rozet de ayni metni
+// gosterecegi icin tek yere alindi.
+function downMsg(k,s){
+  return k==='offline' ? t('No internet connection')
+       : k==='403'     ? t('Access forbidden (403) — IP blocked?')
+       : k==='401'     ? t('Authentication required (401)')
+       : k==='404'     ? t('Page not found (404) — install moved?')
+       : k==='backend' ? tf('Server backend not responding (%s)',s)
+       : k==='http'    ? tf('Server responded with error (%s)',s)
+       : k==='timeout' ? t('Server did not respond (timeout)')
+       : k==='conn'    ? t('Server unreachable')
+       :                 '';
+}
+// BESLEME KESIKKEN ROZET "BILINMIYOR" OLUR (kullanici 2026-11-25: sunucu yeniden
+// baslatilirken pano "Tum sistemler calisiyor" deyip favicon'u YESIL tutuyordu).
+// Sebep: rozet, sekme basligi ve favicon yalnizca BASARILI veriyle yaziliyordu
+// (updateOverall), yani son olcumun renginde donuyordu. Oysa o an pano hicbir
+// sey olcemiyor -- panonun kendi kurali: olculmemis sey olculmus gibi gosterilmez.
+//
+// Renk NOTR GRI, kirmizi/turuncu DEGIL: kesinti sunucuda olabilecegi gibi agda,
+// CSF'de (403) ya da telefonun uyuyan sekmesinde de olabilir; "ariza" demek
+// uydurma olurdu. Ayni yol sekme askiya alininca da calisiyor.
+// Altbilgi turuncu kalir -- orasi "veri akmiyor" diyor, o OLCULMUS bir gercek;
+// rozet "sistemlerin durumu bilinmiyor" diyor. Ikisi farkli sey soyluyor.
+// Geri donus icin ayri kod YOK: ilk basarili tick'te updateOverall rozeti zaten
+// bastan yaziyor.
 function markStale(on){
   const b=document.body,tv=document.getElementById('time-val'),fm=document.getElementById('footer-mode-txt');
   if(!on){b.classList.remove('feed-stale');if(fm)fm.textContent=t('Auto-refresh every 30 seconds');if(tv&&lastGoodTime)tv.textContent=lastGoodTime;return;}
@@ -5875,6 +5906,17 @@ function markStale(on){
   const age=ageShort(Math.max(60,Math.round((Date.now()-lastFetchOk)/1000)));
   if(tv&&lastGoodTime)tv.textContent=lastGoodTime+' · '+tf('%s ago',age);
   if(fm)fm.textContent=tf('Not refreshing — last data %s ago',age);
+  const dot=document.getElementById('hdr-dot'),txt=document.getElementById('hdr-txt'),
+        sh=document.getElementById('hdr-short'),det=document.getElementById('hdr-detail'),
+        st=document.getElementById('hdr-status');
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()||'#64748b';
+  const sebep=downMsg(downKind,lastHttpStatus),yas=tf('last data %s ago',age);
+  if(dot)dot.style.background=col;
+  if(txt)txt.textContent=t('Status unknown');
+  if(sh)sh.textContent=t('Unknown');
+  if(det){det.textContent=sebep?sebep+' · '+yas:yas;det.title=det.textContent;det.style.display='';}
+  if(st)st.classList.add('has-detail');
+  setStatusIcon('var(--muted)','Unknown');   // sekme basligi + favicon da gri
 }
 let lastFetchOk=Date.now();
 
@@ -5966,14 +6008,8 @@ async function tick(){
            :lastFailTimeout?'timeout':'conn';
     if(downKind!==k){
       downKind=k;
-      addLog('err', k==='offline'? t('No internet connection')
-                  : k==='403'   ? t('Access forbidden (403) — IP blocked?')
-                  : k==='401'   ? t('Authentication required (401)')
-                  : k==='404'   ? t('Page not found (404) — install moved?')
-                  : k==='backend'? tf('Server backend not responding (%s)',s)
-                  : k==='http'  ? tf('Server responded with error (%s)',s)
-                  : k==='timeout'? t('Server did not respond (timeout)')
-                  :               t('Server unreachable'),
+      // Metin downMsg'den: rozet de aynisini gosteriyor, iki yerde yazilmasin.
+      addLog('err', downMsg(k,s)||t('Server unreachable'),
              hmsOf(srvClock()),srvClock()); // sunucu yanit vermedi: yurutulen sunucu saati (tarayici saati degil)
     }
     markStale(true);
