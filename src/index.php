@@ -156,8 +156,12 @@ $TR = [
     '%s%% accounts' => 'hesaplar %%%s', '%s%% system' => 'sistem %%%s',
     '%s%% server' => 'sunucu %%%s',
     '%s GB reserved' => '%s GB ayrılmış', '%s pools' => '%s havuz',
-    'PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.'
-        => 'PHP’nin derlenmiş kod önbelleği. Her havuz kendi paylaşımlı bellek segmentini ayırır. Ayrılan toplam, havuzlar açılıp kapandıkça değişir. Tutulan ise gerçekten RAM’de olan kısım: shmem eksi tmpfs — çekirdek shmem’i kaynağına göre ayırmadığı için başka yolu yok.',
+    'PHP compiled-code cache' => 'PHP’nin derlenmiş kod önbelleği',
+    'left figure held, right reserved' => 'soldaki tutulan, sağdaki ayrılan',
+    'held: the part really in RAM (shmem minus tmpfs)'
+        => 'tutulan: gerçekten RAM’de olan kısım (shmem eksi tmpfs)',
+    'reserved: what the live pools set aside, it moves as pools come and go'
+        => 'ayrılan: canlı havuzların ayırdığı toplam, havuzlar açılıp kapandıkça oynar',
     'Shared memory: OPcache segments, tmpfs and /dev/shm. It cannot be reclaimed and counts as used RAM — freeing it needs the processes to restart.'
         => 'Paylaşımlı bellek: OPcache segmentleri, tmpfs ve /dev/shm. Geri kazanılamaz ve “kullanılan” RAM’e dahildir — boşalması için süreçlerin yeniden başlaması gerekir.',
     'Right now %s GB of it is tmpfs, the rest is mostly OPcache.'
@@ -1936,8 +1940,20 @@ if ($opcN > 0 && $opcCapMB > 0) {
     $opcNote   = tf('%s pools', $opcN) . ' · ' . ($opcHeldGB !== null
                ? number_format($opcHeldGB, 1, '.', '') . '/' . number_format($opcCapGB, 1, '.', '') . ' GB'
                : tf('%s GB reserved', number_format($opcCapGB, 1, '.', '')));
+    // IPUCU DA REDIS SATIRIYLA AYNI DILBILGISINDE: tek paragraf degil, ' · '
+    // ile ayrilmis KISA parcalar. Uretimde goruldu (2026-11-25): paragraf
+    // hali dogruydu ama "1.2/3.1" ifadesinin tutulan/ayrilan oldugunu
+    // anlamak icin bastan sona okumak gerekiyordu. Ilk parca artik sayilari
+    // okutuyor, gerekcesi arkadan geliyor. Sayilar ipucunda TEKRARLANMIYOR
+    // (Redis'teki kuralin aynisi), yalnizca ADLANDIRILIYOR.
+    $opcTips = [t('PHP compiled-code cache')];
+    if ($opcHeldGB !== null) {
+        $opcTips[] = t('left figure held, right reserved');
+        $opcTips[] = t('held: the part really in RAM (shmem minus tmpfs)');
+    }
+    $opcTips[] = t('reserved: what the live pools set aside, it moves as pools come and go');
     $cacheChecks[] = ['label' => 'OPcache', 'type' => 'check', 'ok' => true, 'note' => $opcNote,
-                      'noteT' => t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.')]
+                      'noteT' => implode(' · ', $opcTips)]
                    + ($opcHeldGB !== null
                       ? ['fill' => min(100, (int)round($opcHeldGB / $opcCapGB * 100))] : []);
 }

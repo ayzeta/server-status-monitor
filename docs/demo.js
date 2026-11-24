@@ -76,7 +76,9 @@
          tf('%s accounts in use, %s non-empty databases',150,170)+' · '+
          tf('%s of %s ceiling','1.1 GB','11.3 GB'), 10),
       ck('OPcache', tf('%s pools',286)+' · 19.4/35.8 GB', 0, 0,
-         t('PHP compiled-code cache. Each pool reserves its own shared-memory segment. The reserved total moves as pools come and go. The held figure is physical RAM: shmem minus tmpfs, because the kernel does not break shmem down by source.'),
+         [t('PHP compiled-code cache'), t('left figure held, right reserved'),
+          t('held: the part really in RAM (shmem minus tmpfs)'),
+          t('reserved: what the live pools set aside, it moves as pools come and go')].join(' · '),
          54)]},
     ftp:  {status:'operational',ok:2,total:2,checks:[
       ck('FTP service','running · listening','1.0.52',259200), ck('Kernel state','port bound')]}
