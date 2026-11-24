@@ -13,6 +13,19 @@
   var P = new URLSearchParams(location.search);
   var SNAP = P.get('snap');                 // null | calm | issues | recovery
   if (P.get('theme')) document.documentElement.setAttribute('data-theme', P.get('theme'));
+  // DONMUS KAREDE GECIS OLMAZ. Urunun tema gecisi 0,3 s suruyor (body'de
+  // transition:background) ve ekran goruntusu alma ani onunla YARISIYORDU:
+  // ayni komut 2026-11-25'te olculdu -- dark-issues bir kosumda koyu
+  // (16,14,27), bir digerinde tamamen acik (238,241,248); dark-recovery ise
+  // yari yolda gri (135,135,145, depodaki 20 Kasim karesi). Gorseller bu
+  // yuzden sessizce yanlis temada commit'lenebiliyordu. ?snap= ya da ?theme=
+  // varsa (yalniz ekran goruntusu/GIF yolu) butun gecisler kapatilir.
+  if (SNAP || P.get('theme')) {
+    var donStil = document.createElement('style');
+    donStil.textContent = '*,*::before,*::after{transition:none !important;'
+                        + 'animation:none !important;}';
+    (document.head || document.documentElement).appendChild(donStil);
+  }
 
   var CORES = 12, TICK_MS = 2600, STEP = 60;
   // Mail kuyrugu esik tabani: urundeki $mqBase ile AYNI formul —
